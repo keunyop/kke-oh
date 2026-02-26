@@ -1,0 +1,16 @@
+{
+  "id": "bombwave",
+  "title": "Bomb Wave",
+  "description": "폭탄 피하기 행성 게임",
+  "status": "PUBLIC",
+  "is_hidden": false,
+  "hidden_reason": null,
+  "report_count": 1,
+  "allowlist_violation": false,
+  "plays_7d": 1,
+  "plays_30d": 1,
+  "entry_path": "index.html",
+  "thumbnail_path": "thumbnail.png",
+  "created_at": "2026-02-26T04:33:17.354Z",
+  "updated_at": "2026-02-26T04:33:46.425Z"
+}

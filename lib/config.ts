@@ -1,21 +1,24 @@
-const required = [
-  'SUPABASE_URL',
-  'SUPABASE_ANON_KEY',
-  'SUPABASE_SERVICE_ROLE_KEY',
-  'R2_ACCESS_KEY_ID',
-  'R2_SECRET_ACCESS_KEY',
-  'R2_BUCKET',
-  'R2_ENDPOINT',
-  'TURNSTILE_SECRET_KEY',
-  'ADMIN_SECRET'
-] as const;
+import path from 'node:path';
 
-export function getEnv(name: (typeof required)[number]): string {
+export function getEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
     throw new Error(`Missing environment variable: ${name}`);
   }
   return value;
+}
+
+export function getOptionalEnv(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value ? value : undefined;
+}
+
+export function getGameDataDriver(): string {
+  return getOptionalEnv('GAME_DATA_DRIVER') ?? 'filesystem';
+}
+
+export function getGameStorageDir(): string {
+  return getOptionalEnv('GAME_STORAGE_DIR') ?? path.join(process.cwd(), 'data', 'games');
 }
 
 export const ALLOWED_EXTENSIONS = new Set([

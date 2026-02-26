@@ -1,25 +1,18 @@
-# kke-oh (께오)
+# kke-oh (MVP: Filesystem Mode)
 
-Kid-friendly HTML game hosting platform built with **Next.js App Router + TypeScript**, **Supabase Postgres**, **Cloudflare R2**, and **Cloudflare Turnstile**.
+This MVP serves games from local/server filesystem only.
 
-## Features in V1
+- No database
+- No object storage
+- No public upload flow
+- One developer-managed content pipeline
 
-- Upload game as ZIP (max 50MB) with server-side extraction and entry file selection.
-- Upload game by pasting HTML.
-- Store game assets in Cloudflare R2 under `games/{gameId}/...`.
-- Turnstile anti-spam verification.
-- Upload rate limits by hashed IP:
-  - 1 upload / 10 minutes
-  - 3 uploads / day
-- Hashes email and IP using SHA256 before persistence.
-- CDN allowlist scanner over HTML/JS; violations auto-hide uploads.
-- Homepage gate logic with popularity score:
-  - `score = plays_7d + 0.2 * plays_30d`
-- Sandboxed game player iframe and report button.
-- Auto-hide when reports reach 2.
-- Admin panel protected by `ADMIN_SECRET` header or secure cookie.
+## Why this structure
 
-## Required Environment Variables
+The code now uses a storage abstraction (`GameRepository` / `GameAssetStore`) with a `filesystem` adapter.
+When MVP is validated, you can add a new adapter (e.g. Supabase + R2) without rewriting pages/routes.
+
+## Environment
 
 Copy `.env.example` to `.env.local`:
 
@@ -27,70 +20,62 @@ Copy `.env.example` to `.env.local`:
 cp .env.example .env.local
 ```
 
-Set:
+Variables:
 
 ```env
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_BUCKET=
-R2_ENDPOINT=
-
-TURNSTILE_SITE_KEY=
-TURNSTILE_SECRET_KEY=
-
-ADMIN_SECRET=
-
-# Needed by UI/runtime
-NEXT_PUBLIC_TURNSTILE_SITE_KEY=
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+ADMIN_SECRET=change-this-secret
+GAME_DATA_DRIVER=filesystem
+GAME_STORAGE_DIR=./data/games
 ```
 
-## Local Setup
+## Game file layout
 
-1. Install deps:
+Create one folder per game:
+
+```text
+data/games/<game-id>/
+  game.json
+  index.html
+  ...assets
+```
+
+Minimal `game.json`:
+
+```json
+{
+  "id": "my-game",
+  "title": "My Game",
+  "description": "Short description",
+  "entry_path": "index.html"
+}
+```
+
+Optional fields are documented in `data/games/README.md`.
+
+## Local setup
+
+1. Install dependencies
    ```bash
    npm install
    ```
-2. Run Supabase migration (SQL in `supabase/migrations/202602230001_init.sql`) using Supabase SQL editor or CLI.
-3. Start dev server:
+2. Run dev server
    ```bash
    npm run dev
    ```
-4. Open:
+3. Open
    - Home: `http://localhost:3000/`
-   - Submit: `http://localhost:3000/submit`
+   - Game: `http://localhost:3000/game/<game-id>`
    - Admin: `http://localhost:3000/admin`
 
-## API Endpoints
+## Current MVP behavior
 
-- `POST /api/upload/zip-inspect`
-- `POST /api/upload/confirm`
-- `POST /api/upload/paste`
-- `POST /api/games/:id/play`
-- `POST /api/games/:id/report`
-- `POST /api/admin/auth`
-- `GET /api/admin/games`
-- `POST /api/admin/games/:id/hide`
-- `POST /api/admin/games/:id/unhide`
-- `POST /api/admin/games/:id/delete`
-- `POST /api/admin/blocklist`
+- Home lists public, non-hidden local games.
+- Game assets are served by:
+  - `GET /api/games/:id/assets/:path`
+- Play/report counters are persisted into each game's `game.json`.
+- Admin can hide/unhide/remove games (also via `game.json` updates).
 
-## Deployment Notes
+## Notes for post-MVP expansion
 
-- Deploy Next.js app to Vercel (or Node host).
-- Provide all env vars in deployment settings.
-- Ensure R2 bucket has public-read policy for hosted game files.
-- Point `NEXT_PUBLIC_APP_URL` to your deployed origin.
-- Keep `ADMIN_SECRET` strong and rotate periodically.
-- Prefer route-level firewall/rate-limiting at edge in addition to app-layer checks.
-
-## Security Notes
-
-- No Supabase Auth in V1. Admin control is secret-based only.
-- Game pages use a sandboxed iframe and CSP to reduce external script/connect scope.
-- External URLs in uploaded HTML/JS are scanned; non-allowlisted domains trigger auto-hide.
-
+Keep application logic against repository interfaces in `lib/games/repository.ts`.
+Add a new provider under `lib/games/providers/` and switch wiring in the repository factory.

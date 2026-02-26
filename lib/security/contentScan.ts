@@ -15,11 +15,11 @@ export function detectAllowlistViolation(contents: string[]): boolean {
   return false;
 }
 
-export function getGamePageCsp(baseR2: string): string {
+export function getGamePageCsp(): string {
   const hosts = Array.from(CDN_ALLOWLIST).map((h) => `https://${h}`);
   return [
     "default-src 'self'",
-    `frame-src 'self' ${baseR2}`,
+    "frame-src 'self'",
     `script-src 'self' 'unsafe-inline' ${hosts.join(' ')}`,
     `connect-src 'self' ${hosts.join(' ')}`,
     `img-src 'self' data: blob: ${hosts.join(' ')}`,

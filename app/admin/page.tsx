@@ -1,54 +1,46 @@
 import { isAdminAuthorized } from '@/lib/security/admin';
+import { getGameRepository } from '@/lib/games/repository';
+import { revalidatePath } from 'next/cache';
 
-async function call(path: string) {
+async function hideGame(id: string) {
   'use server';
-  await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ''}${path}`, { method: 'POST' });
+  await getGameRepository().hide(id, 'Hidden by admin');
+  revalidatePath('/admin');
 }
 
-async function addBlocklist(formData: FormData) {
+async function unhideGame(id: string) {
   'use server';
-  await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/admin/blocklist`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      type: formData.get('type'),
-      valueHashOrValue: formData.get('valueHashOrValue'),
-      reason: formData.get('reason')
-    })
-  });
+  await getGameRepository().unhide(id);
+  revalidatePath('/admin');
+}
+
+async function removeGame(id: string) {
+  'use server';
+  await getGameRepository().remove(id);
+  revalidatePath('/admin');
 }
 
 export default async function AdminPage() {
   if (!isAdminAuthorized()) {
+    const adminSecretConfigured = Boolean(process.env.ADMIN_SECRET?.trim());
+
     return (
       <form className="card" method="post" action="/api/admin/auth">
         <h2>Admin Login</h2>
         <input name="secret" type="password" placeholder="ADMIN_SECRET" required />
         <button type="submit">Unlock admin</button>
+        {!adminSecretConfigured ? (
+          <p className="small">ADMIN_SECRET is not configured. Set it in .env.local first.</p>
+        ) : null}
       </form>
     );
   }
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/admin/games`, { cache: 'no-store' });
-  const json = await res.json();
-  const games = json.games ?? [];
+  const games = await getGameRepository().listForAdmin(200);
 
   return (
     <section>
       <h1>Admin Panel</h1>
-      <form className="card" action={addBlocklist}>
-        <h3>Add to blocklist</h3>
-        <div className="inline">
-          <select name="type" defaultValue="EMAIL">
-            <option value="EMAIL">EMAIL</option>
-            <option value="IP">IP</option>
-          </select>
-          <input name="valueHashOrValue" placeholder="hashed email or hashed ip" required />
-        </div>
-        <input name="reason" placeholder="Reason" />
-        <button type="submit">Add blocklist entry</button>
-      </form>
-
       <div className="card" style={{ overflowX: 'auto' }}>
         <table>
           <thead>
@@ -57,7 +49,7 @@ export default async function AdminPage() {
             </tr>
           </thead>
           <tbody>
-            {games.map((game: any) => (
+            {games.map((game) => (
               <tr key={game.id}>
                 <td>{game.title}</td>
                 <td>{game.status}</td>
@@ -66,9 +58,9 @@ export default async function AdminPage() {
                 <td>{new Date(game.created_at).toLocaleString()}</td>
                 <td>
                   <div className="inline">
-                    <form action={call.bind(null, `/api/admin/games/${game.id}/hide`)}><button type="submit">Hide</button></form>
-                    <form action={call.bind(null, `/api/admin/games/${game.id}/unhide`)}><button type="submit">Unhide</button></form>
-                    <form action={call.bind(null, `/api/admin/games/${game.id}/delete`)}><button type="submit">Delete</button></form>
+                    <form action={hideGame.bind(null, game.id)}><button type="submit">Hide</button></form>
+                    <form action={unhideGame.bind(null, game.id)}><button type="submit">Unhide</button></form>
+                    <form action={removeGame.bind(null, game.id)}><button type="submit">Delete</button></form>
                   </div>
                 </td>
               </tr>
