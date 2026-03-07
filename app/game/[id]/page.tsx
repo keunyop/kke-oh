@@ -10,7 +10,7 @@ async function reportGame(id: string) {
 export default async function GamePage({ params }: { params: { id: string } }) {
   const game = await getGameRepository().getById(params.id);
 
-  if (!game || game.status !== 'PUBLIC' || game.is_hidden || game.allowlist_violation) {
+  if (!game || game.status !== 'PUBLIC' || game.is_hidden) {
     return <p>This game is unavailable.</p>;
   }
 

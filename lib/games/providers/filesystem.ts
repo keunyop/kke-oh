@@ -124,7 +124,6 @@ export class FilesystemGameRepository extends FilesystemGameStoreBase implements
       (game) =>
         game.status === 'PUBLIC' &&
         !game.is_hidden &&
-        !game.allowlist_violation &&
         game.report_count < 2
     );
   }

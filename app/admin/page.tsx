@@ -45,7 +45,7 @@ export default async function AdminPage() {
         <table>
           <thead>
             <tr>
-              <th>Title</th><th>Status</th><th>Hidden</th><th>Reports</th><th>Created</th><th>Actions</th>
+              <th>Title</th><th>Status</th><th>Hidden</th><th>CDN Flag</th><th>Reports</th><th>Created</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -54,6 +54,7 @@ export default async function AdminPage() {
                 <td>{game.title}</td>
                 <td>{game.status}</td>
                 <td>{String(game.is_hidden)}</td>
+                <td>{String(game.allowlist_violation)}</td>
                 <td>{game.report_count}</td>
                 <td>{new Date(game.created_at).toLocaleString()}</td>
                 <td>

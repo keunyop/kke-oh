@@ -4,7 +4,7 @@ This MVP serves games from local/server filesystem only.
 
 - No database
 - No object storage
-- No public upload flow
+- Public ZIP upload flow writes into the local filesystem
 - One developer-managed content pipeline
 
 ## Why this structure
@@ -30,7 +30,7 @@ GAME_STORAGE_DIR=./data/games
 
 ## Game file layout
 
-Create one folder per game:
+Uploaded games are saved into the same on-disk layout. You can also create one manually:
 
 ```text
 data/games/<game-id>/
@@ -70,6 +70,7 @@ Optional fields are documented in `data/games/README.md`.
 ## Current MVP behavior
 
 - Home lists public, non-hidden local games.
+- Users can upload HTML games from `/submit` as a ZIP archive.
 - Game assets are served by:
   - `GET /api/games/:id/assets/:path`
 - Play/report counters are persisted into each game's `game.json`.

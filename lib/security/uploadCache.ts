@@ -8,6 +8,8 @@ type UploadInspection = {
   files: CachedFile[];
   htmlFiles: string[];
   allowlistViolation: boolean;
+  entryPath: string;
+  thumbnailCandidates: string[];
   createdAt: number;
 };
 
