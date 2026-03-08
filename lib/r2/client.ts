@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getEnv } from '@/lib/config';
 
 const client = new S3Client({
@@ -20,6 +20,26 @@ export async function uploadToR2(key: string, body: Buffer, contentType: string)
     })
   );
   return `${getEnv('R2_ENDPOINT').replace(/\/$/, '')}/${getEnv('R2_BUCKET')}/${key}`;
+}
+
+export async function readFromR2(key: string): Promise<Buffer | null> {
+  try {
+    const response = await client.send(
+      new GetObjectCommand({
+        Bucket: getEnv('R2_BUCKET'),
+        Key: key
+      })
+    );
+
+    if (!response.Body) {
+      return null;
+    }
+
+    const bytes = await response.Body.transformToByteArray();
+    return Buffer.from(bytes);
+  } catch {
+    return null;
+  }
 }
 
 export function getPublicR2BaseUrl(): string {

@@ -2,6 +2,8 @@ import { isAdminAuthorized } from '@/lib/security/admin';
 import { getGameRepository } from '@/lib/games/repository';
 import { revalidatePath } from 'next/cache';
 
+export const dynamic = 'force-dynamic';
+
 async function hideGame(id: string) {
   'use server';
   await getGameRepository().hide(id, 'Hidden by admin');

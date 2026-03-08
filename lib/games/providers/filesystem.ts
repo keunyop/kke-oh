@@ -52,6 +52,7 @@ function normalizeGameRecord(id: string, raw: unknown): GameRecord | null {
     status: data.status === 'REMOVED' ? 'REMOVED' : 'PUBLIC',
     is_hidden: Boolean(data.is_hidden),
     hidden_reason: typeof data.hidden_reason === 'string' ? data.hidden_reason : null,
+    storage_prefix: typeof data.storage_prefix === 'string' ? data.storage_prefix : rawId,
     report_count: typeof data.report_count === 'number' ? data.report_count : 0,
     allowlist_violation: Boolean(data.allowlist_violation),
     plays_7d: typeof data.plays_7d === 'number' ? data.plays_7d : 0,

@@ -7,6 +7,7 @@ export type GameRecord = {
   status: GameStatus;
   is_hidden: boolean;
   hidden_reason: string | null;
+  storage_prefix: string;
   report_count: number;
   allowlist_violation: boolean;
   plays_7d: number;

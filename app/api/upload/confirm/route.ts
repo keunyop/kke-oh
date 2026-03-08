@@ -1,8 +1,10 @@
 import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getGameStorageDir } from '@/lib/config';
-import { allocateGameId, writeUploadedGame } from '@/lib/games/upload';
+import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
+import { allocateGameId, writeUploadedGame, writeUploadedGameToSupabase } from '@/lib/games/upload';
+import { sha256 } from '@/lib/security/hash';
+import { getRequestIp } from '@/lib/security/ip';
 import { consumeInspection } from '@/lib/security/uploadCache';
 
 const submitSchema = z.object({
@@ -20,16 +22,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Upload session expired. Please upload the ZIP again.' }, { status: 410 });
     }
 
-    const storageDir = getGameStorageDir();
+    const driver = getGameDataDriver();
+    const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
     const gameId = await allocateGameId(storageDir, body.title);
 
-    await writeUploadedGame({
-      storageDir,
-      id: gameId,
-      title: body.title,
-      description: body.description,
-      inspection
-    });
+    if (driver === 'supabase') {
+      const uploaderIpHash = sha256(getRequestIp());
+      const uploaderEmailHash = sha256('');
+
+      await writeUploadedGameToSupabase({
+        id: gameId,
+        title: body.title,
+        description: body.description,
+        inspection,
+        uploaderEmailHash,
+        uploaderIpHash
+      });
+    } else {
+      await writeUploadedGame({
+        storageDir: storageDir as string,
+        id: gameId,
+        title: body.title,
+        description: body.description,
+        inspection
+      });
+    }
 
     revalidatePath('/');
     revalidatePath('/admin');

@@ -1,28 +1,49 @@
+import { GameCard } from '@/components/site/game-card';
+import { createDiscoveryGames, filterDiscoveryGames } from '@/lib/games/discovery';
 import { getGameRepository } from '@/lib/games/repository';
-import { getGameAssetUrl } from '@/lib/games/urls';
 
-export default async function HomePage() {
-  const games = (await getGameRepository().listPublic())
-    .map((g) => ({ ...g, score: (g.plays_7d ?? 0) + 0.2 * (g.plays_30d ?? 0) }))
-    .sort((a, b) => b.score - a.score);
+export const dynamic = 'force-dynamic';
+
+type HomePageProps = {
+  searchParams?: {
+    q?: string;
+  };
+};
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const allGames = await getGameRepository().listPublic();
+  const discoveryGames = createDiscoveryGames(allGames).sort((left, right) => right.score - left.score);
+  const query = searchParams?.q ?? '';
+  const visibleGames = filterDiscoveryGames(discoveryGames, query, 'all');
 
   return (
-    <section>
-      <h1>Local games</h1>
-      <p className="small">MVP mode: serving only developer-managed local game files.</p>
-      <div className="grid">
-        {games.map((game) => (
-          <a className="card" key={game.id} href={`/game/${game.id}`}>
-            <h3>{game.title}</h3>
-            {game.thumbnail_path ? (
-              <img src={getGameAssetUrl(game.id, game.thumbnail_path)} alt={game.title} style={{ width: '100%', borderRadius: 8 }} />
-            ) : null}
-            <p>{game.description}</p>
-            <p className="small">Score: {game.score.toFixed(1)}</p>
+    <section className="mvp-home">
+      {visibleGames.length ? (
+        <div className="game-grid" role="list">
+          {visibleGames.map((game) => (
+            <div key={game.id} role="listitem">
+              <GameCard
+                id={game.id}
+                title={game.title}
+                description={game.description}
+                href={game.href}
+                imageUrl={game.imageUrl}
+                badge={game.badge}
+                makerLabel={undefined}
+                meta={game.meta}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <section className="empty-state-card">
+          <h2>No games found.</h2>
+          <p>Try another search or upload a new game.</p>
+          <a href="/submit" className="button-primary">
+            Upload First Game
           </a>
-        ))}
-      </div>
-      {!games.length ? <p>No local games found. Add one under data/games/&lt;game-id&gt;.</p> : null}
+        </section>
+      )}
     </section>
   );
 }

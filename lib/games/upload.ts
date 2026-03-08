@@ -3,6 +3,8 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import JSZip from 'jszip';
 import { ALLOWED_EXTENSIONS } from '@/lib/config';
+import { createServiceClient } from '@/lib/db/supabase';
+import { uploadToR2 } from '@/lib/r2/client';
 import { detectAllowlistViolation } from '@/lib/security/contentScan';
 
 const MAX_ARCHIVE_BYTES = 15 * 1024 * 1024;
@@ -136,7 +138,11 @@ export async function inspectZipUpload(file: File): Promise<ZipInspection> {
   };
 }
 
-export async function allocateGameId(storageDir: string, title: string): Promise<string> {
+export async function allocateGameId(storageDir: string | null, title: string): Promise<string> {
+  if (!storageDir) {
+    return crypto.randomUUID();
+  }
+
   const base = slugify(title) || `game-${crypto.randomUUID().slice(0, 8)}`;
 
   for (let index = 0; index < 100; index += 1) {
@@ -179,6 +185,7 @@ export async function writeUploadedGame(options: {
     status: 'PUBLIC' as const,
     is_hidden: false,
     hidden_reason: null,
+    storage_prefix: options.id,
     report_count: 0,
     allowlist_violation: options.inspection.allowlistViolation,
     plays_7d: 0,
@@ -194,4 +201,59 @@ export async function writeUploadedGame(options: {
     `${JSON.stringify(gameRecord, null, 2)}\n`,
     'utf8'
   );
+}
+
+export async function writeUploadedGameToSupabase(options: {
+  id: string;
+  title: string;
+  description: string;
+  inspection: ZipInspection;
+  uploaderEmailHash: string;
+  uploaderIpHash: string;
+}): Promise<void> {
+  const storagePrefix = options.id;
+
+  for (const file of options.inspection.files) {
+    await uploadToR2(`${storagePrefix}/${file.path}`, file.content, file.contentType);
+  }
+
+  const preferredThumbnail = options.inspection.thumbnailCandidates.find((candidate) =>
+    /(^|\/)thumbnail\.(png|jpg|jpeg|webp|gif)$/i.test(candidate)
+  );
+
+  const supabase = createServiceClient();
+  const now = new Date().toISOString();
+  const { error } = await supabase.from('games').insert({
+    id: options.id,
+    title: options.title,
+    description: options.description,
+    status: 'PUBLIC',
+    is_hidden: false,
+    hidden_reason: null,
+    storage_prefix: storagePrefix,
+    entry_path: options.inspection.entryPath,
+    thumbnail_url: preferredThumbnail ?? options.inspection.thumbnailCandidates[0] ?? null,
+    uploader_email_hash: options.uploaderEmailHash,
+    uploader_ip_hash: options.uploaderIpHash,
+    allowlist_violation: options.inspection.allowlistViolation,
+    report_count: 0,
+    plays_total: 0,
+    plays_7d: 0,
+    plays_30d: 0,
+    created_at: now,
+    updated_at: now
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  await supabase.from('upload_events').insert({
+    game_id: options.id,
+    uploader_email_hash: options.uploaderEmailHash,
+    uploader_ip_hash: options.uploaderIpHash,
+    risk_score: options.inspection.allowlistViolation ? 50 : 0,
+    action: 'ALLOW',
+    created_at: now
+  });
 }

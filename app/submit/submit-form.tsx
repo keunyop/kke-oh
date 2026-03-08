@@ -33,17 +33,17 @@ export default function SubmitForm() {
 
   function validateForm() {
     if (!title.trim()) {
-      setError('게임 제목을 입력해 주세요.');
+      setError('Add a game title before uploading.');
       return false;
     }
 
     if (description.trim().length < 10) {
-      setError('설명은 10자 이상 입력해 주세요.');
+      setError('Write a short description with at least 10 characters.');
       return false;
     }
 
     if (!file) {
-      setError('ZIP 파일을 선택해 주세요.');
+      setError('Choose a ZIP file to continue.');
       return false;
     }
 
@@ -70,14 +70,14 @@ export default function SubmitForm() {
 
       const data = (await response.json()) as InspectResponse | ErrorResponse;
       if (!response.ok || !('inspectionId' in data)) {
-        throw new Error(('error' in data ? data.error : undefined) ?? 'ZIP 검사에 실패했습니다.');
+        throw new Error(('error' in data ? data.error : undefined) ?? 'Could not inspect the ZIP file.');
       }
 
       setInspectResult(data);
       return data;
     } catch (cause) {
       setInspectResult(null);
-      setError(cause instanceof Error ? cause.message : 'ZIP 검사 중 오류가 발생했습니다.');
+      setError(cause instanceof Error ? cause.message : 'Something went wrong while inspecting the ZIP file.');
       return null;
     } finally {
       setIsInspecting(false);
@@ -121,7 +121,6 @@ export default function SubmitForm() {
 
       let { response, data } = await requestPublish(inspection.inspectionId);
 
-      // Dev server reloads can clear the in-memory upload cache. Re-run inspection once and retry.
       if (response.status === 410) {
         inspection = await runZipInspection();
         if (!inspection) {
@@ -131,7 +130,7 @@ export default function SubmitForm() {
       }
 
       if (!response.ok || !('ok' in data)) {
-        throw new Error(('error' in data ? data.error : undefined) ?? '게임 게시에 실패했습니다.');
+        throw new Error(('error' in data ? data.error : undefined) ?? 'Could not publish the game.');
       }
 
       setSuccess(data);
@@ -142,7 +141,7 @@ export default function SubmitForm() {
       const input = document.getElementById('zip-upload') as HTMLInputElement | null;
       if (input) input.value = '';
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '게임 게시 중 오류가 발생했습니다.');
+      setError(cause instanceof Error ? cause.message : 'Something went wrong while publishing the game.');
     } finally {
       setIsPublishing(false);
     }
@@ -168,15 +167,20 @@ export default function SubmitForm() {
 
   return (
     <div className="submit-layout">
-      <div className="card">
-        <h1>게임 올리기</h1>
-        <p className="small">HTML 게임을 ZIP으로 압축해서 업로드하면 사이트에 바로 공개됩니다.</p>
-        <label>
-          게임 제목
+      <div className="panel-card panel-card-form">
+        <div className="panel-card-head">
+          <span className="pill-label">Maker upload</span>
+          <h2>Bring your HTML game to life.</h2>
+          <p>Upload one ZIP package with your web game files and a clear description so players know what to expect.</p>
+        </div>
+
+        <label className="field-label">
+          Game title
           <input value={title} onChange={(event) => handleTitleChange(event.target.value)} maxLength={80} required />
         </label>
-        <label>
-          설명
+
+        <label className="field-label">
+          Description
           <textarea
             value={description}
             onChange={(event) => handleDescriptionChange(event.target.value)}
@@ -185,8 +189,9 @@ export default function SubmitForm() {
             required
           />
         </label>
-        <label>
-          ZIP 파일
+
+        <label className="field-label">
+          ZIP file
           <input
             id="zip-upload"
             type="file"
@@ -195,49 +200,60 @@ export default function SubmitForm() {
             required
           />
         </label>
-        <div className="inline">
-          <button type="button" className="secondary" onClick={inspectZip} disabled={isInspecting || isPublishing}>
-            {isInspecting ? '검사 중...' : 'ZIP 검사'}
+
+        <div className="button-row">
+          <button type="button" className="button-secondary button-fill" onClick={inspectZip} disabled={isInspecting || isPublishing}>
+            {isInspecting ? 'Checking ZIP...' : 'Inspect ZIP'}
           </button>
-          <button type="button" onClick={publishGame} disabled={isInspecting || isPublishing}>
-            {isPublishing ? '게시 중...' : '게임 게시'}
+          <button type="button" className="button-primary button-fill" onClick={publishGame} disabled={isInspecting || isPublishing}>
+            {isPublishing ? 'Publishing...' : 'Publish Game'}
           </button>
         </div>
+
         {error ? <p className="error-text">{error}</p> : null}
+
         {success ? (
-          <div className="status-card success">
-            <p>업로드가 완료되었습니다.</p>
-            <p className="small">
-              공개 주소: <a href={success.gameUrl}>{success.gameUrl}</a>
+          <div className="status-card status-success">
+            <p className="status-title">Your game is live.</p>
+            <p className="small-copy">
+              Public link: <a href={success.gameUrl}>{success.gameUrl}</a>
             </p>
             {success.flagged ? (
-              <p className="small">외부 URL이 감지되어 관리자 검토 대상에 표시됩니다.</p>
+              <p className="small-copy">An external URL was flagged for review, but the upload completed successfully.</p>
             ) : null}
           </div>
         ) : null}
       </div>
 
-      <div className="card">
-        <h2>업로드 규칙</h2>
-        <ul className="upload-rules">
-          <li>`index.html`을 포함한 HTML 게임 ZIP만 허용됩니다.</li>
-          <li>허용 확장자: html, css, js, png, jpg, webp, gif, svg, mp3, ogg, wav, json, txt, wasm</li>
-          <li>ZIP 최대 15MB, 파일 개수 최대 200개입니다.</li>
-          <li>업로드 후 바로 목록과 게임 페이지에 반영됩니다.</li>
-        </ul>
-        {inspectResult ? (
-          <div className="status-card">
-            <p>검사 완료</p>
-            <p className="small">실행 파일: {inspectResult.entryPath}</p>
-            <p className="small">HTML 파일 수: {inspectResult.htmlFiles.length}</p>
-            <p className="small">썸네일 후보 수: {inspectResult.thumbnailCandidates.length}</p>
-            {inspectResult.allowlistViolation ? (
-              <p className="small">허용 목록 밖의 외부 URL이 감지되었습니다. 업로드는 가능하지만 운영자가 확인할 수 있습니다.</p>
-            ) : (
-              <p className="small">외부 URL 문제는 감지되지 않았습니다.</p>
-            )}
-          </div>
-        ) : null}
+      <div className="submit-side">
+        <div className="panel-card">
+          <h3>Upload rules</h3>
+          <ul className="upload-rules">
+            <li>Your ZIP must include an `index.html` file.</li>
+            <li>Allowed files: html, css, js, png, jpg, webp, gif, svg, mp3, ogg, wav, json, txt, wasm.</li>
+            <li>ZIP files can be up to 15 MB with up to 200 files inside.</li>
+            <li>Approved uploads appear in the library right away.</li>
+          </ul>
+        </div>
+
+        <div className="panel-card">
+          <h3>Safety check</h3>
+          {inspectResult ? (
+            <div className="status-card">
+              <p className="status-title">ZIP inspection complete</p>
+              <p className="small-copy">Entry file: {inspectResult.entryPath}</p>
+              <p className="small-copy">HTML files: {inspectResult.htmlFiles.length}</p>
+              <p className="small-copy">Thumbnail candidates: {inspectResult.thumbnailCandidates.length}</p>
+              {inspectResult.allowlistViolation ? (
+                <p className="small-copy">One or more external URLs need review before the game can stay in the library.</p>
+              ) : (
+                <p className="small-copy">No external URL issues were detected.</p>
+              )}
+            </div>
+          ) : (
+            <p className="small-copy">Run an inspection to preview entry files, thumbnails, and basic safety signals before publishing.</p>
+          )}
+        </div>
       </div>
     </div>
   );

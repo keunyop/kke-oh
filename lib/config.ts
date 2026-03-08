@@ -14,7 +14,7 @@ export function getOptionalEnv(name: string): string | undefined {
 }
 
 export function getGameDataDriver(): string {
-  return getOptionalEnv('GAME_DATA_DRIVER') ?? 'filesystem';
+  return getOptionalEnv('GAME_DATA_DRIVER') ?? (process.env.SUPABASE_URL && process.env.R2_ENDPOINT ? 'supabase' : 'filesystem');
 }
 
 export function getGameStorageDir(): string {

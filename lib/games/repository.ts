@@ -1,5 +1,6 @@
 import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
 import { FilesystemGameAssetStore, FilesystemGameRepository } from '@/lib/games/providers/filesystem';
+import { SupabaseGameAssetStore, SupabaseGameRepository } from '@/lib/games/providers/supabase';
 import type { GameRecord, StoredAsset } from '@/lib/games/types';
 
 export type ReportResult = {
@@ -30,12 +31,17 @@ function initialize() {
   if (repository && assetStore) return;
 
   const driver = getGameDataDriver();
-  const storageDir = getGameStorageDir();
+  if (driver === 'supabase') {
+    repository = new SupabaseGameRepository();
+    assetStore = new SupabaseGameAssetStore();
+    return;
+  }
 
   if (driver !== 'filesystem') {
     throw new Error(`Unsupported GAME_DATA_DRIVER: ${driver}`);
   }
 
+  const storageDir = getGameStorageDir();
   repository = new FilesystemGameRepository(storageDir);
   assetStore = new FilesystemGameAssetStore(storageDir);
 }

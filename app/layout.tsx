@@ -1,23 +1,21 @@
 import type { Metadata } from 'next';
+import { Navbar } from '@/components/site/navbar';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'kke-oh (께오)',
-  description: 'Kid-friendly HTML game hosting platform'
+  title: 'KKE-OH!',
+  description: 'An easy place for kids to upload and play HTML games.'
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <header className="topbar">
-          <a href="/" className="brand">께오 kke-oh</a>
-          <nav>
-            <a href="/submit">Submit</a>
-            <a href="/admin">Admin</a>
-          </nav>
-        </header>
-        <main className="container">{children}</main>
+        <div className="site-shell">
+          <div className="site-backdrop" aria-hidden="true" />
+          <Navbar />
+          <main className="page-shell">{children}</main>
+        </div>
       </body>
     </html>
   );
