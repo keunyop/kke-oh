@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { createServiceClient } from '@/lib/db/supabase';
-import type { GameAssetStore, GameRepository, ReportResult } from '@/lib/games/repository';
+import type { GameAssetStore, GameReaction, GameRepository, ReactionResult, ReportResult } from '@/lib/games/repository';
 import type { GameRecord, StoredAsset } from '@/lib/games/types';
 import { readFromR2 } from '@/lib/r2/client';
 
@@ -16,11 +16,21 @@ type GameRow = {
   thumbnail_url: string | null;
   allowlist_violation: boolean;
   report_count: number;
+  like_count?: number | null;
+  dislike_count?: number | null;
   plays_7d: number;
   plays_30d: number;
   created_at: string;
   updated_at: string;
 };
+
+const BASE_GAME_SELECT =
+  'id,title,description,status,is_hidden,hidden_reason,storage_prefix,entry_path,thumbnail_url,allowlist_violation,report_count,plays_7d,plays_30d,created_at,updated_at';
+const REACTION_GAME_SELECT = `${BASE_GAME_SELECT},like_count,dislike_count`;
+
+function isMissingReactionColumns(errorMessage: string): boolean {
+  return errorMessage.includes('like_count') || errorMessage.includes('dislike_count');
+}
 
 function normalizeAssetPath(value: string): string | null {
   const normalized = value.replace(/\\/g, '/').replace(/^\/+/, '');
@@ -62,6 +72,8 @@ function mapRow(row: GameRow): GameRecord {
     storage_prefix: row.storage_prefix,
     report_count: row.report_count,
     allowlist_violation: row.allowlist_violation,
+    like_count: row.like_count ?? 0,
+    dislike_count: row.dislike_count ?? 0,
     plays_7d: row.plays_7d,
     plays_30d: row.plays_30d,
     entry_path: row.entry_path,
@@ -72,51 +84,85 @@ function mapRow(row: GameRow): GameRecord {
 }
 
 export class SupabaseGameRepository implements GameRepository {
-  async listPublic(): Promise<GameRecord[]> {
-    const supabase = createServiceClient();
-    const { data, error } = await supabase
-      .from('games')
-      .select('id,title,description,status,is_hidden,hidden_reason,storage_prefix,entry_path,thumbnail_url,allowlist_violation,report_count,plays_7d,plays_30d,created_at,updated_at')
-      .eq('status', 'PUBLIC')
-      .eq('is_hidden', false)
-      .lt('report_count', 2)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      throw new Error(error.message);
+  private async selectGames<T>(
+    buildQuery: (selectClause: string) => Promise<{ data: unknown; error: { message: string } | null }>
+  ): Promise<T[]> {
+    const reactionResult = await buildQuery(REACTION_GAME_SELECT);
+    if (!reactionResult.error) {
+      return (reactionResult.data as T[] | null) ?? [];
     }
 
-    return (data ?? []).map((row) => mapRow(row as GameRow));
+    if (!isMissingReactionColumns(reactionResult.error.message)) {
+      throw new Error(reactionResult.error.message);
+    }
+
+    const fallbackResult = await buildQuery(BASE_GAME_SELECT);
+    if (fallbackResult.error) {
+      throw new Error(fallbackResult.error.message);
+    }
+
+    return (fallbackResult.data as T[] | null) ?? [];
+  }
+
+  private async selectSingleGame<T>(
+    buildQuery: (selectClause: string) => Promise<{ data: unknown; error: { message: string } | null }>
+  ): Promise<T | null> {
+    const reactionResult = await buildQuery(REACTION_GAME_SELECT);
+    if (!reactionResult.error) {
+      return (reactionResult.data as T | null) ?? null;
+    }
+
+    if (!isMissingReactionColumns(reactionResult.error.message)) {
+      throw new Error(reactionResult.error.message);
+    }
+
+    const fallbackResult = await buildQuery(BASE_GAME_SELECT);
+    if (fallbackResult.error) {
+      throw new Error(fallbackResult.error.message);
+    }
+
+    return (fallbackResult.data as T | null) ?? null;
+  }
+
+  async listPublic(): Promise<GameRecord[]> {
+    const supabase = createServiceClient();
+    const data = await this.selectGames<GameRow>(async (selectClause) =>
+      await supabase
+        .from('games')
+        .select(selectClause)
+        .eq('status', 'PUBLIC')
+        .eq('is_hidden', false)
+        .lt('report_count', 2)
+        .order('created_at', { ascending: false })
+    );
+
+    return data.map((row) => mapRow(row));
   }
 
   async listForAdmin(limit = 100): Promise<GameRecord[]> {
     const supabase = createServiceClient();
-    const { data, error } = await supabase
-      .from('games')
-      .select('id,title,description,status,is_hidden,hidden_reason,storage_prefix,entry_path,thumbnail_url,allowlist_violation,report_count,plays_7d,plays_30d,created_at,updated_at')
-      .order('created_at', { ascending: false })
-      .limit(Math.max(1, limit));
+    const data = await this.selectGames<GameRow>(async (selectClause) =>
+      await supabase
+        .from('games')
+        .select(selectClause)
+        .order('created_at', { ascending: false })
+        .limit(Math.max(1, limit))
+    );
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    return (data ?? []).map((row) => mapRow(row as GameRow));
+    return data.map((row) => mapRow(row));
   }
 
   async getById(id: string): Promise<GameRecord | null> {
     const supabase = createServiceClient();
-    const { data, error } = await supabase
-      .from('games')
-      .select('id,title,description,status,is_hidden,hidden_reason,storage_prefix,entry_path,thumbnail_url,allowlist_violation,report_count,plays_7d,plays_30d,created_at,updated_at')
-      .eq('id', id)
-      .maybeSingle();
+    const data = await this.selectSingleGame<GameRow>(async (selectClause) =>
+      await supabase
+        .from('games')
+        .select(selectClause)
+        .eq('id', id)
+        .maybeSingle()
+    );
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    return data ? mapRow(data as GameRow) : null;
+    return data ? mapRow(data) : null;
   }
 
   async incrementPlay(id: string): Promise<boolean> {
@@ -130,6 +176,73 @@ export class SupabaseGameRepository implements GameRepository {
     });
 
     if (error) {
+      throw new Error(error.message);
+    }
+
+    return true;
+  }
+
+  async applyReaction(id: string, nextReaction: GameReaction, previousReaction?: GameReaction | null): Promise<ReactionResult | null> {
+    const game = await this.getById(id);
+    if (!game || game.status !== 'PUBLIC') return null;
+
+    let likeCount = game.like_count;
+    let dislikeCount = game.dislike_count;
+
+    if (previousReaction === 'LIKE' && previousReaction !== nextReaction) {
+      likeCount = Math.max(0, likeCount - 1);
+    }
+
+    if (previousReaction === 'DISLIKE' && previousReaction !== nextReaction) {
+      dislikeCount = Math.max(0, dislikeCount - 1);
+    }
+
+    if (previousReaction !== nextReaction) {
+      if (nextReaction === 'LIKE') {
+        likeCount += 1;
+      } else {
+        dislikeCount += 1;
+      }
+    }
+
+    const supabase = createServiceClient();
+    const { error } = await supabase
+      .from('games')
+      .update({
+        like_count: likeCount,
+        dislike_count: dislikeCount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (error) {
+      if (isMissingReactionColumns(error.message)) {
+        throw new Error('Game reactions are not available until the latest Supabase migration is applied.');
+      }
+      throw new Error(error.message);
+    }
+
+    return {
+      likeCount,
+      dislikeCount,
+      reaction: nextReaction
+    };
+  }
+
+  async addFeedback(id: string, message: string): Promise<boolean> {
+    const game = await this.getById(id);
+    if (!game || game.status !== 'PUBLIC') return false;
+
+    const supabase = createServiceClient();
+    const { error } = await supabase.from('game_feedback').insert({
+      game_id: id,
+      message
+    });
+
+    if (error) {
+      if (error.message.includes('game_feedback')) {
+        throw new Error('Game feedback is not available until the latest Supabase migration is applied.');
+      }
       throw new Error(error.message);
     }
 

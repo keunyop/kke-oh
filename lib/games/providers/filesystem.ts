@@ -1,9 +1,10 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import type { GameAssetStore, GameRepository, ReportResult } from '@/lib/games/repository';
+import type { GameAssetStore, GameReaction, GameRepository, ReactionResult, ReportResult } from '@/lib/games/repository';
 import type { GameRecord, StoredAsset } from '@/lib/games/types';
 
 const META_FILE_NAME = 'game.json';
+const FEEDBACK_FILE_NAME = 'feedback.jsonl';
 
 function isSafeGameId(id: string): boolean {
   return /^[A-Za-z0-9_-]+$/.test(id);
@@ -55,6 +56,8 @@ function normalizeGameRecord(id: string, raw: unknown): GameRecord | null {
     storage_prefix: typeof data.storage_prefix === 'string' ? data.storage_prefix : rawId,
     report_count: typeof data.report_count === 'number' ? data.report_count : 0,
     allowlist_violation: Boolean(data.allowlist_violation),
+    like_count: typeof data.like_count === 'number' ? data.like_count : 0,
+    dislike_count: typeof data.dislike_count === 'number' ? data.dislike_count : 0,
     plays_7d: typeof data.plays_7d === 'number' ? data.plays_7d : 0,
     plays_30d: typeof data.plays_30d === 'number' ? data.plays_30d : 0,
     entry_path: typeof data.entry_path === 'string' ? data.entry_path : 'index.html',
@@ -116,6 +119,17 @@ class FilesystemGameStoreBase {
     const filePath = path.join(gameDir, META_FILE_NAME);
     await fs.writeFile(filePath, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
   }
+
+  protected async appendFeedback(id: string, message: string): Promise<boolean> {
+    const gameDir = this.resolveGameDir(id);
+    if (!gameDir) return false;
+
+    await fs.mkdir(gameDir, { recursive: true });
+    const filePath = path.join(gameDir, FEEDBACK_FILE_NAME);
+    const entry = JSON.stringify({ message, created_at: new Date().toISOString() });
+    await fs.appendFile(filePath, `${entry}\n`, 'utf8');
+    return true;
+  }
 }
 
 export class FilesystemGameRepository extends FilesystemGameStoreBase implements GameRepository {
@@ -152,6 +166,48 @@ export class FilesystemGameRepository extends FilesystemGameStoreBase implements
     game.updated_at = new Date().toISOString();
     await this.writeGame(game);
     return true;
+  }
+
+  async applyReaction(id: string, nextReaction: GameReaction, previousReaction?: GameReaction | null): Promise<ReactionResult | null> {
+    const game = await this.readGame(id);
+    if (!game || game.status !== 'PUBLIC') return null;
+
+    if (previousReaction === nextReaction) {
+      return {
+        likeCount: game.like_count,
+        dislikeCount: game.dislike_count,
+        reaction: nextReaction
+      };
+    }
+
+    if (previousReaction === 'LIKE' && game.like_count > 0) {
+      game.like_count -= 1;
+    }
+
+    if (previousReaction === 'DISLIKE' && game.dislike_count > 0) {
+      game.dislike_count -= 1;
+    }
+
+    if (nextReaction === 'LIKE') {
+      game.like_count += 1;
+    } else {
+      game.dislike_count += 1;
+    }
+
+    game.updated_at = new Date().toISOString();
+    await this.writeGame(game);
+
+    return {
+      likeCount: game.like_count,
+      dislikeCount: game.dislike_count,
+      reaction: nextReaction
+    };
+  }
+
+  async addFeedback(id: string, message: string): Promise<boolean> {
+    const game = await this.readGame(id);
+    if (!game || game.status !== 'PUBLIC') return false;
+    return this.appendFeedback(id, message);
   }
 
   async report(id: string, reason: string): Promise<ReportResult | null> {

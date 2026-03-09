@@ -1,13 +1,8 @@
 import { getGameRepository } from '@/lib/games/repository';
 import { getGameAssetUrl } from '@/lib/games/urls';
-import { GamePlayer } from '@/components/game/game-player';
+import { GameActions } from '@/components/game/game-actions';
 
 export const dynamic = 'force-dynamic';
-
-async function reportGame(id: string) {
-  'use server';
-  await getGameRepository().report(id, 'User report');
-}
 
 export default async function GamePage({ params }: { params: { id: string } }) {
   const game = await getGameRepository().getById(params.id);
@@ -25,29 +20,35 @@ export default async function GamePage({ params }: { params: { id: string } }) {
   }
 
   const src = getGameAssetUrl(game.id, game.entry_path);
+  const frameId = `game-frame-${game.id}`;
+  const iframeId = `game-iframe-${game.id}`;
 
   return (
     <section className="game-page">
-      <div className="game-page-head">
-        <div>
-          <span className="pill-label">Now playing</span>
-          <h1>{game.title}</h1>
-          <p>{game.description}</p>
-        </div>
-        <div className="game-page-actions">
-          <a href="/" className="button-secondary">
-            More Games
-          </a>
-          <form action={reportGame.bind(null, game.id)}>
-            <button type="submit" className="button-ghost">
-              Report Game
-            </button>
-          </form>
-        </div>
+      <div id={frameId} className="game-frame-wrap">
+        <iframe
+          id={iframeId}
+          src={src}
+          sandbox="allow-scripts allow-same-origin allow-pointer-lock"
+          referrerPolicy="no-referrer"
+          allow="fullscreen"
+          title={game.title}
+          tabIndex={0}
+        />
       </div>
-      <div className="game-frame-wrap">
-        <GamePlayer gameId={game.id} src={src} title={game.title} />
-      </div>
+      <GameActions
+        gameId={game.id}
+        title={game.title}
+        frameId={frameId}
+        iframeId={iframeId}
+        initialLikeCount={game.like_count}
+        initialDislikeCount={game.dislike_count}
+      />
+      <section className="panel-card game-description-card">
+        <h1>{game.title}</h1>
+        <p>{game.description}</p>
+      </section>
+      <script dangerouslySetInnerHTML={{ __html: `fetch('/api/games/${game.id}/play',{method:'POST'});` }} />
     </section>
   );
 }

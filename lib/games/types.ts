@@ -10,6 +10,8 @@ export type GameRecord = {
   storage_prefix: string;
   report_count: number;
   allowlist_violation: boolean;
+  like_count: number;
+  dislike_count: number;
   plays_7d: number;
   plays_30d: number;
   entry_path: string;

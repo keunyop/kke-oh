@@ -255,6 +255,7 @@ img {
 }
 
 .upload-hero h1,
+.panel-card h1,
 .panel-card h2,
 .panel-card h3,
 .empty-state-card h1,
@@ -527,74 +528,94 @@ textarea {
   padding: 20px;
 }
 
-.game-page-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-}
-
 .game-frame-wrap {
   padding: 14px;
 }
 
-.game-player-shell {
-  position: relative;
-  display: grid;
-  gap: 12px;
-}
-
-.game-player-shell.is-fullscreen {
-  height: 100dvh;
+.game-frame-wrap:fullscreen,
+.game-frame-wrap:-webkit-full-screen {
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
   padding: 0;
+  border: 0;
+  border-radius: 0;
   background: #000000;
-}
-
-.game-start-panel {
-  display: grid;
-  min-height: 76vh;
-  place-items: center;
-  gap: 12px;
-  padding: 28px;
-  text-align: center;
-  border-radius: 16px;
-  background:
-    radial-gradient(circle at top, rgba(108, 203, 95, 0.18), transparent 38%),
-    linear-gradient(180deg, #1c2028 0%, #13161c 100%);
-}
-
-.game-start-panel h2,
-.game-start-panel p {
-  margin: 0;
-}
-
-.game-start-kicker {
-  color: #bff2b7;
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.game-fullscreen-button {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  z-index: 1;
+  box-shadow: none;
 }
 
 iframe {
   width: 100%;
-  min-height: 76vh;
+  min-height: min(64vh, 720px);
+  height: min(64vh, 720px);
   border: 0;
   border-radius: 14px;
   background: #ffffff;
 }
 
-.game-player-shell.is-fullscreen iframe {
-  min-height: 100dvh;
-  height: 100dvh;
+.game-frame-wrap:fullscreen iframe,
+.game-frame-wrap:-webkit-full-screen iframe {
+  width: 100vw;
+  min-height: 100vh;
+  height: 100vh;
   border-radius: 0;
+  background: #000000;
+}
+
+.game-meta-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.game-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.action-pill {
+  min-width: 110px;
+}
+
+.action-pill.is-active {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: transparent;
+}
+
+.game-feedback-card {
+  display: grid;
+  gap: 14px;
+}
+
+.feedback-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.feedback-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(8, 10, 14, 0.72);
+  cursor: pointer;
+}
+
+.feedback-modal-card {
+  position: relative;
+  z-index: 1;
+  width: min(560px, 100%);
+  max-height: min(80vh, 720px);
+  overflow: auto;
+}
+
+.game-description-card {
+  display: grid;
+  gap: 10px;
 }
 
 table {
@@ -630,7 +651,6 @@ td {
 
 @media (max-width: 900px) {
   .site-header-inner,
-  .game-page-head,
   .upload-hero,
   .submit-layout {
     grid-template-columns: 1fr;
@@ -690,11 +710,7 @@ td {
   }
 
   iframe {
-    min-height: 58vh;
-  }
-
-  .game-start-panel {
-    min-height: 58vh;
-    padding: 20px;
+    min-height: 48vh;
+    height: 48vh;
   }
 }

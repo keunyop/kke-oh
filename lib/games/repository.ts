@@ -8,11 +8,21 @@ export type ReportResult = {
   hidden: boolean;
 };
 
+export type GameReaction = 'LIKE' | 'DISLIKE';
+
+export type ReactionResult = {
+  likeCount: number;
+  dislikeCount: number;
+  reaction: GameReaction;
+};
+
 export interface GameRepository {
   listPublic(): Promise<GameRecord[]>;
   listForAdmin(limit?: number): Promise<GameRecord[]>;
   getById(id: string): Promise<GameRecord | null>;
   incrementPlay(id: string): Promise<boolean>;
+  applyReaction(id: string, nextReaction: GameReaction, previousReaction?: GameReaction | null): Promise<ReactionResult | null>;
+  addFeedback(id: string, message: string): Promise<boolean>;
   report(id: string, reason: string): Promise<ReportResult | null>;
   hide(id: string, reason: string): Promise<boolean>;
   unhide(id: string): Promise<boolean>;
