@@ -1,6 +1,6 @@
 import { getGameRepository } from '@/lib/games/repository';
 import { getGameAssetUrl } from '@/lib/games/urls';
-import { getGamePageCsp } from '@/lib/security/contentScan';
+import { GamePlayer } from '@/components/game/game-player';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +28,6 @@ export default async function GamePage({ params }: { params: { id: string } }) {
 
   return (
     <section className="game-page">
-      <meta httpEquiv="Content-Security-Policy" content={getGamePageCsp()} />
       <div className="game-page-head">
         <div>
           <span className="pill-label">Now playing</span>
@@ -47,15 +46,8 @@ export default async function GamePage({ params }: { params: { id: string } }) {
         </div>
       </div>
       <div className="game-frame-wrap">
-        <iframe
-          src={src}
-          sandbox="allow-scripts allow-same-origin allow-pointer-lock"
-          referrerPolicy="no-referrer"
-          allow="fullscreen"
-          title={game.title}
-        />
+        <GamePlayer gameId={game.id} src={src} title={game.title} />
       </div>
-      <script dangerouslySetInnerHTML={{ __html: `fetch('/api/games/${game.id}/play',{method:'POST'});` }} />
     </section>
   );
 }

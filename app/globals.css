@@ -13,6 +13,7 @@
   --radius-lg: 20px;
   --radius-md: 14px;
   --page-max: 1400px;
+  --header-height: 78px;
 }
 
 *,
@@ -71,10 +72,14 @@ img {
 }
 
 .site-header {
-  position: sticky;
+  position: fixed;
   top: 0;
+  right: 0;
+  left: 0;
   z-index: 20;
   padding: 10px 20px 0;
+  background: linear-gradient(180deg, rgba(16, 18, 23, 0.96) 0%, rgba(16, 18, 23, 0.82) 72%, rgba(16, 18, 23, 0) 100%);
+  backdrop-filter: blur(14px);
 }
 
 .site-header-inner {
@@ -229,7 +234,7 @@ img {
   z-index: 1;
   max-width: var(--page-max);
   margin: 0 auto;
-  padding: 26px 20px 48px;
+  padding: calc(var(--header-height) + 26px) 20px 48px;
 }
 
 .mvp-home,
@@ -533,12 +538,63 @@ textarea {
   padding: 14px;
 }
 
+.game-player-shell {
+  position: relative;
+  display: grid;
+  gap: 12px;
+}
+
+.game-player-shell.is-fullscreen {
+  height: 100dvh;
+  padding: 0;
+  background: #000000;
+}
+
+.game-start-panel {
+  display: grid;
+  min-height: 76vh;
+  place-items: center;
+  gap: 12px;
+  padding: 28px;
+  text-align: center;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at top, rgba(108, 203, 95, 0.18), transparent 38%),
+    linear-gradient(180deg, #1c2028 0%, #13161c 100%);
+}
+
+.game-start-panel h2,
+.game-start-panel p {
+  margin: 0;
+}
+
+.game-start-kicker {
+  color: #bff2b7;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.game-fullscreen-button {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1;
+}
+
 iframe {
   width: 100%;
   min-height: 76vh;
   border: 0;
   border-radius: 14px;
   background: #ffffff;
+}
+
+.game-player-shell.is-fullscreen iframe {
+  min-height: 100dvh;
+  height: 100dvh;
+  border-radius: 0;
 }
 
 table {
@@ -617,7 +673,7 @@ td {
   }
 
   .page-shell {
-    padding: 14px 12px 36px;
+    padding: calc(var(--header-height) + 14px) 12px 36px;
   }
 
   .upload-hero,
@@ -635,5 +691,10 @@ td {
 
   iframe {
     min-height: 58vh;
+  }
+
+  .game-start-panel {
+    min-height: 58vh;
+    padding: 20px;
   }
 }
