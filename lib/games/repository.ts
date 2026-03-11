@@ -19,6 +19,7 @@ export type ReactionResult = {
 export interface GameRepository {
   listPublic(): Promise<GameRecord[]>;
   listForAdmin(limit?: number): Promise<GameRecord[]>;
+  listByUser(userId: string): Promise<GameRecord[]>;
   getById(id: string): Promise<GameRecord | null>;
   incrementPlay(id: string): Promise<boolean>;
   applyReaction(id: string, nextReaction: GameReaction, previousReaction?: GameReaction | null): Promise<ReactionResult | null>;
@@ -26,7 +27,7 @@ export interface GameRepository {
   report(id: string, reason: string): Promise<ReportResult | null>;
   hide(id: string, reason: string): Promise<boolean>;
   unhide(id: string): Promise<boolean>;
-  remove(id: string): Promise<boolean>;
+  remove(id: string, reason?: string): Promise<boolean>;
 }
 
 export interface GameAssetStore {

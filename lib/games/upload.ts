@@ -4,6 +4,7 @@ import path from 'node:path';
 import JSZip from 'jszip';
 import { ALLOWED_EXTENSIONS } from '@/lib/config';
 import { createServiceClient } from '@/lib/db/supabase';
+import { createPlaceholderThumbnail } from '@/lib/games/placeholder';
 import { uploadToR2 } from '@/lib/r2/client';
 import { detectAllowlistViolation } from '@/lib/security/contentScan';
 
@@ -88,6 +89,20 @@ export async function createThumbnailUpload(file: File | null | undefined): Prom
     path: `thumbnail${ext}`,
     content: buffer,
     contentType: detectContentType(`thumbnail${ext}`)
+  };
+}
+
+export function ensureInspectionHasThumbnail(inspection: ZipInspection, title: string): ZipInspection {
+  if (inspection.thumbnailCandidates.length > 0) {
+    return inspection;
+  }
+
+  const placeholder = createPlaceholderThumbnail(title);
+
+  return {
+    ...inspection,
+    files: [...inspection.files, placeholder],
+    thumbnailCandidates: [placeholder.path]
   };
 }
 

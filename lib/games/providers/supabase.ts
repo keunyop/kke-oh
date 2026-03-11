@@ -160,6 +160,20 @@ export class SupabaseGameRepository implements GameRepository {
     return Promise.all(data.map((row) => mapRow(row)));
   }
 
+  async listByUser(userId: string): Promise<GameRecord[]> {
+    const supabase = createServiceClient();
+    const data = await this.selectGames<GameRow>(async (selectClause) =>
+      await supabase
+        .from('games')
+        .select(selectClause)
+        .eq('uploader_user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(200)
+    );
+
+    return Promise.all(data.map((row) => mapRow(row)));
+  }
+
   async getById(id: string): Promise<GameRecord | null> {
     const supabase = createServiceClient();
     const data = await this.selectSingleGame<GameRow>(async (selectClause) =>
@@ -330,7 +344,7 @@ export class SupabaseGameRepository implements GameRepository {
     return (count ?? 0) > 0;
   }
 
-  async remove(id: string): Promise<boolean> {
+  async remove(id: string, reason?: string): Promise<boolean> {
     const supabase = createServiceClient();
     const { error, count } = await supabase
       .from('games')
@@ -338,7 +352,7 @@ export class SupabaseGameRepository implements GameRepository {
         {
           status: 'REMOVED',
           is_hidden: true,
-          hidden_reason: 'Removed by admin',
+          hidden_reason: reason ?? 'Removed by admin',
           updated_at: new Date().toISOString()
         },
         { count: 'exact' }

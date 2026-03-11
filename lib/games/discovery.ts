@@ -1,4 +1,5 @@
 import { getGameAssetUrl } from '@/lib/games/urls';
+import { getPlaceholderThumbnailDataUrl } from '@/lib/games/placeholder';
 import type { GameRecord } from '@/lib/games/types';
 
 const NEW_BADGE_DAYS = 7;
@@ -86,7 +87,7 @@ export function createDiscoveryGames(games: GameRecord[]): DiscoveryGame[] {
       title: game.title,
       description: truncateText(game.description || 'A fun web game shared by a maker.', 110),
       href: `/game/${game.id}`,
-      imageUrl: game.thumbnail_path ? getGameAssetUrl(game.id, game.thumbnail_path) : null,
+      imageUrl: game.thumbnail_path ? getGameAssetUrl(game.id, game.thumbnail_path) : getPlaceholderThumbnailDataUrl(game.title),
       uploaderName: game.uploader_name || 'Maker',
       playCount: Math.max(0, Math.round((game.plays_7d ?? 0) + (game.plays_30d ?? 0) * 0.2)),
       likeCount: game.like_count ?? 0,

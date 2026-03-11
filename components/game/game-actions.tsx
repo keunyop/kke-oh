@@ -24,6 +24,51 @@ type FullscreenElement = HTMLDivElement & {
   msRequestFullscreen?: () => Promise<void> | void;
 };
 
+function ReactionIcon({ type }: { type: 'LIKE' | 'DISLIKE' | 'FEEDBACK' }) {
+  if (type === 'LIKE') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className="action-icon-svg">
+        <path
+          d="M9 21H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3m0 11V10m0 11h7.2a2 2 0 0 0 1.96-1.61l1.2-6A2 2 0 0 0 17.4 11H14V7.8A2.8 2.8 0 0 0 11.2 5L9 10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.9"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  if (type === 'DISLIKE') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className="action-icon-svg">
+        <path
+          d="M15 3h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3M15 3v11m0-11H7.8a2 2 0 0 0-1.96 1.61l-1.2 6A2 2 0 0 0 6.6 13H10v3.2A2.8 2.8 0 0 0 12.8 19L15 14"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.9"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="action-icon-svg">
+      <path
+        d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H11l-4 4v-4H7.5A2.5 2.5 0 0 1 5 12.5z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function GameActions({ gameId, title, initialLikeCount, initialDislikeCount, locale }: GameActionsProps) {
   const [likeCount, setLikeCount] = useState(initialLikeCount);
   const [dislikeCount, setDislikeCount] = useState(initialDislikeCount);
@@ -129,7 +174,8 @@ export function GameActions({ gameId, title, initialLikeCount, initialDislikeCou
           disabled={Boolean(pendingReaction)}
           aria-label={t.common.likes}
         >
-          <span>{t.common.likes}</span>
+          <ReactionIcon type="LIKE" />
+          <span className="sr-only">{t.common.likes}</span>
           <span>{likeCount}</span>
         </button>
         <button
@@ -139,7 +185,8 @@ export function GameActions({ gameId, title, initialLikeCount, initialDislikeCou
           disabled={Boolean(pendingReaction)}
           aria-label={t.common.dislikes}
         >
-          <span>{t.common.dislikes}</span>
+          <ReactionIcon type="DISLIKE" />
+          <span className="sr-only">{t.common.dislikes}</span>
           <span>{dislikeCount}</span>
         </button>
         <button
@@ -148,7 +195,8 @@ export function GameActions({ gameId, title, initialLikeCount, initialDislikeCou
           onClick={() => setFeedbackOpen((value) => !value)}
           aria-label={t.game.feedbackTitle}
         >
-          <span>{t.game.feedbackTitle}</span>
+          <ReactionIcon type="FEEDBACK" />
+          <span className="sr-only">{t.game.feedbackTitle}</span>
         </button>
       </div>
 
@@ -244,7 +292,7 @@ export function GameFullscreenButton({ frameId, iframeId, locale }: GameFullscre
         onClick={() => void enterFullscreen()}
         aria-label="Fullscreen"
       >
-        Full
+        <span aria-hidden="true">{'\u26F6'}</span>
       </button>
       {status ? <p className="small-copy game-frame-status">{status}</p> : null}
     </>

@@ -21,7 +21,10 @@ export async function Navbar({ search = '', locale }: NavbarProps) {
   const user = await getCurrentUser();
   const t = getDictionary(locale);
   const profileMenuLabel = 'Profile menu';
+  const navigationMenuLabel = 'Open menu';
   const logoutLabel = t.common.logout;
+  const myGamesLabel = locale === 'ko' ? '나의 게임' : 'My Games';
+  const mobileUserLabel = locale === 'ko' ? '로그인 중' : 'Signed in';
 
   return (
     <header className="site-header">
@@ -35,7 +38,7 @@ export async function Navbar({ search = '', locale }: NavbarProps) {
           </span>
         </a>
 
-        <div className="nav-actions simple-actions">
+        <div className="nav-actions simple-actions nav-actions-desktop">
           <form action="/" className="nav-search" role="search">
             <input
               type="search"
@@ -55,6 +58,9 @@ export async function Navbar({ search = '', locale }: NavbarProps) {
               </summary>
               <div className="profile-menu-card">
                 <p className="profile-menu-name">{user.loginId}</p>
+                <a href="/my-games" className="profile-menu-link">
+                  {myGamesLabel}
+                </a>
                 <form action="/api/auth/logout" method="post">
                   <button type="submit" className="profile-menu-button">
                     {logoutLabel}
@@ -68,6 +74,53 @@ export async function Navbar({ search = '', locale }: NavbarProps) {
             </a>
           )}
         </div>
+
+        <details className="mobile-nav">
+          <summary className="mobile-nav-toggle" aria-label={navigationMenuLabel}>
+            <span className="mobile-nav-toggle-line" aria-hidden="true" />
+            <span className="mobile-nav-toggle-line" aria-hidden="true" />
+            <span className="mobile-nav-toggle-line" aria-hidden="true" />
+          </summary>
+          <div className="mobile-nav-panel">
+            <form action="/" className="nav-search mobile-nav-search" role="search">
+              <input
+                type="search"
+                name="q"
+                placeholder={t.common.searchPlaceholder}
+                defaultValue={search}
+                aria-label={t.common.searchPlaceholder}
+              />
+            </form>
+            <a href="/submit" className="upload-link mobile-nav-link">
+              {t.common.uploadGame}
+            </a>
+            {user ? (
+              <div className="mobile-profile-card">
+                <div className="mobile-profile-head">
+                  <span className="profile-avatar mobile-profile-avatar" aria-hidden="true">
+                    <span>{getAvatarText(user.loginId)}</span>
+                  </span>
+                  <div className="mobile-profile-copy">
+                    <p className="mobile-profile-label">{mobileUserLabel}</p>
+                    <p className="mobile-profile-name">{user.loginId}</p>
+                  </div>
+                </div>
+                <a href="/my-games" className="profile-menu-link mobile-nav-link">
+                  {myGamesLabel}
+                </a>
+                <form action="/api/auth/logout" method="post">
+                  <button type="submit" className="profile-menu-button">
+                    {logoutLabel}
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <a href="/login?next=/submit" className="profile-pill mobile-nav-link">
+                {t.common.login}
+              </a>
+            )}
+          </div>
+        </details>
       </div>
     </header>
   );

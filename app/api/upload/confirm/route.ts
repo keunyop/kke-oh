@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/auth';
 import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
-import { allocateGameId, writeUploadedGame, writeUploadedGameToSupabase } from '@/lib/games/upload';
+import { allocateGameId, ensureInspectionHasThumbnail, writeUploadedGame, writeUploadedGameToSupabase } from '@/lib/games/upload';
 import { sha256 } from '@/lib/security/hash';
 import { getRequestIp } from '@/lib/security/ip';
 import { consumeInspection } from '@/lib/security/uploadCache';
@@ -18,16 +18,17 @@ export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) {
-      return NextResponse.json({ error: '로그인한 뒤에 게임을 올릴 수 있어요.' }, { status: 401 });
+      return NextResponse.json({ error: 'Login is required.' }, { status: 401 });
     }
 
     const body = submitSchema.parse(await request.json());
-    const inspection = consumeInspection(body.inspectionId);
+    const cachedInspection = consumeInspection(body.inspectionId);
 
-    if (!inspection) {
+    if (!cachedInspection) {
       return NextResponse.json({ error: 'Upload session expired. Please upload the ZIP again.' }, { status: 410 });
     }
 
+    const inspection = ensureInspectionHasThumbnail(cachedInspection, body.title);
     const driver = getGameDataDriver();
     const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
     const gameId = await allocateGameId(storageDir, body.title);
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
 
     revalidatePath('/');
     revalidatePath('/admin');
+    revalidatePath('/my-games');
     revalidatePath(`/game/${gameId}`);
 
     return NextResponse.json({
@@ -73,7 +75,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid submission payload.' }, { status: 400 });
     }
 
-    const message = error instanceof Error ? error.message : 'Failed to publish game.';
+    const message = error instanceof Error ? error.message : 'Failed to publish the game.';
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

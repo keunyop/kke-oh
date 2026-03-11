@@ -19,12 +19,11 @@ export function LocaleSwitcher({ locale }: { locale: Locale }) {
 
   return (
     <label className="locale-switcher">
-      <span className="locale-switcher-label">{locale === 'ko' ? '언어' : 'Language'}</span>
       <select
         className="locale-select"
         value={locale}
         onChange={(event) => void changeLocale(event.target.value as Locale)}
-        aria-label={locale === 'ko' ? '언어 선택' : 'Choose language'}
+        aria-label="Choose language"
       >
         <option value="en">English</option>
         <option value="ko">한국어</option>

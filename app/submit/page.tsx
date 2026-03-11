@@ -1,38 +1,31 @@
 import { requireUser } from '@/lib/auth';
+import { getDictionary } from '@/lib/i18n';
 import { getRequestLocale } from '@/lib/i18n/server';
 import SubmitForm from './submit-form';
 
 export default async function SubmitPage() {
   const locale = getRequestLocale();
   const user = await requireUser('/submit');
-  const copy =
+  const t = getDictionary(locale);
+  const modeSummary =
     locale === 'ko'
-      ? {
-          title: '내 게임 올리기',
-          description: '게임 제목과 설명을 적고 HTML 파일이나 ZIP 파일을 올리면 바로 공개할 수 있습니다.',
-          loginAs: '로그인',
-          easyFlow: 'HTML 파일 1개를 올리거나, HTML이 들어 있는 ZIP 파일을 올릴 수 있습니다. 썸네일은 선택입니다.'
-        }
-      : {
-          title: 'Upload My Game',
-          description: 'Add a title and description, then upload either an HTML file or a ZIP package.',
-          loginAs: 'Logged in as',
-          easyFlow: 'You can upload a single HTML file or a ZIP that includes HTML files. A thumbnail is optional.'
-        };
+      ? 'AI로 새 게임을 만들거나, 직접 만든 HTML 또는 ZIP 패키지를 등록할 수 있어요.'
+      : 'Create a new game with AI or publish your own HTML and ZIP packages.';
 
   return (
     <div className="upload-page">
       <section className="upload-hero">
         <div>
-          <span className="pill-label">Upload Game</span>
-          <h1>{copy.title}</h1>
-          <p>{copy.description}</p>
+          <span className="pill-label">{t.common.uploadGame}</span>
+          <h1>{t.upload.pageTitle}</h1>
+          <p>{t.upload.pageDescription}</p>
         </div>
         <div className="upload-hero-panel">
           <strong>
-            {copy.loginAs}: {user.loginId}
+            {t.upload.loginAs}: {user.loginId}
           </strong>
-          <p>{copy.easyFlow}</p>
+          <p>{t.upload.easyFlow}</p>
+          <p>{modeSummary}</p>
         </div>
       </section>
       <SubmitForm userLoginId={user.loginId} locale={locale} />

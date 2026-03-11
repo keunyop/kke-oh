@@ -155,6 +155,11 @@ export class FilesystemGameRepository extends FilesystemGameStoreBase implements
       .slice(0, Math.max(1, limit));
   }
 
+  async listByUser(userId: string): Promise<GameRecord[]> {
+    const records = await this.listForAdmin(1000);
+    return records.filter((record) => record.uploader_user_id === userId);
+  }
+
   async getById(id: string): Promise<GameRecord | null> {
     return this.readGame(id);
   }
@@ -247,13 +252,13 @@ export class FilesystemGameRepository extends FilesystemGameStoreBase implements
     return true;
   }
 
-  async remove(id: string): Promise<boolean> {
+  async remove(id: string, reason?: string): Promise<boolean> {
     const game = await this.readGame(id);
     if (!game) return false;
 
     game.status = 'REMOVED';
     game.is_hidden = true;
-    game.hidden_reason = 'Removed by admin';
+    game.hidden_reason = reason ?? 'Removed by admin';
     game.updated_at = new Date().toISOString();
     await this.writeGame(game);
     return true;
