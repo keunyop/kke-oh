@@ -1,6 +1,8 @@
 import { getGameAssetUrl } from '@/lib/games/urls';
 import type { GameRecord } from '@/lib/games/types';
 
+const NEW_BADGE_DAYS = 7;
+
 export type DiscoveryGame = {
   id: string;
   title: string;
@@ -12,6 +14,7 @@ export type DiscoveryGame = {
   likeCount: number;
   dislikeCount: number;
   score: number;
+  isNew: boolean;
   category: string;
   categorySlug: string;
   createdAt: number;
@@ -65,27 +68,53 @@ function inferCategory(game: GameRecord): string {
   return categories[hashValue(game.id) % categories.length];
 }
 
+function computePopularityScore(game: GameRecord) {
+  const playScore = (game.plays_7d ?? 0) + (game.plays_30d ?? 0) * 0.2;
+  const likeScore = (game.like_count ?? 0) * 8;
+  const dislikePenalty = (game.dislike_count ?? 0) * 5;
+  return playScore + likeScore - dislikePenalty;
+}
+
 export function createDiscoveryGames(games: GameRecord[]): DiscoveryGame[] {
   return games.map((game) => {
-    const score = (game.plays_7d ?? 0) + 0.2 * (game.plays_30d ?? 0);
     const createdAt = Date.parse(game.created_at);
     const category = inferCategory(game);
+    const ageDays = (Date.now() - createdAt) / (1000 * 60 * 60 * 24);
 
     return {
       id: game.id,
       title: game.title,
-      description: truncateText(game.description || '친구들이 만든 재미있는 웹 게임이에요.', 110),
+      description: truncateText(game.description || 'A fun web game shared by a maker.', 110),
       href: `/game/${game.id}`,
       imageUrl: game.thumbnail_path ? getGameAssetUrl(game.id, game.thumbnail_path) : null,
-      uploaderName: game.uploader_name || '친구',
+      uploaderName: game.uploader_name || 'Maker',
       playCount: Math.max(0, Math.round((game.plays_7d ?? 0) + (game.plays_30d ?? 0) * 0.2)),
       likeCount: game.like_count ?? 0,
       dislikeCount: game.dislike_count ?? 0,
-      score,
+      score: computePopularityScore(game),
+      isNew: ageDays <= NEW_BADGE_DAYS,
       category,
       categorySlug: categoryToSlug(category),
       createdAt
     };
+  });
+}
+
+export function sortDiscoveryGames(games: DiscoveryGame[]) {
+  return [...games].sort((left, right) => {
+    if (left.isNew !== right.isNew) {
+      return left.isNew ? -1 : 1;
+    }
+
+    if (left.isNew && right.isNew) {
+      return right.createdAt - left.createdAt;
+    }
+
+    if (left.score !== right.score) {
+      return right.score - left.score;
+    }
+
+    return right.createdAt - left.createdAt;
   });
 }
 
@@ -107,7 +136,7 @@ function takeGames(games: DiscoveryGame[], count: number): DiscoveryGame[] {
 }
 
 export function buildDiscoverySections(games: DiscoveryGame[]): DiscoverySection[] {
-  const byPopular = [...games].sort((left, right) => right.score - left.score);
+  const byPopular = sortDiscoveryGames(games);
   const byRecent = [...games].sort((left, right) => right.createdAt - left.createdAt);
   const fastPlay = games.filter((game) => game.category === 'Fast Play');
   const schoolProjects = games.filter((game) => game.category === 'School Project' || game.category === 'Beginner Made');

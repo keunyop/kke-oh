@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { createServiceClient } from '@/lib/db/supabase';
+import { applyReactionFallback, readReactionMetrics } from '@/lib/games/reactionFallback';
 import type { GameAssetStore, GameReaction, GameRepository, ReactionResult, ReportResult } from '@/lib/games/repository';
 import type { GameRecord, StoredAsset } from '@/lib/games/types';
 import { readFromR2 } from '@/lib/r2/client';
@@ -69,21 +70,24 @@ function detectContentType(assetPath: string): string {
   return 'application/octet-stream';
 }
 
-function mapRow(row: GameRow): GameRecord {
+async function mapRow(row: GameRow): Promise<GameRecord> {
+  const fallbackReaction =
+    row.like_count == null || row.dislike_count == null ? await readReactionMetrics(row.id) : null;
+
   return {
     id: row.id,
     title: row.title,
     description: row.description ?? '',
     uploader_user_id: row.uploader_user_id ?? null,
-    uploader_name: row.uploader_name?.trim() || '친구',
+    uploader_name: row.uploader_name?.trim() || 'Maker',
     status: row.status,
     is_hidden: row.is_hidden,
     hidden_reason: row.hidden_reason,
     storage_prefix: row.storage_prefix,
     report_count: row.report_count,
     allowlist_violation: row.allowlist_violation,
-    like_count: row.like_count ?? 0,
-    dislike_count: row.dislike_count ?? 0,
+    like_count: row.like_count ?? fallbackReaction?.likeCount ?? 0,
+    dislike_count: row.dislike_count ?? fallbackReaction?.dislikeCount ?? 0,
     plays_7d: row.plays_7d,
     plays_30d: row.plays_30d,
     entry_path: row.entry_path,
@@ -140,7 +144,7 @@ export class SupabaseGameRepository implements GameRepository {
         .order('created_at', { ascending: false })
     );
 
-    return data.map((row) => mapRow(row));
+    return Promise.all(data.map((row) => mapRow(row)));
   }
 
   async listForAdmin(limit = 100): Promise<GameRecord[]> {
@@ -153,7 +157,7 @@ export class SupabaseGameRepository implements GameRepository {
         .limit(Math.max(1, limit))
     );
 
-    return data.map((row) => mapRow(row));
+    return Promise.all(data.map((row) => mapRow(row)));
   }
 
   async getById(id: string): Promise<GameRecord | null> {
@@ -221,7 +225,7 @@ export class SupabaseGameRepository implements GameRepository {
 
     if (error) {
       if (isOptionalColumnError(error.message)) {
-        throw new Error('Game reactions are not available until the latest Supabase migration is applied.');
+        return applyReactionFallback(id, nextReaction, previousReaction);
       }
       throw new Error(error.message);
     }

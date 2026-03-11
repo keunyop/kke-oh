@@ -51,7 +51,7 @@ function normalizeGameRecord(id: string, raw: unknown): GameRecord | null {
     title: typeof data.title === 'string' ? data.title : rawId,
     description: typeof data.description === 'string' ? data.description : '',
     uploader_user_id: typeof data.uploader_user_id === 'string' ? data.uploader_user_id : null,
-    uploader_name: typeof data.uploader_name === 'string' && data.uploader_name.trim() ? data.uploader_name : '친구',
+    uploader_name: typeof data.uploader_name === 'string' && data.uploader_name.trim() ? data.uploader_name : 'Maker',
     status: data.status === 'REMOVED' ? 'REMOVED' : 'PUBLIC',
     is_hidden: Boolean(data.is_hidden),
     hidden_reason: typeof data.hidden_reason === 'string' ? data.hidden_reason : null,

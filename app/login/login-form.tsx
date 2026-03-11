@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { getDictionary, type Locale } from '@/lib/i18n';
 
 type AuthMode = 'login' | 'signup';
 
@@ -9,24 +10,22 @@ type AuthResponse = {
   error?: string;
 };
 
-export default function LoginForm({ nextPath }: { nextPath: string }) {
+export default function LoginForm({ nextPath, locale }: { nextPath: string; locale: Locale }) {
   const [mode, setMode] = useState<AuthMode>('login');
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const t = getDictionary(locale);
 
   const title = useMemo(
-    () => (mode === 'login' ? '다시 만나서 반가워요!' : '바로 시작해볼까요?'),
-    [mode]
+    () => (mode === 'login' ? t.login.titleLogin : t.login.titleSignup),
+    [mode, t.login.titleLogin, t.login.titleSignup]
   );
 
   const description = useMemo(
-    () =>
-      mode === 'login'
-        ? 'ID와 비밀번호만 입력하면 바로 들어갈 수 있어요.'
-        : '이메일 없이도 괜찮아요. ID와 비밀번호만 만들면 끝이에요.',
-    [mode]
+    () => (mode === 'login' ? t.login.descriptionLogin : t.login.descriptionSignup),
+    [mode, t.login.descriptionLogin, t.login.descriptionSignup]
   );
 
   async function submit() {
@@ -47,12 +46,12 @@ export default function LoginForm({ nextPath }: { nextPath: string }) {
 
       const data = (await response.json()) as AuthResponse;
       if (!response.ok || !data.ok) {
-        throw new Error(data.error ?? '다시 시도해주세요.');
+        throw new Error(data.error ?? 'Please try again.');
       }
 
       window.location.href = nextPath || '/';
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '다시 시도해주세요.');
+      setError(cause instanceof Error ? cause.message : 'Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -66,19 +65,19 @@ export default function LoginForm({ nextPath }: { nextPath: string }) {
           className={`button-ghost auth-tab${mode === 'login' ? ' is-active' : ''}`}
           onClick={() => setMode('login')}
         >
-          로그인
+          {t.login.tabLogin}
         </button>
         <button
           type="button"
           className={`button-ghost auth-tab${mode === 'signup' ? ' is-active' : ''}`}
           onClick={() => setMode('signup')}
         >
-          회원가입
+          {t.login.tabSignup}
         </button>
       </div>
 
       <div className="panel-card-head">
-        <span className="pill-label">Login</span>
+        <span className="pill-label">{t.common.login}</span>
         <h1>{title}</h1>
         <p>{description}</p>
       </div>
@@ -88,18 +87,18 @@ export default function LoginForm({ nextPath }: { nextPath: string }) {
         <input
           value={loginId}
           onChange={(event) => setLoginId(event.target.value)}
-          placeholder="예: gamekid"
+          placeholder={t.login.idPlaceholder}
           maxLength={24}
           autoComplete="username"
         />
       </label>
 
       <label className="field-label">
-        비밀번호
+        {locale === 'ko' ? '비밀번호' : 'Password'}
         <input
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          placeholder="쉬운 비밀번호도 괜찮아요"
+          placeholder={t.login.passwordPlaceholder}
           type="password"
           maxLength={80}
           autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
@@ -107,12 +106,12 @@ export default function LoginForm({ nextPath }: { nextPath: string }) {
       </label>
 
       <button type="button" className="button-primary button-fill" onClick={submit} disabled={isSubmitting}>
-        {isSubmitting ? '잠깐만요...' : mode === 'login' ? '로그인하기' : '회원가입하고 시작하기'}
+        {isSubmitting ? t.login.pending : mode === 'login' ? t.login.submitLogin : t.login.submitSignup}
       </button>
 
       {error ? <p className="error-text">{error}</p> : null}
 
-      <p className="small-copy">이메일 인증 없이 ID와 비밀번호만으로 바로 이용할 수 있어요.</p>
+      <p className="small-copy">{t.login.signupHint}</p>
     </div>
   );
 }

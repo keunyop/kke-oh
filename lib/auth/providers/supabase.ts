@@ -65,7 +65,7 @@ export class SupabaseAuthRepository implements AuthRepository {
       if (error.message.includes('duplicate') || error.message.includes('unique')) {
         throw new Error('이미 사용 중인 ID예요.');
       }
-      throw new Error('회원 정보를 저장하지 못했어요. Supabase 설정을 확인해주세요.');
+      throw new Error('Supabase auth tables are missing. Apply the latest migration first.');
     }
 
     return mapUser(data as UserRow);
@@ -83,7 +83,7 @@ export class SupabaseAuthRepository implements AuthRepository {
     });
 
     if (error) {
-      throw new Error('로그인 세션을 만들지 못했어요. Supabase 설정을 확인해주세요.');
+      throw new Error('Supabase auth tables are missing. Apply the latest migration first.');
     }
 
     return token;
@@ -100,7 +100,7 @@ export class SupabaseAuthRepository implements AuthRepository {
       .maybeSingle();
 
     if (error) {
-      throw new Error('로그인 세션을 읽지 못했어요. Supabase 설정을 확인해주세요.');
+      throw new Error('Supabase auth tables are missing. Apply the latest migration first.');
     }
 
     if (!data || !('app_users' in data)) {
@@ -113,9 +113,6 @@ export class SupabaseAuthRepository implements AuthRepository {
 
   async deleteSession(token: string): Promise<void> {
     const supabase = createServiceClient();
-    await supabase
-      .from('app_sessions')
-      .delete()
-      .eq('session_token_hash', sha256(token));
+    await supabase.from('app_sessions').delete().eq('session_token_hash', sha256(token));
   }
 }

@@ -1,6 +1,8 @@
 import { GameCard } from '@/components/site/game-card';
-import { createDiscoveryGames, filterDiscoveryGames } from '@/lib/games/discovery';
+import { createDiscoveryGames, filterDiscoveryGames, sortDiscoveryGames } from '@/lib/games/discovery';
 import { getGameRepository } from '@/lib/games/repository';
+import { getDictionary } from '@/lib/i18n';
+import { getRequestLocale } from '@/lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,8 +13,10 @@ type HomePageProps = {
 };
 
 export default async function HomePage({ searchParams }: HomePageProps) {
+  const locale = getRequestLocale();
+  const t = getDictionary(locale);
   const allGames = await getGameRepository().listPublic();
-  const discoveryGames = createDiscoveryGames(allGames).sort((left, right) => right.score - left.score);
+  const discoveryGames = sortDiscoveryGames(createDiscoveryGames(allGames));
   const query = searchParams?.q ?? '';
   const visibleGames = filterDiscoveryGames(discoveryGames, query, 'all');
 
@@ -32,16 +36,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 playCount={game.playCount}
                 likeCount={game.likeCount}
                 dislikeCount={game.dislikeCount}
+                isNew={game.isNew}
+                locale={locale}
               />
             </div>
           ))}
         </div>
       ) : (
         <section className="empty-state-card">
-          <h2>아직 게임이 없어요.</h2>
-          <p>다른 검색어를 써보거나 새 게임을 올려보세요.</p>
+          <h2>{t.home.emptyTitle}</h2>
+          <p>{t.home.emptyDescription}</p>
           <a href="/submit" className="button-primary">
-            첫 게임 올리기
+            {t.home.firstUpload}
           </a>
         </section>
       )}

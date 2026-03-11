@@ -1,4 +1,5 @@
 import { GameCard } from '@/components/site/game-card';
+import type { Locale } from '@/lib/i18n';
 
 type CardItem = {
   id: string;
@@ -10,6 +11,8 @@ type CardItem = {
   playCount: number;
   likeCount: number;
   dislikeCount: number;
+  isNew: boolean;
+  locale: Locale;
 };
 
 type SectionRowProps = {

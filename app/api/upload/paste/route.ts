@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
@@ -16,25 +17,35 @@ export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) {
-      return NextResponse.json({ error: '로그인한 뒤에 게임을 올릴 수 있어요.' }, { status: 401 });
+      return NextResponse.json({ error: '濡쒓렇?명븳 ?ㅼ뿉 寃뚯엫???щ┫ ???덉뼱??' }, { status: 401 });
     }
 
     const formData = await request.formData();
     const title = String(formData.get('title') ?? '').trim();
     const description = String(formData.get('description') ?? '').trim();
-    const html = String(formData.get('html') ?? '').trim();
+    const htmlFile = formData.get('htmlFile');
     const thumbnail = formData.get('thumbnail');
+    let html = String(formData.get('html') ?? '').trim();
 
     if (title.length < 2 || title.length > 80) {
-      return NextResponse.json({ error: '게임 이름을 2글자 이상 적어주세요.' }, { status: 400 });
+      return NextResponse.json({ error: '寃뚯엫 ?대쫫??2湲???댁긽 ?곸뼱二쇱꽭??' }, { status: 400 });
     }
 
     if (!description) {
-      return NextResponse.json({ error: '게임 설명을 적어주세요.' }, { status: 400 });
+      return NextResponse.json({ error: '寃뚯엫 ?ㅻ챸???곸뼱二쇱꽭??' }, { status: 400 });
+    }
+
+    if (htmlFile instanceof File) {
+      const extension = path.extname(htmlFile.name).toLowerCase();
+      if (extension && !['.html', '.htm'].includes(extension)) {
+        return NextResponse.json({ error: 'Please upload an HTML file.' }, { status: 400 });
+      }
+
+      html = (await htmlFile.text()).trim();
     }
 
     if (!html) {
-      return NextResponse.json({ error: 'HTML 코드를 넣어주세요.' }, { status: 400 });
+      return NextResponse.json({ error: 'HTML 肄붾뱶瑜??ｌ뼱二쇱꽭??' }, { status: 400 });
     }
 
     const inspection = createSingleHtmlInspection(
@@ -80,7 +91,7 @@ export async function POST(request: Request) {
       flagged: inspection.allowlistViolation
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : '게임을 올리지 못했어요.';
+    const message = error instanceof Error ? error.message : '寃뚯엫???щ━吏 紐삵뻽?댁슂.';
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

@@ -1,14 +1,20 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { getDictionary, type Locale } from '@/lib/i18n';
 
 type GameActionsProps = {
   gameId: string;
   title: string;
-  frameId: string;
-  iframeId: string;
   initialLikeCount: number;
   initialDislikeCount: number;
+  locale: Locale;
+};
+
+type GameFullscreenButtonProps = {
+  frameId: string;
+  iframeId: string;
+  locale: Locale;
 };
 
 type Reaction = 'LIKE' | 'DISLIKE';
@@ -18,7 +24,7 @@ type FullscreenElement = HTMLDivElement & {
   msRequestFullscreen?: () => Promise<void> | void;
 };
 
-export function GameActions({ gameId, title, frameId, iframeId, initialLikeCount, initialDislikeCount }: GameActionsProps) {
+export function GameActions({ gameId, title, initialLikeCount, initialDislikeCount, locale }: GameActionsProps) {
   const [likeCount, setLikeCount] = useState(initialLikeCount);
   const [dislikeCount, setDislikeCount] = useState(initialDislikeCount);
   const [activeReaction, setActiveReaction] = useState<Reaction | null>(null);
@@ -28,47 +34,35 @@ export function GameActions({ gameId, title, frameId, iframeId, initialLikeCount
   const [feedbackPending, setFeedbackPending] = useState(false);
   const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
   const canSubmitFeedback = useMemo(() => feedback.trim().length > 0 && !feedbackPending, [feedback, feedbackPending]);
+  const t = getDictionary(locale);
+  const feedbackDescription =
+    locale === 'ko'
+      ? `${title} 게임에서 아쉬운 점이나 개선 아이디어를 알려주세요.`
+      : `Tell us what could be better in ${title}.`;
 
   useEffect(() => {
     if (!feedbackOpen) {
       return;
     }
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setFeedbackOpen(false);
+      }
+    };
 
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [feedbackOpen]);
-
-  useEffect(() => {
-    const focusFrame = () => {
-      const frame = document.getElementById(iframeId) as HTMLIFrameElement | null;
-      if (!frame) {
-        return;
-      }
-
-      window.setTimeout(() => {
-        frame.focus();
-        frame.contentWindow?.focus();
-      }, 50);
-    };
-
-    document.addEventListener('fullscreenchange', focusFrame);
-    document.addEventListener('webkitfullscreenchange', focusFrame as EventListener);
-
-    return () => {
-      document.removeEventListener('fullscreenchange', focusFrame);
-      document.removeEventListener('webkitfullscreenchange', focusFrame as EventListener);
-    };
-  }, [iframeId]);
 
   const submitReaction = async (reaction: Reaction) => {
     if (pendingReaction) {
       return;
     }
 
+    setFeedbackStatus(null);
     setPendingReaction(reaction);
     try {
       const response = await fetch(`/api/games/${gameId}/reaction`, {
@@ -90,7 +84,7 @@ export function GameActions({ gameId, title, frameId, iframeId, initialLikeCount
       setDislikeCount(data.dislikeCount);
       setActiveReaction(data.reaction);
     } catch {
-      setFeedbackStatus('Reaction could not be saved.');
+      setFeedbackStatus(t.game.reactionFailed);
     } finally {
       setPendingReaction(null);
     }
@@ -117,13 +111,96 @@ export function GameActions({ gameId, title, frameId, iframeId, initialLikeCount
 
       setFeedback('');
       setFeedbackOpen(false);
-      setFeedbackStatus('Feedback sent.');
+      setFeedbackStatus(t.game.feedbackSent);
     } catch {
-      setFeedbackStatus('Feedback could not be sent.');
+      setFeedbackStatus(t.game.feedbackFailed);
     } finally {
       setFeedbackPending(false);
     }
   };
+
+  return (
+    <>
+      <div className="game-description-controls">
+        <button
+          type="button"
+          className={`button-secondary action-pill icon-action${activeReaction === 'LIKE' ? ' is-active' : ''}`}
+          onClick={() => void submitReaction('LIKE')}
+          disabled={Boolean(pendingReaction)}
+          aria-label={t.common.likes}
+        >
+          <span>{t.common.likes}</span>
+          <span>{likeCount}</span>
+        </button>
+        <button
+          type="button"
+          className={`button-secondary action-pill icon-action${activeReaction === 'DISLIKE' ? ' is-active' : ''}`}
+          onClick={() => void submitReaction('DISLIKE')}
+          disabled={Boolean(pendingReaction)}
+          aria-label={t.common.dislikes}
+        >
+          <span>{t.common.dislikes}</span>
+          <span>{dislikeCount}</span>
+        </button>
+        <button
+          type="button"
+          className="button-secondary action-pill icon-action"
+          onClick={() => setFeedbackOpen((value) => !value)}
+          aria-label={t.game.feedbackTitle}
+        >
+          <span>{t.game.feedbackTitle}</span>
+        </button>
+      </div>
+
+      {feedbackOpen ? (
+        <div className="feedback-drawer-layer">
+          <button type="button" className="feedback-drawer-backdrop" aria-label={t.common.close} onClick={() => setFeedbackOpen(false)} />
+          <div className="panel-card game-feedback-card feedback-drawer" role="dialog" aria-labelledby="feedback-title">
+            <h2 id="feedback-title">{t.game.feedbackTitle}</h2>
+            <p>{feedbackDescription}</p>
+            <textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} placeholder={t.game.feedbackPlaceholder} />
+            <div className="button-row">
+              <button type="button" className="button-primary" onClick={() => void submitFeedback()} disabled={!canSubmitFeedback}>
+                {t.common.send}
+              </button>
+              <button type="button" className="button-ghost" onClick={() => setFeedbackOpen(false)} disabled={feedbackPending}>
+                {t.common.close}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {feedbackStatus ? <p className="small-copy game-status-inline">{feedbackStatus}</p> : null}
+    </>
+  );
+}
+
+export function GameFullscreenButton({ frameId, iframeId, locale }: GameFullscreenButtonProps) {
+  const [status, setStatus] = useState<string | null>(null);
+  const t = getDictionary(locale);
+
+  useEffect(() => {
+    const focusFrame = () => {
+      const frame = document.getElementById(iframeId) as HTMLIFrameElement | null;
+      if (!frame) {
+        return;
+      }
+
+      window.setTimeout(() => {
+        frame.focus();
+        frame.contentWindow?.focus();
+      }, 50);
+    };
+
+    document.addEventListener('fullscreenchange', focusFrame);
+    document.addEventListener('webkitfullscreenchange', focusFrame as EventListener);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', focusFrame);
+      document.removeEventListener('webkitfullscreenchange', focusFrame as EventListener);
+    };
+  }, [iframeId]);
 
   const enterFullscreen = async () => {
     const frameWrap = document.getElementById(frameId) as FullscreenElement | null;
@@ -131,6 +208,8 @@ export function GameActions({ gameId, title, frameId, iframeId, initialLikeCount
     if (!frameWrap) {
       return;
     }
+
+    setStatus(null);
 
     try {
       if (frameWrap.requestFullscreen) {
@@ -153,55 +232,21 @@ export function GameActions({ gameId, title, frameId, iframeId, initialLikeCount
         frame?.contentWindow?.focus();
       }
     } catch {
-      setFeedbackStatus('Fullscreen is blocked by this browser.');
+      setStatus(t.game.fullscreenFailed);
     }
   };
 
   return (
-    <div className="game-meta-stack">
-      <div className="game-action-bar">
-        <button
-          type="button"
-          className={`button-secondary action-pill${activeReaction === 'LIKE' ? ' is-active' : ''}`}
-          onClick={() => void submitReaction('LIKE')}
-          disabled={Boolean(pendingReaction)}
-        >
-          Like {likeCount}
-        </button>
-        <button
-          type="button"
-          className={`button-secondary action-pill${activeReaction === 'DISLIKE' ? ' is-active' : ''}`}
-          onClick={() => void submitReaction('DISLIKE')}
-          disabled={Boolean(pendingReaction)}
-        >
-          Dislike {dislikeCount}
-        </button>
-        <button type="button" className="button-secondary action-pill" onClick={() => setFeedbackOpen((value) => !value)}>
-          Feedback
-        </button>
-        <button type="button" className="button-secondary action-pill" onClick={() => void enterFullscreen()}>
-          Fullscreen
-        </button>
-      </div>
-      {feedbackOpen ? (
-        <div className="feedback-modal" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
-          <button type="button" className="feedback-backdrop" aria-label="Close feedback dialog" onClick={() => setFeedbackOpen(false)} />
-          <div className="panel-card game-feedback-card feedback-modal-card">
-            <h2 id="feedback-title">Feedback</h2>
-            <p>Tell us what should change in {title}.</p>
-            <textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} placeholder="Write your feedback" />
-            <div className="button-row">
-              <button type="button" className="button-primary" onClick={() => void submitFeedback()} disabled={!canSubmitFeedback}>
-                Send Feedback
-              </button>
-              <button type="button" className="button-ghost" onClick={() => setFeedbackOpen(false)} disabled={feedbackPending}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-      {feedbackStatus ? <p className="small-copy">{feedbackStatus}</p> : null}
-    </div>
+    <>
+      <button
+        type="button"
+        className="game-frame-float-button"
+        onClick={() => void enterFullscreen()}
+        aria-label="Fullscreen"
+      >
+        Full
+      </button>
+      {status ? <p className="small-copy game-frame-status">{status}</p> : null}
+    </>
   );
 }

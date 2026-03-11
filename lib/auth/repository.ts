@@ -13,6 +13,7 @@ export interface AuthRepository {
 }
 
 let repository: AuthRepository | null = null;
+let filesystemRepository: AuthRepository | null = null;
 
 function initialize() {
   if (repository) return;
@@ -33,6 +34,13 @@ function initialize() {
 export function getAuthRepository(): AuthRepository {
   initialize();
   return repository as AuthRepository;
+}
+
+export function getFilesystemAuthRepository(): AuthRepository {
+  if (!filesystemRepository) {
+    filesystemRepository = new FilesystemAuthRepository(getAuthStorageDir());
+  }
+  return filesystemRepository;
 }
 
 export function validateCredentials(loginId: string, password: string) {

@@ -1,19 +1,23 @@
-import { getGameRepository } from '@/lib/games/repository';
+import { GameActions, GameFullscreenButton } from '@/components/game/game-actions';
 import { getGameAssetUrl } from '@/lib/games/urls';
-import { GameActions } from '@/components/game/game-actions';
+import { getGameRepository } from '@/lib/games/repository';
+import { getDictionary } from '@/lib/i18n';
+import { getRequestLocale } from '@/lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function GamePage({ params }: { params: { id: string } }) {
+  const locale = getRequestLocale();
+  const t = getDictionary(locale);
   const game = await getGameRepository().getById(params.id);
 
   if (!game || game.status !== 'PUBLIC' || game.is_hidden) {
     return (
       <section className="empty-state-card">
-        <h1>이 게임은 지금 볼 수 없어요.</h1>
-        <p>삭제되었거나, 안전 확인 중이거나, 링크가 바뀌었을 수 있어요.</p>
+        <h1>{t.game.unavailableTitle}</h1>
+        <p>{t.game.unavailableDescription}</p>
         <a href="/" className="button-primary">
-          홈으로 가기
+          {t.common.home}
         </a>
       </section>
     );
@@ -35,20 +39,28 @@ export default async function GamePage({ params }: { params: { id: string } }) {
           title={game.title}
           tabIndex={0}
         />
+        <GameFullscreenButton frameId={frameId} iframeId={iframeId} locale={locale} />
       </div>
-      <GameActions
-        gameId={game.id}
-        title={game.title}
-        frameId={frameId}
-        iframeId={iframeId}
-        initialLikeCount={game.like_count}
-        initialDislikeCount={game.dislike_count}
-      />
+
       <section className="panel-card game-description-card">
-        <h1>{game.title}</h1>
-        <p className="small-copy">원작자 {game.uploader_name}</p>
+        <div className="game-description-head">
+          <div className="game-description-copy">
+            <h1>{game.title}</h1>
+            <p className="small-copy">
+              {t.common.creator} {game.uploader_name}
+            </p>
+          </div>
+          <GameActions
+            gameId={game.id}
+            title={game.title}
+            initialLikeCount={game.like_count}
+            initialDislikeCount={game.dislike_count}
+            locale={locale}
+          />
+        </div>
         <p>{game.description}</p>
       </section>
+
       <script dangerouslySetInnerHTML={{ __html: `fetch('/api/games/${game.id}/play',{method:'POST'});` }} />
     </section>
   );
