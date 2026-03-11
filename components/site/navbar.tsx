@@ -1,8 +1,12 @@
+import { getCurrentUser } from '@/lib/auth';
+
 type NavbarProps = {
   search?: string;
 };
 
-export function Navbar({ search = '' }: NavbarProps) {
+export async function Navbar({ search = '' }: NavbarProps) {
+  const user = await getCurrentUser();
+
   return (
     <header className="site-header">
       <div className="site-header-inner simple-header">
@@ -17,14 +21,25 @@ export function Navbar({ search = '' }: NavbarProps) {
 
         <div className="nav-actions simple-actions">
           <form action="/" className="nav-search" role="search">
-            <input type="search" name="q" placeholder="Search games" defaultValue={search} aria-label="Search games" />
+            <input type="search" name="q" placeholder="게임 찾기" defaultValue={search} aria-label="게임 찾기" />
           </form>
           <a href="/submit" className="upload-link">
-            Upload Game
+            게임 올리기
           </a>
-          <a href="/admin" className="profile-pill">
-            Login
-          </a>
+          {user ? (
+            <>
+              <span className="profile-pill profile-name">{user.loginId}</span>
+              <form action="/api/auth/logout" method="post">
+                <button type="submit" className="profile-pill nav-button">
+                  로그아웃
+                </button>
+              </form>
+            </>
+          ) : (
+            <a href="/login?next=/submit" className="profile-pill">
+              로그인
+            </a>
+          )}
         </div>
       </div>
     </header>

@@ -4,6 +4,8 @@ export type GameRecord = {
   id: string;
   title: string;
   description: string;
+  uploader_user_id: string | null;
+  uploader_name: string;
   status: GameStatus;
   is_hidden: boolean;
   hidden_reason: string | null;

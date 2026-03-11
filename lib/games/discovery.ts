@@ -7,9 +7,10 @@ export type DiscoveryGame = {
   description: string;
   href: string;
   imageUrl?: string | null;
-  badge: string;
-  makerLabel: string;
-  meta: string;
+  uploaderName: string;
+  playCount: number;
+  likeCount: number;
+  dislikeCount: number;
   score: number;
   category: string;
   categorySlug: string;
@@ -42,10 +43,6 @@ function hashValue(input: string): number {
   return hash;
 }
 
-function titleCase(value: string): string {
-  return value.replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
 function categoryToSlug(category: string): string {
   return category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
@@ -68,32 +65,6 @@ function inferCategory(game: GameRecord): string {
   return categories[hashValue(game.id) % categories.length];
 }
 
-function inferBadge(game: GameRecord, createdAt: number, score: number): string {
-  const ageDays = (Date.now() - createdAt) / (1000 * 60 * 60 * 24);
-  if (ageDays <= 10) return 'New';
-  if (score >= 20) return 'Popular';
-  if (game.allowlist_violation) return 'Reviewed';
-  if ((game.thumbnail_path ?? '').length > 0) return 'Featured';
-  return 'Maker Pick';
-}
-
-function inferMakerLabel(game: GameRecord): string {
-  const firstWord = game.title.split(/\s+/)[0] ?? 'Maker';
-  return `${titleCase(firstWord)} Studio`;
-}
-
-function buildMeta(game: GameRecord, category: string, score: number): string {
-  const plays = Math.round((game.plays_7d ?? 0) + (game.plays_30d ?? 0) * 0.2);
-  const parts = [category, `${Math.max(1, plays)} plays`];
-  if ((game.description ?? '').length <= 80) {
-    parts.push('Fast to try');
-  }
-  if (score >= 10) {
-    parts.push('Loved by players');
-  }
-  return parts.join(' • ');
-}
-
 export function createDiscoveryGames(games: GameRecord[]): DiscoveryGame[] {
   return games.map((game) => {
     const score = (game.plays_7d ?? 0) + 0.2 * (game.plays_30d ?? 0);
@@ -103,12 +74,13 @@ export function createDiscoveryGames(games: GameRecord[]): DiscoveryGame[] {
     return {
       id: game.id,
       title: game.title,
-      description: truncateText(game.description || 'A small web game shared by the Kke-oh community.', 110),
+      description: truncateText(game.description || '친구들이 만든 재미있는 웹 게임이에요.', 110),
       href: `/game/${game.id}`,
       imageUrl: game.thumbnail_path ? getGameAssetUrl(game.id, game.thumbnail_path) : null,
-      badge: inferBadge(game, createdAt, score),
-      makerLabel: inferMakerLabel(game),
-      meta: buildMeta(game, category, score),
+      uploaderName: game.uploader_name || '친구',
+      playCount: Math.max(0, Math.round((game.plays_7d ?? 0) + (game.plays_30d ?? 0) * 0.2)),
+      likeCount: game.like_count ?? 0,
+      dislikeCount: game.dislike_count ?? 0,
       score,
       category,
       categorySlug: categoryToSlug(category),
@@ -124,7 +96,7 @@ export function filterDiscoveryGames(games: DiscoveryGame[], query: string, cate
   return games.filter((game) => {
     const matchesQuery =
       !normalizedQuery ||
-      `${game.title} ${game.description} ${game.category} ${game.makerLabel}`.toLowerCase().includes(normalizedQuery);
+      `${game.title} ${game.description} ${game.category} ${game.uploaderName}`.toLowerCase().includes(normalizedQuery);
     const matchesCategory = !normalizedCategory || normalizedCategory === 'all' || game.categorySlug === normalizedCategory;
     return matchesQuery && matchesCategory;
   });
@@ -137,7 +109,7 @@ function takeGames(games: DiscoveryGame[], count: number): DiscoveryGame[] {
 export function buildDiscoverySections(games: DiscoveryGame[]): DiscoverySection[] {
   const byPopular = [...games].sort((left, right) => right.score - left.score);
   const byRecent = [...games].sort((left, right) => right.createdAt - left.createdAt);
-  const fastPlay = games.filter((game) => game.category === 'Fast Play' || game.meta.includes('Fast to try'));
+  const fastPlay = games.filter((game) => game.category === 'Fast Play');
   const schoolProjects = games.filter((game) => game.category === 'School Project' || game.category === 'Beginner Made');
   const tinyIdeas = [...games].sort((left, right) => left.description.length - right.description.length);
 

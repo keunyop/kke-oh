@@ -6,9 +6,10 @@ type GameCardProps = {
   description: string;
   href: string;
   imageUrl?: string | null;
-  badge?: string;
-  makerLabel?: string;
-  meta: string;
+  uploaderName: string;
+  playCount: number;
+  likeCount: number;
+  dislikeCount: number;
   emphasis?: 'default' | 'wide';
 };
 
@@ -18,9 +19,10 @@ export function GameCard({
   description,
   href,
   imageUrl,
-  badge,
-  makerLabel,
-  meta,
+  uploaderName,
+  playCount,
+  likeCount,
+  dislikeCount,
   emphasis = 'default'
 }: GameCardProps) {
   return (
@@ -35,17 +37,18 @@ export function GameCard({
         )}
         <div className="game-card-overlay">
           <a href={href} className="card-action-primary">
-            Play
+            플레이
           </a>
         </div>
       </div>
       <div className="game-card-body">
-        <div className="game-card-topline">
-          {badge ? <span className="game-badge">{badge}</span> : <span className="game-badge game-badge-muted">Play now</span>}
-          {makerLabel ? <span className="game-maker">{makerLabel}</span> : null}
-        </div>
         <h3>{title}</h3>
-        <div className="game-card-meta">{meta}</div>
+        <div className="game-card-stats">
+          <span>플레이 {playCount}</span>
+          <span>좋아요 {likeCount}</span>
+          <span>싫어요 {dislikeCount}</span>
+        </div>
+        <div className="game-card-uploader">원작자 {uploaderName}</div>
       </div>
       <a href={href} className="game-card-link" aria-label={`Open ${title}`} />
       <span className="sr-only">Game id {id}</span>

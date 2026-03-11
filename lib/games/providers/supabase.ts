@@ -8,6 +8,8 @@ type GameRow = {
   id: string;
   title: string;
   description: string | null;
+  uploader_user_id?: string | null;
+  uploader_name?: string | null;
   status: 'PUBLIC' | 'REMOVED';
   is_hidden: boolean;
   hidden_reason: string | null;
@@ -24,12 +26,18 @@ type GameRow = {
   updated_at: string;
 };
 
-const BASE_GAME_SELECT =
+const CORE_GAME_SELECT =
   'id,title,description,status,is_hidden,hidden_reason,storage_prefix,entry_path,thumbnail_url,allowlist_violation,report_count,plays_7d,plays_30d,created_at,updated_at';
-const REACTION_GAME_SELECT = `${BASE_GAME_SELECT},like_count,dislike_count`;
+const GAME_SELECT_WITH_UPLOADER = `${CORE_GAME_SELECT},uploader_user_id,uploader_name`;
+const GAME_SELECT_WITH_REACTIONS = `${GAME_SELECT_WITH_UPLOADER},like_count,dislike_count`;
 
-function isMissingReactionColumns(errorMessage: string): boolean {
-  return errorMessage.includes('like_count') || errorMessage.includes('dislike_count');
+function isOptionalColumnError(message: string): boolean {
+  return (
+    message.includes('like_count') ||
+    message.includes('dislike_count') ||
+    message.includes('uploader_user_id') ||
+    message.includes('uploader_name')
+  );
 }
 
 function normalizeAssetPath(value: string): string | null {
@@ -66,6 +74,8 @@ function mapRow(row: GameRow): GameRecord {
     id: row.id,
     title: row.title,
     description: row.description ?? '',
+    uploader_user_id: row.uploader_user_id ?? null,
+    uploader_name: row.uploader_name?.trim() || '친구',
     status: row.status,
     is_hidden: row.is_hidden,
     hidden_reason: row.hidden_reason,
@@ -87,41 +97,35 @@ export class SupabaseGameRepository implements GameRepository {
   private async selectGames<T>(
     buildQuery: (selectClause: string) => Promise<{ data: unknown; error: { message: string } | null }>
   ): Promise<T[]> {
-    const reactionResult = await buildQuery(REACTION_GAME_SELECT);
-    if (!reactionResult.error) {
-      return (reactionResult.data as T[] | null) ?? [];
+    for (const selectClause of [GAME_SELECT_WITH_REACTIONS, GAME_SELECT_WITH_UPLOADER, CORE_GAME_SELECT]) {
+      const result = await buildQuery(selectClause);
+      if (!result.error) {
+        return (result.data as T[] | null) ?? [];
+      }
+
+      if (!isOptionalColumnError(result.error.message)) {
+        throw new Error(result.error.message);
+      }
     }
 
-    if (!isMissingReactionColumns(reactionResult.error.message)) {
-      throw new Error(reactionResult.error.message);
-    }
-
-    const fallbackResult = await buildQuery(BASE_GAME_SELECT);
-    if (fallbackResult.error) {
-      throw new Error(fallbackResult.error.message);
-    }
-
-    return (fallbackResult.data as T[] | null) ?? [];
+    return [];
   }
 
   private async selectSingleGame<T>(
     buildQuery: (selectClause: string) => Promise<{ data: unknown; error: { message: string } | null }>
   ): Promise<T | null> {
-    const reactionResult = await buildQuery(REACTION_GAME_SELECT);
-    if (!reactionResult.error) {
-      return (reactionResult.data as T | null) ?? null;
+    for (const selectClause of [GAME_SELECT_WITH_REACTIONS, GAME_SELECT_WITH_UPLOADER, CORE_GAME_SELECT]) {
+      const result = await buildQuery(selectClause);
+      if (!result.error) {
+        return (result.data as T | null) ?? null;
+      }
+
+      if (!isOptionalColumnError(result.error.message)) {
+        throw new Error(result.error.message);
+      }
     }
 
-    if (!isMissingReactionColumns(reactionResult.error.message)) {
-      throw new Error(reactionResult.error.message);
-    }
-
-    const fallbackResult = await buildQuery(BASE_GAME_SELECT);
-    if (fallbackResult.error) {
-      throw new Error(fallbackResult.error.message);
-    }
-
-    return (fallbackResult.data as T | null) ?? null;
+    return null;
   }
 
   async listPublic(): Promise<GameRecord[]> {
@@ -216,7 +220,7 @@ export class SupabaseGameRepository implements GameRepository {
       .eq('id', id);
 
     if (error) {
-      if (isMissingReactionColumns(error.message)) {
+      if (isOptionalColumnError(error.message)) {
         throw new Error('Game reactions are not available until the latest Supabase migration is applied.');
       }
       throw new Error(error.message);
@@ -284,11 +288,14 @@ export class SupabaseGameRepository implements GameRepository {
     const supabase = createServiceClient();
     const { error, count } = await supabase
       .from('games')
-      .update({
-        is_hidden: true,
-        hidden_reason: reason,
-        updated_at: new Date().toISOString()
-      }, { count: 'exact' })
+      .update(
+        {
+          is_hidden: true,
+          hidden_reason: reason,
+          updated_at: new Date().toISOString()
+        },
+        { count: 'exact' }
+      )
       .eq('id', id);
 
     if (error) {
@@ -302,11 +309,14 @@ export class SupabaseGameRepository implements GameRepository {
     const supabase = createServiceClient();
     const { error, count } = await supabase
       .from('games')
-      .update({
-        is_hidden: false,
-        hidden_reason: null,
-        updated_at: new Date().toISOString()
-      }, { count: 'exact' })
+      .update(
+        {
+          is_hidden: false,
+          hidden_reason: null,
+          updated_at: new Date().toISOString()
+        },
+        { count: 'exact' }
+      )
       .eq('id', id);
 
     if (error) {
@@ -320,12 +330,15 @@ export class SupabaseGameRepository implements GameRepository {
     const supabase = createServiceClient();
     const { error, count } = await supabase
       .from('games')
-      .update({
-        status: 'REMOVED',
-        is_hidden: true,
-        hidden_reason: 'Removed by admin',
-        updated_at: new Date().toISOString()
-      }, { count: 'exact' })
+      .update(
+        {
+          status: 'REMOVED',
+          is_hidden: true,
+          hidden_reason: 'Removed by admin',
+          updated_at: new Date().toISOString()
+        },
+        { count: 'exact' }
+      )
       .eq('id', id);
 
     if (error) {

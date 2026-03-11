@@ -21,6 +21,10 @@ export function getGameStorageDir(): string {
   return getOptionalEnv('GAME_STORAGE_DIR') ?? path.join(process.cwd(), 'data', 'games');
 }
 
+export function getAuthStorageDir(): string {
+  return getOptionalEnv('AUTH_STORAGE_DIR') ?? path.join(process.cwd(), 'data', 'auth');
+}
+
 export const ALLOWED_EXTENSIONS = new Set([
   'html',
   'css',

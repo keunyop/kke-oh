@@ -1,15 +1,15 @@
 :root {
-  color-scheme: dark;
-  --bg: #111318;
-  --bg-soft: #1b1f27;
-  --panel: #171a21;
-  --panel-2: #20242d;
-  --border: rgba(255, 255, 255, 0.08);
-  --text: #f5f7fa;
-  --muted: #b7bfcc;
-  --accent: #6ccb5f;
-  --accent-text: #0d160d;
-  --shadow: 0 14px 30px rgba(0, 0, 0, 0.22);
+  color-scheme: light;
+  --bg: #fff8ef;
+  --bg-soft: #fff1d8;
+  --panel: rgba(255, 255, 255, 0.88);
+  --panel-2: #fffaf3;
+  --border: rgba(205, 163, 108, 0.26);
+  --text: #342514;
+  --muted: #7b6852;
+  --accent: #ffb84d;
+  --accent-text: #2d1e0a;
+  --shadow: 0 16px 34px rgba(174, 123, 61, 0.14);
   --radius-lg: 20px;
   --radius-md: 14px;
   --page-max: 1400px;
@@ -30,9 +30,12 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: linear-gradient(180deg, #101217 0%, #151922 100%);
+  background:
+    radial-gradient(circle at top left, rgba(255, 205, 120, 0.35), transparent 28%),
+    radial-gradient(circle at top right, rgba(132, 214, 180, 0.22), transparent 24%),
+    linear-gradient(180deg, #fffaf4 0%, #fff3e4 100%);
   color: var(--text);
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
 }
 
 a {
@@ -68,7 +71,9 @@ img {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(circle at top, rgba(255, 255, 255, 0.03), transparent 35%);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(255, 221, 166, 0.55), transparent 18%),
+    radial-gradient(circle at 88% 10%, rgba(157, 226, 198, 0.3), transparent 18%);
 }
 
 .site-header {
@@ -78,7 +83,7 @@ img {
   left: 0;
   z-index: 20;
   padding: 10px 20px 0;
-  background: linear-gradient(180deg, rgba(16, 18, 23, 0.96) 0%, rgba(16, 18, 23, 0.82) 72%, rgba(16, 18, 23, 0) 100%);
+  background: linear-gradient(180deg, rgba(255, 248, 239, 0.96) 0%, rgba(255, 248, 239, 0.84) 72%, rgba(255, 248, 239, 0) 100%);
   backdrop-filter: blur(14px);
 }
 
@@ -125,6 +130,7 @@ img {
   height: 28px;
   border: 3px solid #ffffff;
   border-radius: 999px;
+  box-shadow: 0 8px 20px rgba(255, 184, 77, 0.24);
 }
 
 .brand-orbit::before {
@@ -144,7 +150,7 @@ img {
   margin-top: -3px;
   margin-left: -3px;
   border-radius: 999px;
-  background: #101217;
+  background: #6a4a20;
   z-index: 1;
 }
 
@@ -180,12 +186,12 @@ img {
   padding: 0 16px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: #2a2e37;
+  background: rgba(255, 255, 255, 0.92);
   color: var(--text);
 }
 
 .nav-search input::placeholder {
-  color: #9aa3b1;
+  color: #b09a80;
 }
 
 .upload-link,
@@ -215,9 +221,18 @@ img {
 .profile-pill,
 .button-secondary,
 .button-ghost {
-  background: #2a2e37;
+  background: rgba(255, 255, 255, 0.78);
   color: var(--text);
   border-color: var(--border);
+}
+
+.nav-button {
+  font: inherit;
+  border: 1px solid var(--border);
+}
+
+.profile-name {
+  font-weight: 800;
 }
 
 .upload-link:hover,
@@ -252,6 +267,7 @@ img {
   border-radius: var(--radius-lg);
   background: var(--panel);
   box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
 }
 
 .upload-hero h1,
@@ -285,7 +301,7 @@ img {
   overflow: hidden;
   border-radius: 18px;
   border: 1px solid var(--border);
-  background: var(--panel-2);
+  background: rgba(255, 255, 255, 0.9);
   box-shadow: var(--shadow);
   transition: transform 160ms ease, border-color 160ms ease;
 }
@@ -311,8 +327,8 @@ img {
   inset: 0;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #89d77d 0%, #57b2a9 100%);
-  color: #111318;
+  background: linear-gradient(135deg, #ffd56a 0%, #ff9f68 100%);
+  color: #4e2f0b;
   font-size: 2.5rem;
   font-weight: 800;
 }
@@ -343,15 +359,8 @@ img {
 
 .game-card-body {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   padding: 12px;
-}
-
-.game-card-topline {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
 }
 
 .game-badge,
@@ -380,6 +389,19 @@ img {
   font-size: 0.82rem;
 }
 
+.game-card-stats {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.game-card-uploader {
+  color: #5a4529;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
 .game-card h3 {
   margin: 0;
   font-size: 1rem;
@@ -405,8 +427,8 @@ img {
   align-items: center;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(108, 203, 95, 0.14);
-  color: #bff2b7;
+  background: rgba(255, 184, 77, 0.18);
+  color: #8b5606;
   font-size: 0.8rem;
 }
 
@@ -416,7 +438,7 @@ img {
   gap: 8px;
   padding: 18px;
   border-radius: 16px;
-  background: var(--panel-2);
+  background: rgba(255, 255, 255, 0.74);
   border: 1px solid var(--border);
 }
 
@@ -496,7 +518,7 @@ textarea {
   gap: 8px;
   padding: 14px;
   border-radius: 12px;
-  background: var(--panel-2);
+  background: rgba(255, 255, 255, 0.72);
   border: 1px solid var(--border);
 }
 
@@ -511,7 +533,7 @@ textarea {
 
 .error-text {
   margin: 0;
-  color: #ffbaba;
+  color: #c23e2a;
 }
 
 .upload-rules {
@@ -637,6 +659,35 @@ td {
   box-shadow: var(--shadow);
 }
 
+.auth-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 420px);
+  gap: 20px;
+}
+
+.auth-hero,
+.login-card {
+  display: grid;
+  gap: 16px;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.auth-tab.is-active {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: transparent;
+}
+
+.code-area {
+  min-height: 280px;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.95rem;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -652,7 +703,8 @@ td {
 @media (max-width: 900px) {
   .site-header-inner,
   .upload-hero,
-  .submit-layout {
+  .submit-layout,
+  .auth-page {
     grid-template-columns: 1fr;
     display: grid;
     align-items: start;

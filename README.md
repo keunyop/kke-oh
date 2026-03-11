@@ -1,16 +1,9 @@
-# kke-oh (MVP: Filesystem Mode)
+# kke-oh
 
-This MVP serves games from local/server filesystem only.
+KKE-OH is a kid-friendly HTML game playground. It can run in:
 
-- No database
-- No object storage
-- Public ZIP upload flow writes into the local filesystem
-- One developer-managed content pipeline
-
-## Why this structure
-
-The code now uses a storage abstraction (`GameRepository` / `GameAssetStore`) with a `filesystem` adapter.
-When MVP is validated, you can add a new adapter (e.g. Supabase + R2) without rewriting pages/routes.
+- `filesystem` mode for local-only storage
+- `supabase` mode for shared game data + R2 assets + simple user login
 
 ## Environment
 
@@ -26,7 +19,15 @@ Variables:
 ADMIN_SECRET=change-this-secret
 GAME_DATA_DRIVER=filesystem
 GAME_STORAGE_DIR=./data/games
+AUTH_STORAGE_DIR=./data/auth
 ```
+
+If `GAME_DATA_DRIVER` is not set, the app auto-selects:
+
+- `supabase` when both `SUPABASE_URL` and `R2_ENDPOINT` are present
+- `filesystem` otherwise
+
+That means local development can point to the same Supabase/R2 stack as production if the env vars are present when the dev server starts.
 
 ## Game file layout
 
@@ -46,11 +47,10 @@ Minimal `game.json`:
   "id": "my-game",
   "title": "My Game",
   "description": "Short description",
+  "uploader_name": "kid-maker",
   "entry_path": "index.html"
 }
 ```
-
-Optional fields are documented in `data/games/README.md`.
 
 ## Local setup
 
@@ -64,19 +64,21 @@ Optional fields are documented in `data/games/README.md`.
    ```
 3. Open
    - Home: `http://localhost:3000/`
+   - Login: `http://localhost:3000/login`
    - Game: `http://localhost:3000/game/<game-id>`
+   - Upload: `http://localhost:3000/submit`
    - Admin: `http://localhost:3000/admin`
 
-## Current MVP behavior
+## Upload flows
 
-- Home lists public, non-hidden local games.
-- Users can upload HTML games from `/submit` as a ZIP archive.
-- Game assets are served by:
-  - `GET /api/games/:id/assets/:path`
-- Play/report counters are persisted into each game's `game.json`.
-- Admin can hide/unhide/remove games (also via `game.json` updates).
+- Login/signup uses only `ID + password`
+- Upload requires login
+- Users can upload with:
+  - direct HTML paste
+  - ZIP upload
+- Thumbnail image is optional in both flows
+- Home shows thumbnail, title, play count, like/dislike count, and uploader name
 
-## Notes for post-MVP expansion
+## Supabase setup
 
-Keep application logic against repository interfaces in `lib/games/repository.ts`.
-Add a new provider under `lib/games/providers/` and switch wiring in the repository factory.
+Apply every SQL file under [supabase/migrations](/d:/10%20Development/10%20개인프로젝트/69.%20kke-oh/workspace/kke-oh/supabase/migrations) before using `supabase` mode.

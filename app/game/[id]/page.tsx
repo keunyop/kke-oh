@@ -10,10 +10,10 @@ export default async function GamePage({ params }: { params: { id: string } }) {
   if (!game || game.status !== 'PUBLIC' || game.is_hidden) {
     return (
       <section className="empty-state-card">
-        <h1>This game is unavailable.</h1>
-        <p>It may have been removed, hidden for safety review, or the link may be out of date.</p>
+        <h1>이 게임은 지금 볼 수 없어요.</h1>
+        <p>삭제되었거나, 안전 확인 중이거나, 링크가 바뀌었을 수 있어요.</p>
         <a href="/" className="button-primary">
-          Back to Home
+          홈으로 가기
         </a>
       </section>
     );
@@ -46,6 +46,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
       />
       <section className="panel-card game-description-card">
         <h1>{game.title}</h1>
+        <p className="small-copy">원작자 {game.uploader_name}</p>
         <p>{game.description}</p>
       </section>
       <script dangerouslySetInnerHTML={{ __html: `fetch('/api/games/${game.id}/play',{method:'POST'});` }} />

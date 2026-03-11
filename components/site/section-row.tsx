@@ -6,9 +6,10 @@ type CardItem = {
   description: string;
   href: string;
   imageUrl?: string | null;
-  badge?: string;
-  makerLabel?: string;
-  meta: string;
+  uploaderName: string;
+  playCount: number;
+  likeCount: number;
+  dislikeCount: number;
 };
 
 type SectionRowProps = {

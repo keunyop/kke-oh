@@ -28,19 +28,20 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 description={game.description}
                 href={game.href}
                 imageUrl={game.imageUrl}
-                badge={game.badge}
-                makerLabel={undefined}
-                meta={game.meta}
+                uploaderName={game.uploaderName}
+                playCount={game.playCount}
+                likeCount={game.likeCount}
+                dislikeCount={game.dislikeCount}
               />
             </div>
           ))}
         </div>
       ) : (
         <section className="empty-state-card">
-          <h2>No games found.</h2>
-          <p>Try another search or upload a new game.</p>
+          <h2>아직 게임이 없어요.</h2>
+          <p>다른 검색어를 써보거나 새 게임을 올려보세요.</p>
           <a href="/submit" className="button-primary">
-            Upload First Game
+            첫 게임 올리기
           </a>
         </section>
       )}

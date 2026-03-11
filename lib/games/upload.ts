@@ -26,16 +26,7 @@ export type ZipInspection = {
   thumbnailCandidates: string[];
 };
 
-function normalizeZipPath(fileName: string): string | null {
-  const normalized = fileName.replace(/\\/g, '/').replace(/^\/+/, '');
-  const parts = normalized.split('/').filter(Boolean);
-  if (!parts.length || parts.some((part) => part === '.' || part === '..')) {
-    return null;
-  }
-  return parts.join('/');
-}
-
-function detectContentType(assetPath: string): string {
+export function detectContentType(assetPath: string): string {
   const ext = path.extname(assetPath).toLowerCase();
   if (ext === '.html') return 'text/html; charset=utf-8';
   if (ext === '.css') return 'text/css; charset=utf-8';
@@ -52,6 +43,61 @@ function detectContentType(assetPath: string): string {
   if (ext === '.wav') return 'audio/wav';
   if (ext === '.txt') return 'text/plain; charset=utf-8';
   return 'application/octet-stream';
+}
+
+export function createSingleHtmlInspection(html: string, thumbnail?: UploadedFile | null): ZipInspection {
+  const files: UploadedFile[] = [
+    {
+      path: 'index.html',
+      content: Buffer.from(html, 'utf8'),
+      contentType: detectContentType('index.html')
+    }
+  ];
+  const thumbnailCandidates: string[] = [];
+
+  if (thumbnail) {
+    files.push(thumbnail);
+    thumbnailCandidates.push(thumbnail.path);
+  }
+
+  return {
+    files,
+    htmlFiles: ['index.html'],
+    allowlistViolation: detectAllowlistViolation([html]),
+    entryPath: 'index.html',
+    thumbnailCandidates
+  };
+}
+
+export async function createThumbnailUpload(file: File | null | undefined): Promise<UploadedFile | null> {
+  if (!(file instanceof File) || !file.size) {
+    return null;
+  }
+
+  const ext = path.extname(file.name).toLowerCase();
+  if (!['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(ext)) {
+    throw new Error('썸네일은 png, jpg, jpeg, webp, gif 파일만 올릴 수 있어요.');
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  if (buffer.length > MAX_FILE_BYTES) {
+    throw new Error('썸네일 파일이 너무 커요. 5MB 이하로 올려주세요.');
+  }
+
+  return {
+    path: `thumbnail${ext}`,
+    content: buffer,
+    contentType: detectContentType(`thumbnail${ext}`)
+  };
+}
+
+function normalizeZipPath(fileName: string): string | null {
+  const normalized = fileName.replace(/\\/g, '/').replace(/^\/+/, '');
+  const parts = normalized.split('/').filter(Boolean);
+  if (!parts.length || parts.some((part) => part === '.' || part === '..')) {
+    return null;
+  }
+  return parts.join('/');
 }
 
 function slugify(value: string): string {
@@ -162,6 +208,8 @@ export async function writeUploadedGame(options: {
   id: string;
   title: string;
   description: string;
+  uploaderUserId?: string | null;
+  uploaderName: string;
   inspection: ZipInspection;
 }): Promise<void> {
   const gameDir = path.join(options.storageDir, options.id);
@@ -182,12 +230,16 @@ export async function writeUploadedGame(options: {
     id: options.id,
     title: options.title,
     description: options.description,
+    uploader_user_id: options.uploaderUserId ?? null,
+    uploader_name: options.uploaderName,
     status: 'PUBLIC' as const,
     is_hidden: false,
     hidden_reason: null,
     storage_prefix: options.id,
     report_count: 0,
     allowlist_violation: options.inspection.allowlistViolation,
+    like_count: 0,
+    dislike_count: 0,
     plays_7d: 0,
     plays_30d: 0,
     entry_path: options.inspection.entryPath,
@@ -207,6 +259,8 @@ export async function writeUploadedGameToSupabase(options: {
   id: string;
   title: string;
   description: string;
+  uploaderUserId?: string | null;
+  uploaderName: string;
   inspection: ZipInspection;
   uploaderEmailHash: string;
   uploaderIpHash: string;
@@ -227,6 +281,8 @@ export async function writeUploadedGameToSupabase(options: {
     id: options.id,
     title: options.title,
     description: options.description,
+    uploader_user_id: options.uploaderUserId ?? null,
+    uploader_name: options.uploaderName,
     status: 'PUBLIC',
     is_hidden: false,
     hidden_reason: null,

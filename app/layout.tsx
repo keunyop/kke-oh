@@ -4,12 +4,12 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'KKE-OH!',
-  description: 'An easy place for kids to upload and play HTML games.'
+  description: '아이들도 쉽게 HTML 게임을 올리고 즐길 수 있는 놀이터'
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="ko">
       <body>
         <div className="site-shell">
           <div className="site-backdrop" aria-hidden="true" />

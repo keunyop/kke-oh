@@ -1,6 +1,7 @@
 import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { getCurrentUser } from '@/lib/auth';
 import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
 import { allocateGameId, writeUploadedGame, writeUploadedGameToSupabase } from '@/lib/games/upload';
 import { sha256 } from '@/lib/security/hash';
@@ -10,11 +11,16 @@ import { consumeInspection } from '@/lib/security/uploadCache';
 const submitSchema = z.object({
   inspectionId: z.string().min(1),
   title: z.string().trim().min(2).max(80),
-  description: z.string().trim().min(10).max(400)
+  description: z.string().trim().min(1).max(400)
 });
 
 export async function POST(request: Request) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: '로그인한 뒤에 게임을 올릴 수 있어요.' }, { status: 401 });
+    }
+
     const body = submitSchema.parse(await request.json());
     const inspection = consumeInspection(body.inspectionId);
 
@@ -34,6 +40,8 @@ export async function POST(request: Request) {
         id: gameId,
         title: body.title,
         description: body.description,
+        uploaderUserId: user.id,
+        uploaderName: user.loginId,
         inspection,
         uploaderEmailHash,
         uploaderIpHash
@@ -44,6 +52,8 @@ export async function POST(request: Request) {
         id: gameId,
         title: body.title,
         description: body.description,
+        uploaderUserId: user.id,
+        uploaderName: user.loginId,
         inspection
       });
     }
