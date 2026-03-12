@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import JSZip from 'jszip';
+import sharp from 'sharp';
 import { ALLOWED_EXTENSIONS } from '@/lib/config';
 import { createServiceClient } from '@/lib/db/supabase';
 import { createPlaceholderThumbnail } from '@/lib/games/placeholder';
@@ -12,6 +13,13 @@ const MAX_ARCHIVE_BYTES = 15 * 1024 * 1024;
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_FILES = 200;
 const RESERVED_META_FILE = 'game.json';
+const OPTIMIZED_THUMBNAIL_BASENAME = '__kkeoh_thumbnail';
+const OPTIMIZED_THUMBNAIL_EXTENSION = '.webp';
+const OPTIMIZED_THUMBNAIL_PATH = `${OPTIMIZED_THUMBNAIL_BASENAME}${OPTIMIZED_THUMBNAIL_EXTENSION}`;
+const THUMBNAIL_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp']);
+const THUMBNAIL_MAX_WIDTH = 1200;
+const THUMBNAIL_MAX_HEIGHT = 825;
+const THUMBNAIL_WEBP_QUALITY = 82;
 
 export type UploadedFile = {
   path: string;
@@ -26,6 +34,62 @@ export type ZipInspection = {
   entryPath: string;
   thumbnailCandidates: string[];
 };
+
+function isThumbnailExtension(extension: string): boolean {
+  return THUMBNAIL_EXTENSIONS.has(extension);
+}
+
+function isOptimizedThumbnailPath(assetPath: string): boolean {
+  return path.basename(assetPath).startsWith(OPTIMIZED_THUMBNAIL_BASENAME);
+}
+
+function getPreferredThumbnailPath(thumbnailCandidates: string[]): string | null {
+  return (
+    thumbnailCandidates.find((candidate) => isOptimizedThumbnailPath(candidate)) ??
+    thumbnailCandidates.find((candidate) => /(^|\/)thumbnail\.(png|jpg|jpeg|webp|gif|svg)$/i.test(candidate)) ??
+    thumbnailCandidates[0] ??
+    null
+  );
+}
+
+function getOptimizedThumbnailPath(files: UploadedFile[]): string {
+  const usedPaths = new Set(files.map((file) => file.path));
+  if (!usedPaths.has(OPTIMIZED_THUMBNAIL_PATH)) {
+    return OPTIMIZED_THUMBNAIL_PATH;
+  }
+
+  for (let index = 2; index < 100; index += 1) {
+    const candidate = `${OPTIMIZED_THUMBNAIL_BASENAME}_${index}${OPTIMIZED_THUMBNAIL_EXTENSION}`;
+    if (!usedPaths.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  return `${OPTIMIZED_THUMBNAIL_BASENAME}_${crypto.randomUUID().slice(0, 8)}${OPTIMIZED_THUMBNAIL_EXTENSION}`;
+}
+
+async function optimizeThumbnail(file: UploadedFile, outputPath: string): Promise<UploadedFile> {
+  try {
+    const content = await sharp(file.content, { animated: false })
+      .rotate()
+      .resize({
+        width: THUMBNAIL_MAX_WIDTH,
+        height: THUMBNAIL_MAX_HEIGHT,
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .webp({ quality: THUMBNAIL_WEBP_QUALITY })
+      .toBuffer();
+
+    return {
+      path: outputPath,
+      content,
+      contentType: 'image/webp'
+    };
+  } catch {
+    throw new Error('Thumbnail must be a valid PNG, JPG, JPEG, or WEBP image.');
+  }
+}
 
 export function detectContentType(assetPath: string): string {
   const ext = path.extname(assetPath).toLowerCase();
@@ -76,20 +140,23 @@ export async function createThumbnailUpload(file: File | null | undefined): Prom
   }
 
   const ext = path.extname(file.name).toLowerCase();
-  if (!['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(ext)) {
-    throw new Error('썸네일은 png, jpg, jpeg, webp, gif 파일만 올릴 수 있어요.');
+  if (!isThumbnailExtension(ext)) {
+    throw new Error('Thumbnail must be a PNG, JPG, JPEG, or WEBP file.');
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   if (buffer.length > MAX_FILE_BYTES) {
-    throw new Error('썸네일 파일이 너무 커요. 5MB 이하로 올려주세요.');
+    throw new Error('Thumbnail file is too large. Limit is 5 MB.');
   }
 
-  return {
-    path: `thumbnail${ext}`,
-    content: buffer,
-    contentType: detectContentType(`thumbnail${ext}`)
-  };
+  return optimizeThumbnail(
+    {
+      path: `thumbnail${ext}`,
+      content: buffer,
+      contentType: detectContentType(`thumbnail${ext}`)
+    },
+    OPTIMIZED_THUMBNAIL_PATH
+  );
 }
 
 export function ensureInspectionHasThumbnail(inspection: ZipInspection, title: string): ZipInspection {
@@ -104,6 +171,35 @@ export function ensureInspectionHasThumbnail(inspection: ZipInspection, title: s
     files: [...inspection.files, placeholder],
     thumbnailCandidates: [placeholder.path]
   };
+}
+
+export async function normalizeInspectionThumbnail(inspection: ZipInspection): Promise<ZipInspection> {
+  const preferredThumbnail = getPreferredThumbnailPath(inspection.thumbnailCandidates);
+  if (!preferredThumbnail || isOptimizedThumbnailPath(preferredThumbnail)) {
+    return inspection;
+  }
+
+  if (!isThumbnailExtension(path.extname(preferredThumbnail).toLowerCase())) {
+    return inspection;
+  }
+
+  const sourceFile = inspection.files.find((file) => file.path === preferredThumbnail);
+  if (!sourceFile) {
+    throw new Error(`Thumbnail file is missing from the upload: ${preferredThumbnail}`);
+  }
+
+  const optimizedPath = getOptimizedThumbnailPath(inspection.files);
+  const optimizedThumbnail = await optimizeThumbnail(sourceFile, optimizedPath);
+
+  return {
+    ...inspection,
+    files: [...inspection.files.filter((file) => file.path !== optimizedPath), optimizedThumbnail],
+    thumbnailCandidates: [optimizedThumbnail.path, ...inspection.thumbnailCandidates.filter((candidate) => candidate !== optimizedPath)]
+  };
+}
+
+export async function prepareInspectionForPublishing(inspection: ZipInspection, title: string): Promise<ZipInspection> {
+  return normalizeInspectionThumbnail(ensureInspectionHasThumbnail(inspection, title));
 }
 
 function normalizeZipPath(fileName: string): string | null {
@@ -179,7 +275,7 @@ export async function inspectZipUpload(file: File): Promise<ZipInspection> {
       htmlContents.push(content.toString('utf8'));
     }
 
-    if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) {
+    if (isThumbnailExtension(`.${ext}`)) {
       thumbnailCandidates.push(normalizedPath);
     }
   }
@@ -237,9 +333,7 @@ export async function writeUploadedGame(options: {
   }
 
   const now = new Date().toISOString();
-  const preferredThumbnail = options.inspection.thumbnailCandidates.find((candidate) =>
-    /(^|\/)thumbnail\.(png|jpg|jpeg|webp|gif)$/i.test(candidate)
-  );
+  const preferredThumbnail = getPreferredThumbnailPath(options.inspection.thumbnailCandidates);
 
   const gameRecord = {
     id: options.id,
@@ -258,7 +352,7 @@ export async function writeUploadedGame(options: {
     plays_7d: 0,
     plays_30d: 0,
     entry_path: options.inspection.entryPath,
-    thumbnail_path: preferredThumbnail ?? options.inspection.thumbnailCandidates[0] ?? null,
+    thumbnail_path: preferredThumbnail,
     created_at: now,
     updated_at: now
   };
@@ -286,9 +380,7 @@ export async function writeUploadedGameToSupabase(options: {
     await uploadToR2(`${storagePrefix}/${file.path}`, file.content, file.contentType);
   }
 
-  const preferredThumbnail = options.inspection.thumbnailCandidates.find((candidate) =>
-    /(^|\/)thumbnail\.(png|jpg|jpeg|webp|gif)$/i.test(candidate)
-  );
+  const preferredThumbnail = getPreferredThumbnailPath(options.inspection.thumbnailCandidates);
 
   const supabase = createServiceClient();
   const now = new Date().toISOString();
@@ -303,7 +395,7 @@ export async function writeUploadedGameToSupabase(options: {
     hidden_reason: null,
     storage_prefix: storagePrefix,
     entry_path: options.inspection.entryPath,
-    thumbnail_url: preferredThumbnail ?? options.inspection.thumbnailCandidates[0] ?? null,
+    thumbnail_url: preferredThumbnail,
     uploader_email_hash: options.uploaderEmailHash,
     uploader_ip_hash: options.uploaderIpHash,
     allowlist_violation: options.inspection.allowlistViolation,

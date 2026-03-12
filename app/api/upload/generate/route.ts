@@ -6,7 +6,7 @@ import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
 import {
   allocateGameId,
   createSingleHtmlInspection,
-  ensureInspectionHasThumbnail,
+  prepareInspectionForPublishing,
   writeUploadedGame,
   writeUploadedGameToSupabase
 } from '@/lib/games/upload';
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
     const body = bodySchema.parse(await request.json());
     const generated = await generateGameFromPrompt(body.prompt);
-    const inspection = ensureInspectionHasThumbnail(
+    const inspection = await prepareInspectionForPublishing(
       createSingleHtmlInspection(generated.html, generated.thumbnail),
       generated.title
     );

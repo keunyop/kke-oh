@@ -559,7 +559,7 @@ export default function SubmitForm({ userLoginId, locale }: { userLoginId: strin
                 />
                 <FileDropzone
                   inputId="thumbnail-upload"
-                  accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                  accept="image/png,image/jpeg,image/webp"
                   label={copy.thumbnail}
                   hint={copy.thumbnailHint}
                   file={thumbnailFile}

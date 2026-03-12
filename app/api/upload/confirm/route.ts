@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/auth';
 import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
-import { allocateGameId, ensureInspectionHasThumbnail, writeUploadedGame, writeUploadedGameToSupabase } from '@/lib/games/upload';
+import { allocateGameId, prepareInspectionForPublishing, writeUploadedGame, writeUploadedGameToSupabase } from '@/lib/games/upload';
 import { sha256 } from '@/lib/security/hash';
 import { getRequestIp } from '@/lib/security/ip';
 import { consumeInspection } from '@/lib/security/uploadCache';
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Upload session expired. Please upload the ZIP again.' }, { status: 410 });
     }
 
-    const inspection = ensureInspectionHasThumbnail(cachedInspection, body.title);
+    const inspection = await prepareInspectionForPublishing(cachedInspection, body.title);
     const driver = getGameDataDriver();
     const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
     const gameId = await allocateGameId(storageDir, body.title);

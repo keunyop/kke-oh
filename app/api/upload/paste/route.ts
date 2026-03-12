@@ -7,7 +7,7 @@ import {
   allocateGameId,
   createSingleHtmlInspection,
   createThumbnailUpload,
-  ensureInspectionHasThumbnail,
+  prepareInspectionForPublishing,
   writeUploadedGame,
   writeUploadedGameToSupabase
 } from '@/lib/games/upload';
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'HTML content is required.' }, { status: 400 });
     }
 
-    const inspection = ensureInspectionHasThumbnail(
+    const inspection = await prepareInspectionForPublishing(
       createSingleHtmlInspection(
         html,
         await createThumbnailUpload(thumbnail instanceof File ? thumbnail : null)
