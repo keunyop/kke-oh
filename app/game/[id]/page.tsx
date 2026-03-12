@@ -36,6 +36,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
           sandbox="allow-scripts allow-same-origin allow-pointer-lock"
           referrerPolicy="no-referrer"
           allow="fullscreen"
+          allowFullScreen
           title={game.title}
           tabIndex={0}
         />

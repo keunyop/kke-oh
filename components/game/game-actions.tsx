@@ -20,9 +20,49 @@ type GameFullscreenButtonProps = {
 type Reaction = 'LIKE' | 'DISLIKE';
 
 type FullscreenElement = HTMLDivElement & {
-  webkitRequestFullscreen?: () => Promise<void> | void;
+  webkitRequestFullscreen?: (options?: FullscreenOptions) => Promise<void> | void;
   msRequestFullscreen?: () => Promise<void> | void;
 };
+
+type FullscreenDocument = Document & {
+  webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => Promise<void> | void;
+  msFullscreenElement?: Element | null;
+  msExitFullscreen?: () => Promise<void> | void;
+};
+
+function focusIframe(iframeId: string) {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  const frame = document.getElementById(iframeId) as HTMLIFrameElement | null;
+  if (!frame) {
+    return;
+  }
+
+  window.setTimeout(() => {
+    frame.focus();
+    frame.contentWindow?.focus();
+  }, 50);
+}
+
+function getFullscreenDocument() {
+  return document as FullscreenDocument;
+}
+
+function isNativeFullscreenActive() {
+  if (typeof document === 'undefined') {
+    return false;
+  }
+
+  const fullscreenDocument = getFullscreenDocument();
+  return Boolean(
+    document.fullscreenElement ||
+      fullscreenDocument.webkitFullscreenElement ||
+      fullscreenDocument.msFullscreenElement
+  );
+}
 
 function ReactionIcon({ type }: { type: 'LIKE' | 'DISLIKE' | 'FEEDBACK' }) {
   if (type === 'LIKE') {
@@ -225,34 +265,96 @@ export function GameActions({ gameId, title, initialLikeCount, initialDislikeCou
 }
 
 export function GameFullscreenButton({ frameId, iframeId, locale }: GameFullscreenButtonProps) {
+  const [isFallbackFullscreen, setIsFallbackFullscreen] = useState(false);
+  const [isNativeFullscreen, setIsNativeFullscreen] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const t = getDictionary(locale);
 
   useEffect(() => {
-    const focusFrame = () => {
-      const frame = document.getElementById(iframeId) as HTMLIFrameElement | null;
-      if (!frame) {
-        return;
-      }
-
-      window.setTimeout(() => {
-        frame.focus();
-        frame.contentWindow?.focus();
-      }, 50);
+    const handleFullscreenChange = () => {
+      setIsNativeFullscreen(isNativeFullscreenActive());
+      focusIframe(iframeId);
     };
 
-    document.addEventListener('fullscreenchange', focusFrame);
-    document.addEventListener('webkitfullscreenchange', focusFrame as EventListener);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange as EventListener);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange as EventListener);
+    handleFullscreenChange();
 
     return () => {
-      document.removeEventListener('fullscreenchange', focusFrame);
-      document.removeEventListener('webkitfullscreenchange', focusFrame as EventListener);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange as EventListener);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange as EventListener);
     };
   }, [iframeId]);
 
+  useEffect(() => {
+    const frameWrap = document.getElementById(frameId);
+    if (!frameWrap) {
+      return;
+    }
+
+    frameWrap.classList.toggle('game-frame-wrap-fallback-fullscreen', isFallbackFullscreen);
+    document.body.classList.toggle('game-fullscreen-lock', isFallbackFullscreen);
+
+    if (isFallbackFullscreen) {
+      focusIframe(iframeId);
+    }
+
+    return () => {
+      frameWrap.classList.remove('game-frame-wrap-fallback-fullscreen');
+      document.body.classList.remove('game-fullscreen-lock');
+    };
+  }, [frameId, iframeId, isFallbackFullscreen]);
+
+  useEffect(() => {
+    if (!isFallbackFullscreen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsFallbackFullscreen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFallbackFullscreen]);
+
+  const exitFullscreen = async () => {
+    setStatus(null);
+
+    if (isFallbackFullscreen) {
+      setIsFallbackFullscreen(false);
+      return;
+    }
+
+    const fullscreenDocument = getFullscreenDocument();
+
+    try {
+      if (document.exitFullscreen && document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      if (fullscreenDocument.webkitExitFullscreen && fullscreenDocument.webkitFullscreenElement) {
+        await fullscreenDocument.webkitExitFullscreen();
+        return;
+      }
+
+      if (fullscreenDocument.msExitFullscreen && fullscreenDocument.msFullscreenElement) {
+        await fullscreenDocument.msExitFullscreen();
+      }
+    } catch {
+      setStatus(t.game.fullscreenFailed);
+    }
+  };
+
   const enterFullscreen = async () => {
     const frameWrap = document.getElementById(frameId) as FullscreenElement | null;
-    const frame = document.getElementById(iframeId) as HTMLIFrameElement | null;
     if (!frameWrap) {
       return;
     }
@@ -262,26 +364,27 @@ export function GameFullscreenButton({ frameId, iframeId, locale }: GameFullscre
     try {
       if (frameWrap.requestFullscreen) {
         await frameWrap.requestFullscreen({ navigationUI: 'hide' });
-        frame?.focus();
-        frame?.contentWindow?.focus();
+        focusIframe(iframeId);
         return;
       }
 
       if (frameWrap.webkitRequestFullscreen) {
         await frameWrap.webkitRequestFullscreen();
-        frame?.focus();
-        frame?.contentWindow?.focus();
+        focusIframe(iframeId);
         return;
       }
 
       if (frameWrap.msRequestFullscreen) {
         await frameWrap.msRequestFullscreen();
-        frame?.focus();
-        frame?.contentWindow?.focus();
+        focusIframe(iframeId);
+        return;
       }
     } catch {
-      setStatus(t.game.fullscreenFailed);
+      setIsFallbackFullscreen(true);
+      return;
     }
+
+    setIsFallbackFullscreen(true);
   };
 
   return (
@@ -289,10 +392,10 @@ export function GameFullscreenButton({ frameId, iframeId, locale }: GameFullscre
       <button
         type="button"
         className="game-frame-float-button"
-        onClick={() => void enterFullscreen()}
-        aria-label="Fullscreen"
+        onClick={() => void (isNativeFullscreen || isFallbackFullscreen ? exitFullscreen() : enterFullscreen())}
+        aria-label={isNativeFullscreen || isFallbackFullscreen ? t.common.close : 'Fullscreen'}
       >
-        <span aria-hidden="true">{'\u26F6'}</span>
+        <span aria-hidden="true">{isNativeFullscreen || isFallbackFullscreen ? '\u2715' : '\u26F6'}</span>
       </button>
       {status ? <p className="small-copy game-frame-status">{status}</p> : null}
     </>

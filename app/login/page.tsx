@@ -23,7 +23,6 @@ export default async function LoginPage({
   return (
     <section className="auth-page">
       <div className="auth-hero panel-card">
-        <span className="pill-label">{t.common.brand}</span>
         <h1>{t.login.heroTitle}</h1>
         <p>{t.login.heroDescription}</p>
         <ul className="upload-rules">

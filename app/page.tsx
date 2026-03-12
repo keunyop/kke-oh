@@ -38,6 +38,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 dislikeCount={game.dislikeCount}
                 isNew={game.isNew}
                 locale={locale}
+                showDescription={false}
+                showPlayButton={false}
+                reactionDisplay="approval"
               />
             </div>
           ))}

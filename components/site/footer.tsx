@@ -5,12 +5,12 @@ export function Footer({ locale }: { locale: Locale }) {
   const copy =
     locale === 'ko'
       ? {
-          brand: '작은 웹게임을 발견하고 직접 만든 게임을 나누는 공간입니다.',
-          about: '소개',
-          upload: '게임 만들기',
-          safety: '안전',
-          contact: '문의',
-          terms: '이용약관'
+          brand: '\uC791\uC740 \uC6F9\uAC8C\uC784\uC744 \uBC1C\uACAC\uD558\uACE0 \uC9C1\uC811 \uB9CC\uB4E0 \uAC8C\uC784\uC744 \uB098\uB204\uB294 \uACF5\uAC04\uC785\uB2C8\uB2E4.',
+          about: '\uC18C\uAC1C',
+          upload: '\uAC8C\uC784 \uB9CC\uB4E4\uAE30',
+          safety: '\uC548\uC804',
+          contact: '\uBB38\uC758',
+          terms: '\uC774\uC6A9\uADDC\uCE59'
         }
       : {
           brand: 'A welcoming place to discover small web games and share what you made.',

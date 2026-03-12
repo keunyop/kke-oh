@@ -22,9 +22,10 @@ export async function Navbar({ search = '', locale }: NavbarProps) {
   const t = getDictionary(locale);
   const profileMenuLabel = 'Profile menu';
   const navigationMenuLabel = 'Open menu';
+  const mobileMenuText = locale === 'ko' ? '\uBA54\uB274' : 'Menu';
   const logoutLabel = t.common.logout;
-  const myGamesLabel = locale === 'ko' ? '나의 게임' : 'My Games';
-  const mobileUserLabel = locale === 'ko' ? '로그인 중' : 'Signed in';
+  const myGamesLabel = locale === 'ko' ? '\uB0B4 \uAC8C\uC784' : 'My Games';
+  const mobileUserLabel = locale === 'ko' ? '\uB85C\uADF8\uC778 \uC911' : 'Signed in';
 
   return (
     <header className="site-header">
@@ -77,9 +78,27 @@ export async function Navbar({ search = '', locale }: NavbarProps) {
 
         <details className="mobile-nav">
           <summary className="mobile-nav-toggle" aria-label={navigationMenuLabel}>
-            <span className="mobile-nav-toggle-line" aria-hidden="true" />
-            <span className="mobile-nav-toggle-line" aria-hidden="true" />
-            <span className="mobile-nav-toggle-line" aria-hidden="true" />
+            <span className="mobile-nav-toggle-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" className="mobile-nav-toggle-svg">
+                <path
+                  d="M8 7.25h8.2a2.55 2.55 0 1 1 0 5.1H8a2.55 2.55 0 1 1 0-5.1zm0 0A2.55 2.55 0 1 0 8 12.35"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M15.7 11.65H7.8a2.55 2.55 0 1 0 0 5.1h7.9a2.55 2.55 0 1 0 0-5.1zm0 0a2.55 2.55 0 1 1 0 5.1"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+            <span className="mobile-nav-toggle-text">{mobileMenuText}</span>
           </summary>
           <div className="mobile-nav-panel">
             <form action="/" className="nav-search mobile-nav-search" role="search">
