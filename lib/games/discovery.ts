@@ -69,11 +69,31 @@ function inferCategory(game: GameRecord): string {
   return categories[hashValue(game.id) % categories.length];
 }
 
+function getPlayScore(game: GameRecord) {
+  return (game.plays_7d ?? 0) * 5 + (game.plays_30d ?? 0) * 1.5;
+}
+
+function getReactionScore(game: GameRecord) {
+  const likes = game.like_count ?? 0;
+  const dislikes = game.dislike_count ?? 0;
+  const totalReactions = likes + dislikes;
+  const approvalRatio = totalReactions > 0 ? likes / totalReactions : 0.5;
+
+  return likes * 18 - dislikes * 12 + approvalRatio * Math.min(totalReactions, 20) * 4;
+}
+
+function getFreshnessBonus(createdAt: number) {
+  if (!Number.isFinite(createdAt)) {
+    return 0;
+  }
+
+  const ageDays = (Date.now() - createdAt) / (1000 * 60 * 60 * 24);
+  return Math.max(0, 14 - ageDays) * 1.25;
+}
+
 function computePopularityScore(game: GameRecord) {
-  const playScore = (game.plays_7d ?? 0) + (game.plays_30d ?? 0) * 0.2;
-  const likeScore = (game.like_count ?? 0) * 8;
-  const dislikePenalty = (game.dislike_count ?? 0) * 5;
-  return playScore + likeScore - dislikePenalty;
+  const createdAt = Date.parse(game.created_at);
+  return getPlayScore(game) + getReactionScore(game) + getFreshnessBonus(createdAt);
 }
 
 export function createDiscoveryGames(games: GameRecord[]): DiscoveryGame[] {
@@ -103,16 +123,22 @@ export function createDiscoveryGames(games: GameRecord[]): DiscoveryGame[] {
 
 export function sortDiscoveryGames(games: DiscoveryGame[]) {
   return [...games].sort((left, right) => {
-    if (left.isNew !== right.isNew) {
-      return left.isNew ? -1 : 1;
-    }
-
-    if (left.isNew && right.isNew) {
-      return right.createdAt - left.createdAt;
-    }
-
     if (left.score !== right.score) {
       return right.score - left.score;
+    }
+
+    if (left.playCount !== right.playCount) {
+      return right.playCount - left.playCount;
+    }
+
+    const leftApproval = left.likeCount - left.dislikeCount;
+    const rightApproval = right.likeCount - right.dislikeCount;
+    if (leftApproval !== rightApproval) {
+      return rightApproval - leftApproval;
+    }
+
+    if (left.isNew !== right.isNew) {
+      return left.isNew ? -1 : 1;
     }
 
     return right.createdAt - left.createdAt;

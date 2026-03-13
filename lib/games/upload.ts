@@ -6,6 +6,7 @@ import sharp from 'sharp';
 import { ALLOWED_EXTENSIONS } from '@/lib/config';
 import { createServiceClient } from '@/lib/db/supabase';
 import { createPlaceholderThumbnail } from '@/lib/games/placeholder';
+import type { GameRecord } from '@/lib/games/types';
 import { uploadToR2 } from '@/lib/r2/client';
 import { detectAllowlistViolation } from '@/lib/security/contentScan';
 
@@ -211,13 +212,47 @@ function normalizeZipPath(fileName: string): string | null {
   return parts.join('/');
 }
 
-function slugify(value: string): string {
+export function slugifyGameTitle(value: string): string {
   return value
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, 48);
+    .slice(0, 64);
+}
+
+export async function isGameTitleAvailable(storageDir: string | null, title: string): Promise<{ gameId: string; available: boolean }> {
+  const gameId = slugifyGameTitle(title);
+  if (!gameId) {
+    return { gameId: '', available: false };
+  }
+
+  const exists = storageDir
+    ? await gameIdExistsInFilesystem(storageDir, gameId)
+    : await gameIdExistsInSupabase(gameId);
+
+  return {
+    gameId,
+    available: !exists
+  };
+}
+
+async function gameIdExistsInFilesystem(storageDir: string, gameId: string): Promise<boolean> {
+  try {
+    await fs.access(path.join(storageDir, gameId));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function gameIdExistsInSupabase(gameId: string): Promise<boolean> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.from('games').select('id').eq('id', gameId).maybeSingle();
+  if (error) {
+    throw new Error(error.message);
+  }
+  return Boolean(data);
 }
 
 export async function inspectZipUpload(file: File): Promise<ZipInspection> {
@@ -295,23 +330,21 @@ export async function inspectZipUpload(file: File): Promise<ZipInspection> {
   };
 }
 
+export async function resolveGameIdFromTitle(storageDir: string | null, title: string): Promise<string> {
+  const result = await isGameTitleAvailable(storageDir, title);
+  if (!result.gameId) {
+    throw new Error('Game name must include letters or numbers.');
+  }
+
+  if (!result.available) {
+    throw new Error('That game name is already being used. Please choose a different game name.');
+  }
+
+  return result.gameId;
+}
+
 export async function allocateGameId(storageDir: string | null, title: string): Promise<string> {
-  if (!storageDir) {
-    return crypto.randomUUID();
-  }
-
-  const base = slugify(title) || `game-${crypto.randomUUID().slice(0, 8)}`;
-
-  for (let index = 0; index < 100; index += 1) {
-    const candidate = index === 0 ? base : `${base}-${index + 1}`;
-    try {
-      await fs.access(path.join(storageDir, candidate));
-    } catch {
-      return candidate;
-    }
-  }
-
-  return `${base}-${crypto.randomUUID().slice(0, 8)}`;
+  return resolveGameIdFromTitle(storageDir, title);
 }
 
 export async function writeUploadedGame(options: {
@@ -419,4 +452,83 @@ export async function writeUploadedGameToSupabase(options: {
     action: 'ALLOW',
     created_at: now
   });
+}
+
+export async function updateUploadedGame(options: {
+  storageDir: string;
+  game: GameRecord;
+  title: string;
+  description: string;
+  inspection?: ZipInspection | null;
+  thumbnail?: UploadedFile | null;
+}): Promise<void> {
+  const gameDir = path.join(options.storageDir, options.game.id);
+  await fs.mkdir(gameDir, { recursive: true });
+
+  for (const file of options.inspection?.files ?? []) {
+    const targetPath = path.join(gameDir, file.path);
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+    await fs.writeFile(targetPath, file.content);
+  }
+
+  if (options.thumbnail) {
+    const targetPath = path.join(gameDir, options.thumbnail.path);
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+    await fs.writeFile(targetPath, options.thumbnail.content);
+  }
+
+  const nextThumbnailPath =
+    options.thumbnail?.path ??
+    (options.inspection ? getPreferredThumbnailPath(options.inspection.thumbnailCandidates) : null) ??
+    options.game.thumbnail_path;
+
+  const nextRecord = {
+    ...options.game,
+    title: options.title,
+    description: options.description,
+    allowlist_violation: options.inspection?.allowlistViolation ?? options.game.allowlist_violation,
+    entry_path: options.inspection?.entryPath ?? options.game.entry_path,
+    thumbnail_path: nextThumbnailPath,
+    updated_at: new Date().toISOString()
+  };
+
+  await fs.writeFile(path.join(gameDir, RESERVED_META_FILE), `${JSON.stringify(nextRecord, null, 2)}\n`, 'utf8');
+}
+
+export async function updateUploadedGameInSupabase(options: {
+  game: GameRecord;
+  title: string;
+  description: string;
+  inspection?: ZipInspection | null;
+  thumbnail?: UploadedFile | null;
+}): Promise<void> {
+  for (const file of options.inspection?.files ?? []) {
+    await uploadToR2(`${options.game.id}/${file.path}`, file.content, file.contentType);
+  }
+
+  if (options.thumbnail) {
+    await uploadToR2(`${options.game.id}/${options.thumbnail.path}`, options.thumbnail.content, options.thumbnail.contentType);
+  }
+
+  const thumbnailPath =
+    options.thumbnail?.path ??
+    (options.inspection ? getPreferredThumbnailPath(options.inspection.thumbnailCandidates) : null) ??
+    options.game.thumbnail_path;
+
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from('games')
+    .update({
+      title: options.title,
+      description: options.description,
+      entry_path: options.inspection?.entryPath ?? options.game.entry_path,
+      thumbnail_url: thumbnailPath,
+      allowlist_violation: options.inspection?.allowlistViolation ?? options.game.allowlist_violation,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', options.game.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }

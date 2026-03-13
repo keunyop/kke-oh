@@ -1,34 +1,51 @@
 import { requireUser } from '@/lib/auth';
-import { getDictionary } from '@/lib/i18n';
+import { getDictionary, type Locale } from '@/lib/i18n';
 import { getRequestLocale } from '@/lib/i18n/server';
 import SubmitForm from './submit-form';
 
+function getHowItWorksCopy(locale: Locale) {
+  return locale === 'ko'
+    ? {
+        title: '어떻게 만들어요?',
+        steps: [
+          '1. 먼저 게임 이름을 정해요.',
+          '2. AI로 만들지, 파일을 올릴지 고르면 돼요.',
+          '3. 만들기가 끝나면 바로 게임 링크가 나와요.'
+        ]
+      }
+    : {
+        title: 'How it works',
+        steps: [
+          '1. Pick a game name first.',
+          '2. Choose AI or upload your own files.',
+          '3. When it is ready, your game link appears right away.'
+        ]
+      };
+}
+
 export default async function SubmitPage() {
   const locale = getRequestLocale();
-  const user = await requireUser('/submit');
+  await requireUser('/submit');
   const t = getDictionary(locale);
-  const modeSummary =
-    locale === 'ko'
-      ? 'AI로 새 게임을 만들거나, 직접 만든 HTML 또는 ZIP 패키지를 등록할 수 있어요.'
-      : 'Create a new game with AI or publish your own HTML and ZIP packages.';
+  const howItWorks = getHowItWorksCopy(locale);
 
   return (
     <div className="upload-page">
-      <section className="upload-hero">
+      <section className="upload-hero upload-hero-simple">
         <div>
-          <span className="pill-label">{t.common.uploadGame}</span>
           <h1>{t.upload.pageTitle}</h1>
           <p>{t.upload.pageDescription}</p>
-        </div>
-        <div className="upload-hero-panel">
-          <strong>
-            {t.upload.loginAs}: {user.loginId}
-          </strong>
-          <p>{t.upload.easyFlow}</p>
-          <p>{modeSummary}</p>
+          <div className="submit-how-it-works">
+            <strong>{howItWorks.title}</strong>
+            <ul className="upload-rules submit-rules-simple">
+              {howItWorks.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
-      <SubmitForm userLoginId={user.loginId} locale={locale} />
+      <SubmitForm locale={locale} />
     </div>
   );
 }

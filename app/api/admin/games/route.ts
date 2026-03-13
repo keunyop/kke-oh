@@ -3,7 +3,7 @@ import { getGameRepository } from '@/lib/games/repository';
 import { isAdminAuthorized } from '@/lib/security/admin';
 
 export async function GET() {
-  if (!isAdminAuthorized()) {
+  if (!(await isAdminAuthorized())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

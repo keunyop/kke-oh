@@ -4,10 +4,10 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
 import {
-  allocateGameId,
   createSingleHtmlInspection,
   createThumbnailUpload,
   prepareInspectionForPublishing,
+  resolveGameIdFromTitle,
   writeUploadedGame,
   writeUploadedGameToSupabase
 } from '@/lib/games/upload';
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
     const driver = getGameDataDriver();
     const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
-    const gameId = await allocateGameId(storageDir, title);
+    const gameId = await resolveGameIdFromTitle(storageDir, title);
 
     if (driver === 'supabase') {
       await writeUploadedGameToSupabase({

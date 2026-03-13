@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useRef, useState, type ChangeEvent, type DragEvent, type RefObject } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type RefObject } from 'react';
 import type { Locale } from '@/lib/i18n';
 
-type CreationMode = 'prompt' | 'html' | 'zip';
+type CreationMode = 'ai' | 'manual';
+type ManualMode = 'html' | 'zip';
 
 type InspectResponse = {
   inspectionId: string;
@@ -20,133 +21,121 @@ type PublishResponse = {
   flagged: boolean;
 };
 
+type TitleCheckResponse = {
+  gameId?: string;
+  available?: boolean;
+  error?: string;
+};
+
 type ErrorResponse = {
   error?: string;
 };
 
-type Copy = ReturnType<typeof getCopy>;
-
 function getCopy(locale: Locale) {
   return locale === 'ko'
     ? {
-        title: '게임 스튜디오',
-        subtitle: '직접 만든 파일을 올리거나 프롬프트로 새 게임을 만들 수 있어요.',
-        modePrompt: 'AI로 만들기',
-        modeHtml: 'HTML 올리기',
-        modeZip: 'ZIP 올리기',
-        promptLabel: '게임 아이디어 프롬프트',
-        promptPlaceholder: '예: 우주를 배경으로 한 1분짜리 피하기 게임을 만들어 줘. 모바일과 키보드 모두 지원해 줘.',
-        promptHint: '프롬프트를 입력하면 KKE-OH 서버가 OpenAI를 사용해 HTML과 썸네일을 생성해 등록해요.',
-        gameTitle: '게임 제목',
-        gameDescription: '게임 설명',
-        descriptionPlaceholder: '플레이어가 이 게임을 바로 이해할 수 있게 설명해 주세요.',
-        htmlLabel: 'HTML 파일',
-        htmlHintLabel: '실행 가능한 HTML 파일 한 개를 올려 주세요.',
-        zipLabel: 'ZIP 파일',
-        zipHintLabel: 'ZIP 안에 HTML 파일과 필요한 에셋이 함께 들어 있어야 해요.',
-        thumbnail: '썸네일 이미지',
-        thumbnailHint: '썸네일이 없으면 기본 플레이스홀더 이미지를 자동으로 사용해요.',
-        inspect: 'ZIP 먼저 확인',
-        inspecting: 'ZIP 확인 중...',
-        publish: '게임 만들기',
-        publishing: '등록 중...',
-        generate: 'AI로 게임 만들기',
-        generating: 'AI가 게임을 만드는 중...',
-        uploadGuide: '이렇게 만들어요',
-        guidePrompt1: 'AI로 만들기는 프롬프트만 입력하면 제목, 설명, HTML, 썸네일까지 자동 생성돼요.',
-        guidePrompt2: 'HTML 올리기는 단일 HTML 파일과 선택 썸네일을 등록할 수 있어요.',
-        guidePrompt3: 'ZIP 올리기는 ZIP 안의 썸네일을 사용하고, 없으면 기본 이미지를 넣어 줘요.',
-        guidePrompt4: '파일은 클릭해서 고르거나 드래그 앤 드롭으로 올릴 수 있어요.',
-        zipResult: 'ZIP 확인 결과',
-        helper: '도움말',
-        zipDone: 'ZIP 확인 완료',
-        entry: '시작 파일',
-        htmlCount: 'HTML 파일 수',
-        thumbCount: '썸네일 후보 수',
-        flagged: '외부 링크가 감지되어 추가 검토가 필요할 수 있어요.',
-        safe: '현재까지 외부 링크 문제는 보이지 않아요.',
-        zipHint: 'ZIP 먼저 확인을 누르면 시작 파일과 썸네일 후보를 미리 볼 수 있어요.',
-        htmlHint: '썸네일을 따로 넣지 않으면 기본 이미지가 자동으로 등록돼요.',
-        promptPanelHint: 'AI 생성에는 서버의 OPENAI_API_KEY 설정이 필요해요.',
-        success: '게임이 등록되었어요!',
+        aiTitle: 'AI로 만들기',
+        aiSubtitle: '아이디어를 쓰면 AI가 게임을 만들어줘요.',
+        manualTitle: '직접 파일 올리기',
+        manualSubtitle: '내가 만든 파일이 있으면 바로 올리면 돼요.',
+        htmlMode: 'Upload HTML',
+        zipMode: 'Upload ZIP',
+        gameName: '게임 이름',
+        gameNamePlaceholder: '예: 우주 피하기',
+        gameNameHint: '게임 링크도 이 이름으로 만들어져요.',
+        checkingName: '이름 확인 중...',
+        nameAvailable: '좋아요! 이 이름을 쓸 수 있어요.',
+        nameTaken: '이미 쓰는 이름이에요. 다른 이름으로 바꿔주세요.',
+        namePreview: '게임 주소',
+        promptLabel: '게임 아이디어',
+        promptPlaceholder: '예: 별을 피하고 점수를 모으는 쉬운 우주 게임을 만들어줘.',
+        aiDescription: '게임 설명',
+        aiDescriptionHint: '비워두면 AI가 만들어줘요.',
+        aiDescriptionPlaceholder: '예: 별을 피하고 점수를 모으는 게임',
+        thumbnail: '썸네일 그림',
+        thumbnailHint: '비워두면 AI가 만들어줘요.',
+        htmlFile: 'HTML 파일',
+        htmlHint: '게임이 바로 시작되는 HTML 파일 1개를 올려주세요.',
+        zipFile: 'ZIP 파일',
+        zipHint: 'HTML과 그림, 소리 파일을 함께 넣은 ZIP을 올려주세요.',
+        manualDescription: '게임 설명',
+        manualDescriptionPlaceholder: '친구들이 게임을 쉽게 알 수 있게 짧게 써주세요.',
+        createWithAi: 'AI로 게임 만들기',
+        createGame: 'Create Game',
+        creating: '만드는 중...',
+        checkingZip: 'ZIP 확인 중...',
+        zipReady: 'ZIP 확인 완료',
+        zipEntry: '시작 파일',
+        zipHtmlCount: 'HTML 파일 수',
+        zipThumbCount: '썸네일 후보 수',
+        zipFlagged: '바깥 링크가 보여서 한 번 더 확인될 수 있어요.',
+        zipSafe: '바깥 링크 문제는 보이지 않았어요.',
+        success: '게임이 준비됐어요!',
         open: '바로 열기',
-        successFlagged: '등록은 완료됐고, 외부 링크는 추가 검토가 이뤄질 수 있어요.',
-        errTitle: '게임 제목을 입력해 주세요.',
-        errDesc: '게임 설명을 입력해 주세요.',
-        errPrompt: '프롬프트를 8자 이상 입력해 주세요.',
-        errHtml: 'HTML 파일을 선택해 주세요.',
-        errZip: 'ZIP 파일을 선택해 주세요.',
-        errInspect: 'ZIP 파일을 확인하지 못했어요.',
-        errInspectFallback: 'ZIP 확인 중 문제가 생겼어요.',
-        errPublish: '게임을 등록하지 못했어요.',
-        errPublishFallback: '등록 중 문제가 생겼어요.',
-        dropChoose: '파일 선택',
-        dropOr: '또는 여기에 드롭',
-        dropActive: '여기에 파일을 놓으세요',
-        selectedFile: '선택된 파일',
-        removeFile: '파일 제거',
-        aiSectionTitle: 'AI 게임 만들기',
-        manualSectionTitle: '파일로 게임 올리기'
+        createAnother: '다른 게임 만들기',
+        errGameName: '게임 이름을 입력해주세요.',
+        errPrompt: '게임 아이디어를 8글자 이상 써주세요.',
+        errDescription: '게임 설명을 입력해주세요.',
+        errHtml: 'HTML 파일을 골라주세요.',
+        errZip: 'ZIP 파일을 골라주세요.',
+        errTitleTaken: '이미 쓰는 이름이에요. 다른 이름으로 바꿔주세요.',
+        dropChoose: '파일 고르기',
+        dropOr: '또는 여기로 끌어오세요',
+        dropActive: '여기에 놓아주세요',
+        selectedFile: '선택한 파일',
+        removeFile: '파일 빼기'
       }
     : {
-        title: 'Game Studio',
-        subtitle: 'Upload your own files or ask AI to build a new game for you.',
-        modePrompt: 'Create with AI',
-        modeHtml: 'Upload HTML',
-        modeZip: 'Upload ZIP',
-        promptLabel: 'Game prompt',
-        promptPlaceholder: 'Example: Make a one-minute dodge game in space with mobile and keyboard controls.',
-        promptHint: 'KKE-OH uses OpenAI to generate the HTML and thumbnail, then publishes the game.',
-        gameTitle: 'Game title',
-        gameDescription: 'Game description',
-        descriptionPlaceholder: 'Tell players what your game is about.',
-        htmlLabel: 'HTML file',
-        htmlHintLabel: 'Upload one playable HTML file.',
-        zipLabel: 'ZIP file',
-        zipHintLabel: 'The ZIP must include HTML and any assets the game needs.',
+        aiTitle: 'AI Create',
+        aiSubtitle: 'Type an idea and AI will bild the game for you',
+        manualTitle: 'Upload My Files',
+        manualSubtitle: 'If you already made the game, just upload it.',
+        htmlMode: 'Upload HTML',
+        zipMode: 'Upload ZIP',
+        gameName: 'Game name',
+        gameNamePlaceholder: 'Example: Space Dodge',
+        gameNameHint: 'Your game link will use this name too.',
+        checkingName: 'Checking name...',
+        nameAvailable: 'Nice! You can use this game name.',
+        nameTaken: 'That game name is already used. Please choose another one.',
+        namePreview: 'Game URL',
+        promptLabel: 'Game idea',
+        promptPlaceholder: 'Example: Make an easy space game where players dodge stars and collect points.',
+        aiDescription: 'Game description',
+        aiDescriptionHint: 'Leave it empty if you want AI to make it for you.',
+        aiDescriptionPlaceholder: 'Example: Dodge stars and collect points.',
         thumbnail: 'Thumbnail image',
-        thumbnailHint: 'If you skip the thumbnail, a default placeholder image is added automatically.',
-        inspect: 'Check ZIP First',
-        inspecting: 'Checking ZIP...',
-        publish: 'Create Game',
-        publishing: 'Publishing...',
-        generate: 'Create with AI',
-        generating: 'Generating game...',
-        uploadGuide: 'How it works',
-        guidePrompt1: 'AI mode turns your prompt into a title, description, HTML, and thumbnail.',
-        guidePrompt2: 'HTML mode uploads one playable HTML file and an optional thumbnail.',
-        guidePrompt3: 'ZIP mode uses the thumbnail inside the ZIP, and falls back to a default image if needed.',
-        guidePrompt4: 'Every file field supports click-to-upload and drag and drop.',
-        zipResult: 'ZIP check result',
-        helper: 'Help',
-        zipDone: 'ZIP check complete',
-        entry: 'Entry file',
-        htmlCount: 'HTML files',
-        thumbCount: 'Thumbnail candidates',
-        flagged: 'We found an external link and may review it again.',
-        safe: 'No external link issue was found yet.',
-        zipHint: 'Use Check ZIP First to preview the entry file and thumbnail candidates.',
-        htmlHint: 'If you skip the thumbnail, a default image will be published automatically.',
-        promptPanelHint: 'AI creation requires OPENAI_API_KEY on the server.',
-        success: 'Your game is live!',
-        open: 'Open',
-        successFlagged: 'The game was published, and the external link may be reviewed later.',
-        errTitle: 'Please enter a game title.',
-        errDesc: 'Please enter a game description.',
-        errPrompt: 'Please enter a prompt with at least 8 characters.',
+        thumbnailHint: 'Leave it empty if you want AI to make it for you.',
+        htmlFile: 'HTML file',
+        htmlHint: 'Upload one HTML file that starts the game.',
+        zipFile: 'ZIP file',
+        zipHint: 'Upload one ZIP with HTML and any pictures or sounds inside.',
+        manualDescription: 'Game description',
+        manualDescriptionPlaceholder: 'Write a short description so kids know what the game is.',
+        createWithAi: 'Create with AI',
+        createGame: 'Create Game',
+        creating: 'Creating...',
+        checkingZip: 'Checking ZIP...',
+        zipReady: 'ZIP is ready',
+        zipEntry: 'Start file',
+        zipHtmlCount: 'HTML files',
+        zipThumbCount: 'Thumbnail choices',
+        zipFlagged: 'We found an outside link and may check it again.',
+        zipSafe: 'No outside link problem was found.',
+        success: 'Your game is ready!',
+        open: 'Open now',
+        createAnother: 'Make another game',
+        errGameName: 'Please enter a game name.',
+        errPrompt: 'Please write at least 8 characters for the game idea.',
+        errDescription: 'Please enter a game description.',
         errHtml: 'Please choose an HTML file.',
         errZip: 'Please choose a ZIP file.',
-        errInspect: 'Could not inspect the ZIP file.',
-        errInspectFallback: 'Something went wrong while checking the ZIP file.',
-        errPublish: 'Could not publish the game.',
-        errPublishFallback: 'Something went wrong while publishing the game.',
+        errTitleTaken: 'That game name is already used. Please choose another one.',
         dropChoose: 'Choose file',
         dropOr: 'or drop it here',
         dropActive: 'Drop the file here',
         selectedFile: 'Selected file',
-        removeFile: 'Remove file',
-        aiSectionTitle: 'AI game creation',
-        manualSectionTitle: 'Upload your own files'
+        removeFile: 'Remove file'
       };
 }
 
@@ -157,8 +146,12 @@ function FileDropzone({
   hint,
   file,
   onFileChange,
-  copy,
-  inputRef
+  inputRef,
+  chooseLabel,
+  orLabel,
+  activeLabel,
+  selectedLabel,
+  removeLabel
 }: {
   inputId: string;
   accept: string;
@@ -166,8 +159,12 @@ function FileDropzone({
   hint?: string;
   file: File | null;
   onFileChange: (file: File | null) => void;
-  copy: Copy;
   inputRef: RefObject<HTMLInputElement>;
+  chooseLabel: string;
+  orLabel: string;
+  activeLabel: string;
+  selectedLabel: string;
+  removeLabel: string;
 }) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -186,16 +183,9 @@ function FileDropzone({
   }
 
   return (
-    <div className="field-label">
+    <label className="field-label">
       <span>{label}</span>
-      <input
-        ref={inputRef}
-        id={inputId}
-        type="file"
-        accept={accept}
-        onChange={handleInputChange}
-        className="sr-only"
-      />
+      <input ref={inputRef} id={inputId} type="file" accept={accept} onChange={handleInputChange} className="sr-only" />
       <button
         type="button"
         className={`file-dropzone${isDragging ? ' is-dragging' : ''}`}
@@ -217,13 +207,13 @@ function FileDropzone({
         }}
         onDrop={handleDrop}
       >
-        <strong>{isDragging ? copy.dropActive : copy.dropChoose}</strong>
-        <span>{copy.dropOr}</span>
+        <strong>{isDragging ? activeLabel : chooseLabel}</strong>
+        <span>{orLabel}</span>
       </button>
       {file ? (
         <div className="file-dropzone-meta">
           <span>
-            {copy.selectedFile}: {file.name}
+            {selectedLabel}: {file.name}
           </span>
           <button
             type="button"
@@ -235,77 +225,170 @@ function FileDropzone({
               }
             }}
           >
-            {copy.removeFile}
+            {removeLabel}
           </button>
         </div>
       ) : null}
       {hint ? <span className="small-copy upload-input-hint">{hint}</span> : null}
-    </div>
+    </label>
   );
 }
 
-export default function SubmitForm({ userLoginId, locale }: { userLoginId: string; locale: Locale }) {
-  const [mode, setMode] = useState<CreationMode>('prompt');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [prompt, setPrompt] = useState('');
+export default function SubmitForm({ locale }: { locale: Locale }) {
+  const copy = getCopy(locale);
+  const [mode, setMode] = useState<CreationMode>('ai');
+  const [manualMode, setManualMode] = useState<ManualMode>('html');
+  const [aiTitle, setAiTitle] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiDescription, setAiDescription] = useState('');
+  const [aiThumbnail, setAiThumbnail] = useState<File | null>(null);
+  const [manualTitle, setManualTitle] = useState('');
+  const [manualDescription, setManualDescription] = useState('');
   const [htmlFile, setHtmlFile] = useState<File | null>(null);
   const [zipFile, setZipFile] = useState<File | null>(null);
-  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [manualThumbnail, setManualThumbnail] = useState<File | null>(null);
   const [inspectResult, setInspectResult] = useState<InspectResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<PublishResponse | null>(null);
   const [isInspecting, setIsInspecting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const copy = useMemo(() => getCopy(locale), [locale]);
+  const [isCheckingTitle, setIsCheckingTitle] = useState(false);
+  const [titleState, setTitleState] = useState<{ gameId: string; available: boolean | null; message: string | null }>({
+    gameId: '',
+    available: null,
+    message: null
+  });
   const htmlInputRef = useRef<HTMLInputElement>(null);
   const zipInputRef = useRef<HTMLInputElement>(null);
-  const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  const aiThumbnailInputRef = useRef<HTMLInputElement>(null);
+  const manualThumbnailInputRef = useRef<HTMLInputElement>(null);
+
+  const activeTitle = mode === 'ai' ? aiTitle : manualTitle;
+
+  useEffect(() => {
+    const trimmedTitle = activeTitle.trim();
+    if (trimmedTitle.length < 2) {
+      setTitleState({ gameId: '', available: null, message: null });
+      setIsCheckingTitle(false);
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      setIsCheckingTitle(true);
+
+      try {
+        const response = await fetch(`/api/upload/title-check?title=${encodeURIComponent(trimmedTitle)}`, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+        const data = (await response.json()) as TitleCheckResponse;
+
+        if (!response.ok) {
+          throw new Error(data.error ?? copy.errTitleTaken);
+        }
+
+        setTitleState({
+          gameId: data.gameId ?? '',
+          available: Boolean(data.available),
+          message: data.available ? copy.nameAvailable : copy.nameTaken
+        });
+      } catch (cause) {
+        setTitleState({
+          gameId: '',
+          available: false,
+          message: cause instanceof Error ? cause.message : copy.errTitleTaken
+        });
+      } finally {
+        setIsCheckingTitle(false);
+      }
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [activeTitle, copy.errTitleTaken, copy.nameAvailable, copy.nameTaken]);
 
   function clearMessages() {
     setError(null);
     setSuccess(null);
   }
 
-  function resetForm() {
-    setTitle('');
-    setDescription('');
-    setPrompt('');
+  function resetAiForm() {
+    setAiTitle('');
+    setAiPrompt('');
+    setAiDescription('');
+    setAiThumbnail(null);
+    if (aiThumbnailInputRef.current) aiThumbnailInputRef.current.value = '';
+  }
+
+  function resetManualForm() {
+    setManualTitle('');
+    setManualDescription('');
     setHtmlFile(null);
     setZipFile(null);
-    setThumbnailFile(null);
+    setManualThumbnail(null);
     setInspectResult(null);
     if (htmlInputRef.current) htmlInputRef.current.value = '';
     if (zipInputRef.current) zipInputRef.current.value = '';
-    if (thumbnailInputRef.current) thumbnailInputRef.current.value = '';
+    if (manualThumbnailInputRef.current) manualThumbnailInputRef.current.value = '';
+  }
+
+  function isCurrentTitleAvailable(title: string) {
+    const trimmedTitle = title.trim();
+    return trimmedTitle.length >= 2 && titleState.gameId.length > 0 && titleState.available === true;
+  }
+
+  function validateAiForm() {
+    if (!aiTitle.trim()) {
+      setError(copy.errGameName);
+      return false;
+    }
+    if (!isCurrentTitleAvailable(aiTitle)) {
+      setError(copy.errTitleTaken);
+      return false;
+    }
+    if (aiPrompt.trim().length < 8) {
+      setError(copy.errPrompt);
+      return false;
+    }
+    return true;
   }
 
   function validateManualForm() {
-    if (!title.trim()) {
-      setError(copy.errTitle);
+    if (!manualTitle.trim()) {
+      setError(copy.errGameName);
       return false;
     }
-
-    if (!description.trim()) {
-      setError(copy.errDesc);
+    if (!isCurrentTitleAvailable(manualTitle)) {
+      setError(copy.errTitleTaken);
       return false;
     }
-
-    if (mode === 'html' && !htmlFile) {
+    if (!manualDescription.trim()) {
+      setError(copy.errDescription);
+      return false;
+    }
+    if (manualMode === 'html' && !htmlFile) {
       setError(copy.errHtml);
       return false;
     }
-
-    if (mode === 'zip' && !zipFile) {
+    if (manualMode === 'zip' && !zipFile) {
       setError(copy.errZip);
       return false;
     }
-
     return true;
   }
 
   async function runZipInspection() {
-    if (!validateManualForm() || !zipFile) {
+    if (!manualTitle.trim()) {
+      setError(copy.errGameName);
+      return null;
+    }
+    if (!isCurrentTitleAvailable(manualTitle)) {
+      setError(copy.errTitleTaken);
+      return null;
+    }
+    if (!zipFile) {
+      setError(copy.errZip);
       return null;
     }
 
@@ -323,35 +406,56 @@ export default function SubmitForm({ userLoginId, locale }: { userLoginId: strin
 
       const data = (await response.json()) as InspectResponse | ErrorResponse;
       if (!response.ok || !('inspectionId' in data)) {
-        throw new Error(('error' in data ? data.error : undefined) ?? copy.errInspect);
+        throw new Error(('error' in data ? data.error : undefined) ?? copy.errZip);
       }
 
       setInspectResult(data);
       return data;
     } catch (cause) {
       setInspectResult(null);
-      setError(cause instanceof Error ? cause.message : copy.errInspectFallback);
+      setError(cause instanceof Error ? cause.message : copy.errZip);
       return null;
     } finally {
       setIsInspecting(false);
     }
   }
 
-  async function requestPublish(inspectionId: string) {
-    const response = await fetch('/api/upload/confirm', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        inspectionId,
-        title,
-        description
-      })
-    });
+  async function publishAiGame() {
+    if (!validateAiForm()) {
+      return;
+    }
 
-    const data = (await response.json()) as PublishResponse | ErrorResponse;
-    return { response, data };
+    clearMessages();
+    setIsPublishing(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('title', aiTitle.trim());
+      formData.append('prompt', aiPrompt.trim());
+      if (aiDescription.trim()) {
+        formData.append('description', aiDescription.trim());
+      }
+      if (aiThumbnail) {
+        formData.append('thumbnail', aiThumbnail);
+      }
+
+      const response = await fetch('/api/upload/generate-v2', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = (await response.json()) as PublishResponse | ErrorResponse;
+      if (!response.ok || !('ok' in data)) {
+        throw new Error(('error' in data ? data.error : undefined) ?? 'Could not create the game.');
+      }
+
+      setSuccess(data);
+      resetAiForm();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not create the game.');
+    } finally {
+      setIsPublishing(false);
+    }
   }
 
   async function publishManualGame() {
@@ -363,15 +467,15 @@ export default function SubmitForm({ userLoginId, locale }: { userLoginId: strin
     setIsPublishing(true);
 
     try {
-      if (mode === 'html') {
+      if (manualMode === 'html') {
         const formData = new FormData();
-        formData.append('title', title);
-        formData.append('description', description);
+        formData.append('title', manualTitle.trim());
+        formData.append('description', manualDescription.trim());
         if (htmlFile) {
           formData.append('htmlFile', htmlFile);
         }
-        if (thumbnailFile) {
-          formData.append('thumbnail', thumbnailFile);
+        if (manualThumbnail) {
+          formData.append('thumbnail', manualThumbnail);
         }
 
         const response = await fetch('/api/upload/paste', {
@@ -381,11 +485,11 @@ export default function SubmitForm({ userLoginId, locale }: { userLoginId: strin
 
         const data = (await response.json()) as PublishResponse | ErrorResponse;
         if (!response.ok || !('ok' in data)) {
-          throw new Error(('error' in data ? data.error : undefined) ?? copy.errPublish);
+          throw new Error(('error' in data ? data.error : undefined) ?? 'Could not create the game.');
         }
 
         setSuccess(data);
-        resetForm();
+        resetManualForm();
         return;
       }
 
@@ -394,7 +498,19 @@ export default function SubmitForm({ userLoginId, locale }: { userLoginId: strin
         return;
       }
 
-      let { response, data } = await requestPublish(inspection.inspectionId);
+      let response = await fetch('/api/upload/confirm', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          inspectionId: inspection.inspectionId,
+          title: manualTitle.trim(),
+          description: manualDescription.trim()
+        })
+      });
+
+      let data = (await response.json()) as PublishResponse | ErrorResponse;
 
       if (response.status === 410) {
         inspection = await runZipInspection();
@@ -402,256 +518,317 @@ export default function SubmitForm({ userLoginId, locale }: { userLoginId: strin
           return;
         }
 
-        ({ response, data } = await requestPublish(inspection.inspectionId));
+        response = await fetch('/api/upload/confirm', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json'
+          },
+          body: JSON.stringify({
+            inspectionId: inspection.inspectionId,
+            title: manualTitle.trim(),
+            description: manualDescription.trim()
+          })
+        });
+        data = (await response.json()) as PublishResponse | ErrorResponse;
       }
 
       if (!response.ok || !('ok' in data)) {
-        throw new Error(('error' in data ? data.error : undefined) ?? copy.errPublish);
+        throw new Error(('error' in data ? data.error : undefined) ?? 'Could not create the game.');
       }
 
       setSuccess(data);
-      resetForm();
+      resetManualForm();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : copy.errPublishFallback);
-    } finally {
-      setIsPublishing(false);
-    }
-  }
-
-  async function generateGame() {
-    if (prompt.trim().length < 8) {
-      setError(copy.errPrompt);
-      return;
-    }
-
-    clearMessages();
-    setIsPublishing(true);
-
-    try {
-      const response = await fetch('/api/upload/generate', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json'
-        },
-        body: JSON.stringify({ prompt })
-      });
-
-      const data = (await response.json()) as PublishResponse | ErrorResponse;
-      if (!response.ok || !('ok' in data)) {
-        throw new Error(('error' in data ? data.error : undefined) ?? copy.errPublish);
-      }
-
-      setSuccess(data);
-      resetForm();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : copy.errPublishFallback);
+      setError(cause instanceof Error ? cause.message : 'Could not create the game.');
     } finally {
       setIsPublishing(false);
     }
   }
 
   return (
-    <div className="submit-layout">
-      <div className="panel-card panel-card-form">
-        <div className="panel-card-head">
-          <span className="pill-label">{copy.title}</span>
-          <h2>{userLoginId}</h2>
-          <p>{copy.subtitle}</p>
-        </div>
+    <section className="panel-card panel-card-form submit-panel-simple">
+      <div className="submit-main-mode-grid">
+        <button
+          type="button"
+          className={`submit-choice-card${mode === 'ai' ? ' is-active' : ''}`}
+          onClick={() => {
+            setMode('ai');
+            clearMessages();
+          }}
+        >
+          <strong>{copy.aiTitle}</strong>
+          <span>{copy.aiSubtitle}</span>
+        </button>
+        <button
+          type="button"
+          className={`submit-choice-card${mode === 'manual' ? ' is-active' : ''}`}
+          onClick={() => {
+            setMode('manual');
+            clearMessages();
+          }}
+        >
+          <strong>{copy.manualTitle}</strong>
+          <span>{copy.manualSubtitle}</span>
+        </button>
+      </div>
 
-        <div className="tab-row auth-tabs submit-mode-tabs">
-          <button
-            type="button"
-            className={`button-ghost auth-tab${mode === 'prompt' ? ' is-active' : ''}`}
-            onClick={() => {
-              setMode('prompt');
-              setInspectResult(null);
-              clearMessages();
-            }}
-          >
-            {copy.modePrompt}
-          </button>
-          <button
-            type="button"
-            className={`button-ghost auth-tab${mode === 'html' ? ' is-active' : ''}`}
-            onClick={() => {
-              setMode('html');
-              setInspectResult(null);
-              clearMessages();
-            }}
-          >
-            {copy.modeHtml}
-          </button>
-          <button
-            type="button"
-            className={`button-ghost auth-tab${mode === 'zip' ? ' is-active' : ''}`}
-            onClick={() => {
-              setMode('zip');
-              setInspectResult(null);
-              clearMessages();
-            }}
-          >
-            {copy.modeZip}
-          </button>
-        </div>
+      {mode === 'ai' ? (
+        <div className="submit-section-stack">
+          <label className="field-label">
+            <span>{copy.gameName}</span>
+            <input
+              value={aiTitle}
+              onChange={(event) => {
+                setAiTitle(event.target.value);
+                clearMessages();
+              }}
+              maxLength={80}
+              placeholder={copy.gameNamePlaceholder}
+            />
+          </label>
 
-        {mode === 'prompt' ? (
-          <>
-            <label className="field-label">
-              {copy.promptLabel}
-              <textarea
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                rows={6}
-                maxLength={1200}
-                placeholder={copy.promptPlaceholder}
-              />
-              <span className="small-copy upload-input-hint">{copy.promptHint}</span>
-            </label>
-            <button type="button" className="button-primary button-fill" onClick={() => void generateGame()} disabled={isPublishing}>
-              {isPublishing ? copy.generating : copy.generate}
-            </button>
-          </>
-        ) : (
-          <>
-            <label className="field-label">
-              {copy.gameTitle}
-              <input
-                value={title}
-                onChange={(event) => {
-                  setTitle(event.target.value);
-                  clearMessages();
-                }}
-                maxLength={80}
-                required
-              />
-            </label>
-
-            <label className="field-label">
-              {copy.gameDescription}
-              <textarea
-                value={description}
-                onChange={(event) => {
-                  setDescription(event.target.value);
-                  clearMessages();
-                }}
-                rows={4}
-                maxLength={400}
-                placeholder={copy.descriptionPlaceholder}
-                required
-              />
-            </label>
-
-            {mode === 'html' ? (
-              <>
-                <FileDropzone
-                  inputId="html-upload"
-                  accept=".html,.htm,text/html"
-                  label={copy.htmlLabel}
-                  hint={copy.htmlHintLabel}
-                  file={htmlFile}
-                  onFileChange={(file) => {
-                    setHtmlFile(file);
-                    clearMessages();
-                  }}
-                  copy={copy}
-                  inputRef={htmlInputRef}
-                />
-                <FileDropzone
-                  inputId="thumbnail-upload"
-                  accept="image/png,image/jpeg,image/webp"
-                  label={copy.thumbnail}
-                  hint={copy.thumbnailHint}
-                  file={thumbnailFile}
-                  onFileChange={(file) => {
-                    setThumbnailFile(file);
-                    clearMessages();
-                  }}
-                  copy={copy}
-                  inputRef={thumbnailInputRef}
-                />
-              </>
-            ) : (
-              <FileDropzone
-                inputId="zip-upload"
-                accept=".zip,application/zip"
-                label={copy.zipLabel}
-                hint={copy.zipHintLabel}
-                file={zipFile}
-                onFileChange={(file) => {
-                  setZipFile(file);
-                  setInspectResult(null);
-                  clearMessages();
-                }}
-                copy={copy}
-                inputRef={zipInputRef}
-              />
-            )}
-
-            <div className="button-row">
-              {mode === 'zip' ? (
-                <button type="button" className="button-secondary button-fill" onClick={() => void runZipInspection()} disabled={isInspecting || isPublishing}>
-                  {isInspecting ? copy.inspecting : copy.inspect}
-                </button>
-              ) : null}
-              <button type="button" className="button-primary button-fill" onClick={() => void publishManualGame()} disabled={isInspecting || isPublishing}>
-                {isPublishing ? copy.publishing : copy.publish}
-              </button>
-            </div>
-          </>
-        )}
-
-        {error ? <p className="error-text">{error}</p> : null}
-
-        {success ? (
-          <div className="status-card status-success">
-            <p className="status-title">{copy.success}</p>
-            <p className="small-copy">
-              {copy.open}: <a href={success.gameUrl}>{success.gameUrl}</a>
-            </p>
-            {success.flagged ? <p className="small-copy">{copy.successFlagged}</p> : null}
+          <div className="submit-title-status">
+            <span className="small-copy">{copy.gameNameHint}</span>
+            {activeTitle.trim() ? (
+              <span className={`small-copy${titleState.available === false ? ' error-text' : ''}`}>
+                {isCheckingTitle ? copy.checkingName : titleState.message}
+              </span>
+            ) : null}
+            {titleState.gameId ? (
+              <span className="small-copy">
+                {copy.namePreview}: `/game/${titleState.gameId}`
+              </span>
+            ) : null}
           </div>
-        ) : null}
-      </div>
 
-      <div className="submit-side">
-        <div className="panel-card">
-          <h3>{copy.uploadGuide}</h3>
-          <ul className="upload-rules">
-            <li>{copy.guidePrompt1}</li>
-            <li>{copy.guidePrompt2}</li>
-            <li>{copy.guidePrompt3}</li>
-            <li>{copy.guidePrompt4}</li>
-          </ul>
+          <label className="field-label">
+            <span>{copy.promptLabel}</span>
+            <textarea
+              value={aiPrompt}
+              onChange={(event) => {
+                setAiPrompt(event.target.value);
+                clearMessages();
+              }}
+              rows={5}
+              maxLength={1200}
+              placeholder={copy.promptPlaceholder}
+            />
+          </label>
+
+          <label className="field-label">
+            <span>{copy.aiDescription}</span>
+            <textarea
+              value={aiDescription}
+              onChange={(event) => {
+                setAiDescription(event.target.value);
+                clearMessages();
+              }}
+              rows={3}
+              maxLength={400}
+              placeholder={copy.aiDescriptionPlaceholder}
+            />
+            <span className="small-copy upload-input-hint">{copy.aiDescriptionHint}</span>
+          </label>
+
+          <FileDropzone
+            inputId="ai-thumbnail-upload"
+            accept="image/png,image/jpeg,image/webp"
+            label={copy.thumbnail}
+            hint={copy.thumbnailHint}
+            file={aiThumbnail}
+            onFileChange={(file) => {
+              setAiThumbnail(file);
+              clearMessages();
+            }}
+            inputRef={aiThumbnailInputRef}
+            chooseLabel={copy.dropChoose}
+            orLabel={copy.dropOr}
+            activeLabel={copy.dropActive}
+            selectedLabel={copy.selectedFile}
+            removeLabel={copy.removeFile}
+          />
+
+          <button
+            type="button"
+            className="button-primary button-fill"
+            onClick={() => void publishAiGame()}
+            disabled={isPublishing || isCheckingTitle}
+          >
+            {isPublishing ? copy.creating : copy.createWithAi}
+          </button>
         </div>
+      ) : (
+        <div className="submit-section-stack">
+          <label className="field-label">
+            <span>{copy.gameName}</span>
+            <input
+              value={manualTitle}
+              onChange={(event) => {
+                setManualTitle(event.target.value);
+                clearMessages();
+              }}
+              maxLength={80}
+              placeholder={copy.gameNamePlaceholder}
+            />
+          </label>
 
-        <div className="panel-card">
-          <h3>
-            {mode === 'prompt' ? copy.aiSectionTitle : mode === 'zip' ? copy.zipResult : copy.manualSectionTitle}
-          </h3>
-          {mode === 'prompt' ? (
-            <p className="small-copy">{copy.promptPanelHint}</p>
-          ) : mode === 'zip' && inspectResult ? (
-            <div className="status-card">
-              <p className="status-title">{copy.zipDone}</p>
-              <p className="small-copy">
-                {copy.entry}: {inspectResult.entryPath}
-              </p>
-              <p className="small-copy">
-                {copy.htmlCount}: {inspectResult.htmlFiles.length}
-              </p>
-              <p className="small-copy">
-                {copy.thumbCount}: {inspectResult.thumbnailCandidates.length}
-              </p>
-              <p className="small-copy">
-                {inspectResult.thumbnailCandidates.length === 0 ? copy.thumbnailHint : inspectResult.allowlistViolation ? copy.flagged : copy.safe}
-              </p>
-            </div>
+          <div className="submit-title-status">
+            <span className="small-copy">{copy.gameNameHint}</span>
+            {activeTitle.trim() ? (
+              <span className={`small-copy${titleState.available === false ? ' error-text' : ''}`}>
+                {isCheckingTitle ? copy.checkingName : titleState.message}
+              </span>
+            ) : null}
+            {titleState.gameId ? (
+              <span className="small-copy">
+                {copy.namePreview}: `/game/${titleState.gameId}`
+              </span>
+            ) : null}
+          </div>
+
+          <label className="field-label">
+            <span>{copy.manualDescription}</span>
+            <textarea
+              value={manualDescription}
+              onChange={(event) => {
+                setManualDescription(event.target.value);
+                clearMessages();
+              }}
+              rows={3}
+              maxLength={400}
+              placeholder={copy.manualDescriptionPlaceholder}
+            />
+          </label>
+
+          <div className="submit-submode-row">
+            <button
+              type="button"
+              className={`button-ghost submit-submode-button${manualMode === 'html' ? ' is-active' : ''}`}
+              onClick={() => {
+                setManualMode('html');
+                setInspectResult(null);
+                clearMessages();
+              }}
+            >
+              {copy.htmlMode}
+            </button>
+            <button
+              type="button"
+              className={`button-ghost submit-submode-button${manualMode === 'zip' ? ' is-active' : ''}`}
+              onClick={() => {
+                setManualMode('zip');
+                setInspectResult(null);
+                clearMessages();
+              }}
+            >
+              {copy.zipMode}
+            </button>
+          </div>
+
+          {manualMode === 'html' ? (
+            <FileDropzone
+              inputId="html-upload"
+              accept=".html,.htm,text/html"
+              label={copy.htmlFile}
+              hint={copy.htmlHint}
+              file={htmlFile}
+              onFileChange={(file) => {
+                setHtmlFile(file);
+                clearMessages();
+              }}
+              inputRef={htmlInputRef}
+              chooseLabel={copy.dropChoose}
+              orLabel={copy.dropOr}
+              activeLabel={copy.dropActive}
+              selectedLabel={copy.selectedFile}
+              removeLabel={copy.removeFile}
+            />
           ) : (
-            <p className="small-copy">{mode === 'zip' ? copy.zipHint : copy.htmlHint}</p>
+            <FileDropzone
+              inputId="zip-upload"
+              accept=".zip,application/zip"
+              label={copy.zipFile}
+              hint={copy.zipHint}
+              file={zipFile}
+              onFileChange={(file) => {
+                setZipFile(file);
+                setInspectResult(null);
+                clearMessages();
+              }}
+              inputRef={zipInputRef}
+              chooseLabel={copy.dropChoose}
+              orLabel={copy.dropOr}
+              activeLabel={copy.dropActive}
+              selectedLabel={copy.selectedFile}
+              removeLabel={copy.removeFile}
+            />
           )}
+
+          <FileDropzone
+            inputId="manual-thumbnail-upload"
+            accept="image/png,image/jpeg,image/webp"
+            label={copy.thumbnail}
+            hint={copy.thumbnailHint}
+            file={manualThumbnail}
+            onFileChange={(file) => {
+              setManualThumbnail(file);
+              clearMessages();
+            }}
+            inputRef={manualThumbnailInputRef}
+            chooseLabel={copy.dropChoose}
+            orLabel={copy.dropOr}
+            activeLabel={copy.dropActive}
+            selectedLabel={copy.selectedFile}
+            removeLabel={copy.removeFile}
+          />
+
+          {manualMode === 'zip' && inspectResult ? (
+            <div className="status-card">
+              <p className="status-title">{copy.zipReady}</p>
+              <p className="small-copy">
+                {copy.zipEntry}: {inspectResult.entryPath}
+              </p>
+              <p className="small-copy">
+                {copy.zipHtmlCount}: {inspectResult.htmlFiles.length}
+              </p>
+              <p className="small-copy">
+                {copy.zipThumbCount}: {inspectResult.thumbnailCandidates.length}
+              </p>
+              <p className="small-copy">{inspectResult.allowlistViolation ? copy.zipFlagged : copy.zipSafe}</p>
+            </div>
+          ) : null}
+
+          <button
+            type="button"
+            className="button-primary button-fill"
+            onClick={() => void publishManualGame()}
+            disabled={isPublishing || isCheckingTitle || isInspecting}
+          >
+            {isInspecting ? copy.checkingZip : isPublishing ? copy.creating : copy.createGame}
+          </button>
         </div>
-      </div>
-    </div>
+      )}
+
+      {error ? <p className="error-text">{error}</p> : null}
+
+      {success ? (
+        <div className="status-card status-success">
+          <p className="status-title">{copy.success}</p>
+          <p className="small-copy">
+            {copy.open}: <a href={success.gameUrl}>{success.gameUrl}</a>
+          </p>
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() => {
+              setSuccess(null);
+              clearMessages();
+            }}
+          >
+            {copy.createAnother}
+          </button>
+        </div>
+      ) : null}
+    </section>
   );
 }

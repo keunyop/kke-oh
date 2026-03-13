@@ -1,0 +1,110 @@
+import { getCurrentUser } from '@/lib/auth';
+import { getDictionary } from '@/lib/i18n';
+import { isAdminUser } from '@/lib/security/admin';
+function getAvatarText(loginId) {
+    const initials = loginId
+        .split(/[^a-zA-Z0-9]+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '')
+        .join('');
+    return initials || loginId.slice(0, 1).toUpperCase();
+}
+export async function SiteNavbar({ search = '', locale }) {
+    const user = await getCurrentUser();
+    const adminUser = isAdminUser(user);
+    const t = getDictionary(locale);
+    const profileMenuLabel = 'Profile menu';
+    const navigationMenuLabel = 'Open menu';
+    const mobileMenuText = locale === 'ko' ? '\uBA54\uB274' : 'Menu';
+    const logoutLabel = t.common.logout;
+    const myGamesLabel = locale === 'ko' ? '\uB0B4 \uAC8C\uC784' : 'My Games';
+    const adminLabel = locale === 'ko' ? '\uAD00\uB9AC\uC790' : 'Admin';
+    const mobileUserLabel = locale === 'ko' ? '\uB85C\uADF8\uC778 \uC911' : 'Signed in';
+    return (<header className="site-header">
+      <div className="site-header-inner simple-header">
+        <a href="/" className="brand-mark brand-logo" aria-label="KKE-OH! home">
+          <span className="brand-orbit" aria-hidden="true">
+            <span className="brand-orbit-core"/>
+          </span>
+          <span className="brand-text">
+            <strong>KKE-OH!</strong>
+          </span>
+        </a>
+
+        <div className="nav-actions simple-actions nav-actions-desktop">
+          <form action="/" className="nav-search" role="search">
+            <input type="search" name="q" placeholder={t.common.searchPlaceholder} defaultValue={search} aria-label={t.common.searchPlaceholder}/>
+          </form>
+          <a href="/submit" className="upload-link">
+            {t.common.uploadGame}
+          </a>
+          {user ? (<details className="profile-menu">
+              <summary className="profile-avatar" aria-label={profileMenuLabel}>
+                <span>{getAvatarText(user.loginId)}</span>
+              </summary>
+              <div className="profile-menu-card">
+                <p className="profile-menu-name">{user.loginId}</p>
+                {adminUser ? (<a href="/admin" className="profile-menu-link profile-menu-link-admin">
+                    {adminLabel}
+                  </a>) : null}
+                <a href="/my-games" className="profile-menu-link">
+                  {myGamesLabel}
+                </a>
+                <form action="/api/auth/logout" method="post">
+                  <button type="submit" className="profile-menu-button">
+                    {logoutLabel}
+                  </button>
+                </form>
+              </div>
+            </details>) : (<a href="/login?next=/submit" className="profile-pill">
+              {t.common.login}
+            </a>)}
+        </div>
+
+        <details className="mobile-nav">
+          <summary className="mobile-nav-toggle" aria-label={navigationMenuLabel}>
+            <span className="mobile-nav-toggle-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" className="mobile-nav-toggle-svg">
+                <path d="M8 7.25h8.2a2.55 2.55 0 1 1 0 5.1H8a2.55 2.55 0 1 1 0-5.1zm0 0A2.55 2.55 0 1 0 8 12.35" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M15.7 11.65H7.8a2.55 2.55 0 1 0 0 5.1h7.9a2.55 2.55 0 1 0 0-5.1zm0 0a2.55 2.55 0 1 1 0 5.1" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </span>
+            <span className="mobile-nav-toggle-text">{mobileMenuText}</span>
+          </summary>
+          <div className="mobile-nav-panel">
+            <form action="/" className="nav-search mobile-nav-search" role="search">
+              <input type="search" name="q" placeholder={t.common.searchPlaceholder} defaultValue={search} aria-label={t.common.searchPlaceholder}/>
+            </form>
+            <a href="/submit" className="upload-link mobile-nav-link">
+              {t.common.uploadGame}
+            </a>
+            {user ? (<div className="mobile-profile-card">
+                <div className="mobile-profile-head">
+                  <span className="profile-avatar mobile-profile-avatar" aria-hidden="true">
+                    <span>{getAvatarText(user.loginId)}</span>
+                  </span>
+                  <div className="mobile-profile-copy">
+                    <p className="mobile-profile-label">{mobileUserLabel}</p>
+                    <p className="mobile-profile-name">{user.loginId}</p>
+                  </div>
+                </div>
+                {adminUser ? (<a href="/admin" className="profile-menu-link mobile-nav-link profile-menu-link-admin">
+                    {adminLabel}
+                  </a>) : null}
+                <a href="/my-games" className="profile-menu-link mobile-nav-link">
+                  {myGamesLabel}
+                </a>
+                <form action="/api/auth/logout" method="post">
+                  <button type="submit" className="profile-menu-button">
+                    {logoutLabel}
+                  </button>
+                </form>
+              </div>) : (<a href="/login?next=/submit" className="profile-pill mobile-nav-link">
+                {t.common.login}
+              </a>)}
+          </div>
+        </details>
+      </div>
+    </header>);
+}

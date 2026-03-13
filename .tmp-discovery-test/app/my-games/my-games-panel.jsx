@@ -1,0 +1,132 @@
+'use client';
+import { useState } from 'react';
+import Image from 'next/image';
+import { getPlaceholderThumbnailDataUrl } from '@/lib/games/placeholder';
+import { getGameAssetUrl } from '@/lib/games/urls';
+function getCopy(locale) {
+    return locale === 'ko'
+        ? {
+            empty: '아직 만든 게임이 없어요.',
+            create: '게임 만들기',
+            open: '열기',
+            hide: '숨기기',
+            unhide: '다시 공개',
+            delete: '삭제',
+            deleting: '처리 중...',
+            public: '공개 중',
+            hidden: '숨김',
+            removed: '삭제됨',
+            createdAt: '만든 날짜',
+            likes: '좋아요',
+            dislikes: '싫어요',
+            plays: '플레이'
+        }
+        : {
+            empty: 'You have not created any games yet.',
+            create: 'Create Game',
+            open: 'Open',
+            hide: 'Hide',
+            unhide: 'Show Again',
+            delete: 'Delete',
+            deleting: 'Working...',
+            public: 'Public',
+            hidden: 'Hidden',
+            removed: 'Removed',
+            createdAt: 'Created',
+            likes: 'Likes',
+            dislikes: 'Dislikes',
+            plays: 'Plays'
+        };
+}
+export default function MyGamesPanel({ initialGames, locale }) {
+    const [games, setGames] = useState(initialGames);
+    const [pendingId, setPendingId] = useState(null);
+    const [error, setError] = useState(null);
+    const copy = getCopy(locale);
+    async function runAction(gameId, action) {
+        setPendingId(gameId);
+        setError(null);
+        try {
+            const response = await fetch(`/api/my-games/${gameId}`, {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json'
+                },
+                body: JSON.stringify({ action })
+            });
+            const data = (await response.json());
+            if (!response.ok || !data.ok) {
+                throw new Error(data.error ?? 'Action failed.');
+            }
+            if (action === 'delete') {
+                setGames((current) => current.map((game) => game.id === gameId
+                    ? {
+                        ...game,
+                        status: 'REMOVED',
+                        is_hidden: true,
+                        hidden_reason: 'Removed by owner'
+                    }
+                    : game));
+                return;
+            }
+            if (data.game) {
+                setGames((current) => current.map((game) => (game.id === gameId ? data.game ?? game : game)));
+            }
+        }
+        catch (cause) {
+            setError(cause instanceof Error ? cause.message : 'Action failed.');
+        }
+        finally {
+            setPendingId(null);
+        }
+    }
+    if (!games.length) {
+        return (<section className="empty-state-card">
+        <h2>{copy.empty}</h2>
+        <a href="/submit" className="button-primary">
+          {copy.create}
+        </a>
+      </section>);
+    }
+    return (<section className="my-games-grid">
+      {error ? <p className="error-text">{error}</p> : null}
+      {games.map((game) => {
+            const imageUrl = game.thumbnail_path ? getGameAssetUrl(game.id, game.thumbnail_path) : getPlaceholderThumbnailDataUrl(game.title);
+            const statusLabel = game.status === 'REMOVED' ? copy.removed : game.is_hidden ? copy.hidden : copy.public;
+            const isPending = pendingId === game.id;
+            return (<article key={game.id} className="panel-card my-game-card">
+            <div className="my-game-card-media">
+              <Image src={imageUrl} alt={game.title} fill className="game-card-image" unoptimized/>
+            </div>
+            <div className="my-game-card-body">
+              <div className="my-game-card-head">
+                <div>
+                  <h2>{game.title}</h2>
+                  <p className="small-copy">
+                    {copy.createdAt}: {new Date(game.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <span className="my-game-status">{statusLabel}</span>
+              </div>
+              <p>{game.description}</p>
+              <div className="game-card-stats">
+                <span>{copy.likes} {game.like_count}</span>
+                <span>{copy.dislikes} {game.dislike_count}</span>
+                <span>{copy.plays} {Math.max(0, Math.round((game.plays_7d ?? 0) + (game.plays_30d ?? 0) * 0.2))}</span>
+              </div>
+              <div className="button-row my-game-actions">
+                <a href={`/game/${game.id}`} className="button-secondary">
+                  {copy.open}
+                </a>
+                {game.status !== 'REMOVED' ? (<button type="button" className="button-ghost" onClick={() => void runAction(game.id, game.is_hidden ? 'unhide' : 'hide')} disabled={isPending}>
+                    {isPending ? copy.deleting : game.is_hidden ? copy.unhide : copy.hide}
+                  </button>) : null}
+                {game.status !== 'REMOVED' ? (<button type="button" className="button-ghost" onClick={() => void runAction(game.id, 'delete')} disabled={isPending}>
+                    {isPending ? copy.deleting : copy.delete}
+                  </button>) : null}
+              </div>
+            </div>
+          </article>);
+        })}
+    </section>);
+}

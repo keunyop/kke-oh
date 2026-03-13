@@ -1,9 +1,13 @@
-import { cookies, headers } from 'next/headers';
+import { getCurrentUser } from '@/lib/auth';
+import type { AuthUser } from '@/lib/auth/types';
+import { isAdminUser } from '@/lib/security/admin-rules';
+export { isAdminLoginId, isAdminUser } from '@/lib/security/admin-rules';
 
-export function isAdminAuthorized(): boolean {
-  const secret = process.env.ADMIN_SECRET?.trim();
-  if (!secret) return false;
-  const hSecret = headers().get('x-admin-secret');
-  const cSecret = cookies().get('admin_secret')?.value;
-  return hSecret === secret || cSecret === secret;
+export async function getAdminUser(): Promise<AuthUser | null> {
+  const user = await getCurrentUser();
+  return isAdminUser(user) ? user : null;
+}
+
+export async function isAdminAuthorized(): Promise<boolean> {
+  return Boolean(await getAdminUser());
 }

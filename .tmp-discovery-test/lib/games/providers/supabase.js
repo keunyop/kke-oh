@@ -1,0 +1,309 @@
+import path from 'node:path';
+import { createServiceClient } from '@/lib/db/supabase';
+import { applyReactionFallback, readReactionMetrics } from '@/lib/games/reactionFallback';
+import { readFromR2 } from '@/lib/r2/client';
+const CORE_GAME_SELECT = 'id,title,description,status,is_hidden,hidden_reason,storage_prefix,entry_path,thumbnail_url,allowlist_violation,report_count,plays_7d,plays_30d,created_at,updated_at';
+const GAME_SELECT_WITH_UPLOADER = `${CORE_GAME_SELECT},uploader_user_id,uploader_name`;
+const GAME_SELECT_WITH_REACTIONS = `${GAME_SELECT_WITH_UPLOADER},like_count,dislike_count`;
+function isOptionalColumnError(message) {
+    return (message.includes('like_count') ||
+        message.includes('dislike_count') ||
+        message.includes('uploader_user_id') ||
+        message.includes('uploader_name'));
+}
+function normalizeAssetPath(value) {
+    const normalized = value.replace(/\\/g, '/').replace(/^\/+/, '');
+    if (!normalized)
+        return null;
+    const parts = normalized.split('/').filter(Boolean);
+    if (!parts.length || parts.some((part) => part === '.' || part === '..')) {
+        return null;
+    }
+    return parts.join('/');
+}
+function detectContentType(assetPath) {
+    const ext = path.extname(assetPath).toLowerCase();
+    if (ext === '.html')
+        return 'text/html; charset=utf-8';
+    if (ext === '.css')
+        return 'text/css; charset=utf-8';
+    if (ext === '.js')
+        return 'text/javascript; charset=utf-8';
+    if (ext === '.json')
+        return 'application/json; charset=utf-8';
+    if (ext === '.svg')
+        return 'image/svg+xml';
+    if (ext === '.wasm')
+        return 'application/wasm';
+    if (ext === '.png')
+        return 'image/png';
+    if (ext === '.jpg' || ext === '.jpeg')
+        return 'image/jpeg';
+    if (ext === '.gif')
+        return 'image/gif';
+    if (ext === '.webp')
+        return 'image/webp';
+    if (ext === '.mp3')
+        return 'audio/mpeg';
+    if (ext === '.ogg')
+        return 'audio/ogg';
+    if (ext === '.wav')
+        return 'audio/wav';
+    if (ext === '.txt')
+        return 'text/plain; charset=utf-8';
+    return 'application/octet-stream';
+}
+async function mapRow(row) {
+    const fallbackReaction = row.like_count == null || row.dislike_count == null ? await readReactionMetrics(row.id) : null;
+    return {
+        id: row.id,
+        title: row.title,
+        description: row.description ?? '',
+        uploader_user_id: row.uploader_user_id ?? null,
+        uploader_name: row.uploader_name?.trim() || 'Maker',
+        status: row.status,
+        is_hidden: row.is_hidden,
+        hidden_reason: row.hidden_reason,
+        storage_prefix: row.storage_prefix,
+        report_count: row.report_count,
+        allowlist_violation: row.allowlist_violation,
+        like_count: row.like_count ?? fallbackReaction?.likeCount ?? 0,
+        dislike_count: row.dislike_count ?? fallbackReaction?.dislikeCount ?? 0,
+        plays_7d: row.plays_7d,
+        plays_30d: row.plays_30d,
+        entry_path: row.entry_path,
+        thumbnail_path: row.thumbnail_url,
+        created_at: row.created_at,
+        updated_at: row.updated_at
+    };
+}
+export class SupabaseGameRepository {
+    async selectGames(buildQuery) {
+        for (const selectClause of [GAME_SELECT_WITH_REACTIONS, GAME_SELECT_WITH_UPLOADER, CORE_GAME_SELECT]) {
+            const result = await buildQuery(selectClause);
+            if (!result.error) {
+                return result.data ?? [];
+            }
+            if (!isOptionalColumnError(result.error.message)) {
+                throw new Error(result.error.message);
+            }
+        }
+        return [];
+    }
+    async selectSingleGame(buildQuery) {
+        for (const selectClause of [GAME_SELECT_WITH_REACTIONS, GAME_SELECT_WITH_UPLOADER, CORE_GAME_SELECT]) {
+            const result = await buildQuery(selectClause);
+            if (!result.error) {
+                return result.data ?? null;
+            }
+            if (!isOptionalColumnError(result.error.message)) {
+                throw new Error(result.error.message);
+            }
+        }
+        return null;
+    }
+    async listPublic() {
+        const supabase = createServiceClient();
+        const data = await this.selectGames(async (selectClause) => await supabase
+            .from('games')
+            .select(selectClause)
+            .eq('status', 'PUBLIC')
+            .eq('is_hidden', false)
+            .lt('report_count', 2)
+            .order('created_at', { ascending: false }));
+        return Promise.all(data.map((row) => mapRow(row)));
+    }
+    async listForAdmin(limit = 100) {
+        const supabase = createServiceClient();
+        const data = await this.selectGames(async (selectClause) => await supabase
+            .from('games')
+            .select(selectClause)
+            .order('created_at', { ascending: false })
+            .limit(Math.max(1, limit)));
+        return Promise.all(data.map((row) => mapRow(row)));
+    }
+    async listByUser(userId) {
+        const supabase = createServiceClient();
+        const data = await this.selectGames(async (selectClause) => await supabase
+            .from('games')
+            .select(selectClause)
+            .eq('uploader_user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(200));
+        return Promise.all(data.map((row) => mapRow(row)));
+    }
+    async getById(id) {
+        const supabase = createServiceClient();
+        const data = await this.selectSingleGame(async (selectClause) => await supabase
+            .from('games')
+            .select(selectClause)
+            .eq('id', id)
+            .maybeSingle());
+        return data ? mapRow(data) : null;
+    }
+    async incrementPlay(id) {
+        const game = await this.getById(id);
+        if (!game || game.status !== 'PUBLIC')
+            return false;
+        const supabase = createServiceClient();
+        const { error } = await supabase.rpc('increment_play_counters', {
+            p_game_id: id,
+            p_ip_hash: ''
+        });
+        if (error) {
+            throw new Error(error.message);
+        }
+        return true;
+    }
+    async applyReaction(id, nextReaction, previousReaction) {
+        const game = await this.getById(id);
+        if (!game || game.status !== 'PUBLIC')
+            return null;
+        let likeCount = game.like_count;
+        let dislikeCount = game.dislike_count;
+        if (previousReaction === 'LIKE' && previousReaction !== nextReaction) {
+            likeCount = Math.max(0, likeCount - 1);
+        }
+        if (previousReaction === 'DISLIKE' && previousReaction !== nextReaction) {
+            dislikeCount = Math.max(0, dislikeCount - 1);
+        }
+        if (previousReaction !== nextReaction) {
+            if (nextReaction === 'LIKE') {
+                likeCount += 1;
+            }
+            else {
+                dislikeCount += 1;
+            }
+        }
+        const supabase = createServiceClient();
+        const { error } = await supabase
+            .from('games')
+            .update({
+            like_count: likeCount,
+            dislike_count: dislikeCount,
+            updated_at: new Date().toISOString()
+        })
+            .eq('id', id);
+        if (error) {
+            if (isOptionalColumnError(error.message)) {
+                return applyReactionFallback(id, nextReaction, previousReaction);
+            }
+            throw new Error(error.message);
+        }
+        return {
+            likeCount,
+            dislikeCount,
+            reaction: nextReaction
+        };
+    }
+    async addFeedback(id, message) {
+        const game = await this.getById(id);
+        if (!game || game.status !== 'PUBLIC')
+            return false;
+        const supabase = createServiceClient();
+        const { error } = await supabase.from('game_feedback').insert({
+            game_id: id,
+            message
+        });
+        if (error) {
+            if (error.message.includes('game_feedback')) {
+                throw new Error('Game feedback is not available until the latest Supabase migration is applied.');
+            }
+            throw new Error(error.message);
+        }
+        return true;
+    }
+    async report(id, reason) {
+        const game = await this.getById(id);
+        if (!game)
+            return null;
+        const reportCount = game.report_count + 1;
+        const hidden = reportCount >= 2;
+        const supabase = createServiceClient();
+        const { error } = await supabase
+            .from('games')
+            .update({
+            report_count: reportCount,
+            is_hidden: hidden,
+            hidden_reason: hidden ? `Auto-hidden due to reports: ${reason}` : null,
+            updated_at: new Date().toISOString()
+        })
+            .eq('id', id);
+        if (error) {
+            throw new Error(error.message);
+        }
+        await supabase.from('game_reports').insert({
+            game_id: id,
+            reason,
+            reporter_ip_hash: ''
+        });
+        return { reportCount, hidden };
+    }
+    async hide(id, reason) {
+        const supabase = createServiceClient();
+        const { error, count } = await supabase
+            .from('games')
+            .update({
+            is_hidden: true,
+            hidden_reason: reason,
+            updated_at: new Date().toISOString()
+        }, { count: 'exact' })
+            .eq('id', id);
+        if (error) {
+            throw new Error(error.message);
+        }
+        return (count ?? 0) > 0;
+    }
+    async unhide(id) {
+        const supabase = createServiceClient();
+        const { error, count } = await supabase
+            .from('games')
+            .update({
+            is_hidden: false,
+            hidden_reason: null,
+            updated_at: new Date().toISOString()
+        }, { count: 'exact' })
+            .eq('id', id);
+        if (error) {
+            throw new Error(error.message);
+        }
+        return (count ?? 0) > 0;
+    }
+    async remove(id, reason) {
+        const supabase = createServiceClient();
+        const { error, count } = await supabase
+            .from('games')
+            .update({
+            status: 'REMOVED',
+            is_hidden: true,
+            hidden_reason: reason ?? 'Removed by admin',
+            updated_at: new Date().toISOString()
+        }, { count: 'exact' })
+            .eq('id', id);
+        if (error) {
+            throw new Error(error.message);
+        }
+        return (count ?? 0) > 0;
+    }
+}
+export class SupabaseGameAssetStore {
+    async readAsset(id, assetPath) {
+        const normalizedPath = normalizeAssetPath(assetPath);
+        if (!normalizedPath)
+            return null;
+        const content = await readFromR2(`${id}/${normalizedPath}`);
+        if (!content)
+            return null;
+        return {
+            content,
+            contentType: detectContentType(normalizedPath)
+        };
+    }
+    getAssetUrlPath(id, assetPath) {
+        const normalizedPath = normalizeAssetPath(assetPath);
+        if (!normalizedPath)
+            return '#';
+        const encodedPath = normalizedPath.split('/').map((part) => encodeURIComponent(part)).join('/');
+        return `/api/games/${encodeURIComponent(id)}/assets/${encodedPath}`;
+    }
+}

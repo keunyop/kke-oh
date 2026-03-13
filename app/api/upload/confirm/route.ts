@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/auth';
 import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
-import { allocateGameId, prepareInspectionForPublishing, writeUploadedGame, writeUploadedGameToSupabase } from '@/lib/games/upload';
+import { prepareInspectionForPublishing, resolveGameIdFromTitle, writeUploadedGame, writeUploadedGameToSupabase } from '@/lib/games/upload';
 import { sha256 } from '@/lib/security/hash';
 import { getRequestIp } from '@/lib/security/ip';
 import { consumeInspection } from '@/lib/security/uploadCache';
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     const inspection = await prepareInspectionForPublishing(cachedInspection, body.title);
     const driver = getGameDataDriver();
     const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
-    const gameId = await allocateGameId(storageDir, body.title);
+    const gameId = await resolveGameIdFromTitle(storageDir, body.title);
 
     if (driver === 'supabase') {
       const uploaderIpHash = sha256(getRequestIp());

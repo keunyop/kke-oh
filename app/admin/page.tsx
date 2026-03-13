@@ -1,76 +1,61 @@
-import { isAdminAuthorized } from '@/lib/security/admin';
+import { redirect } from 'next/navigation';
+import { getCurrentUser } from '@/lib/auth';
 import { getGameRepository } from '@/lib/games/repository';
-import { revalidatePath } from 'next/cache';
+import { getRequestLocale } from '@/lib/i18n/server';
+import { isAdminUser } from '@/lib/security/admin';
+import AdminDashboard from './admin-dashboard';
 
 export const dynamic = 'force-dynamic';
 
-async function hideGame(id: string) {
-  'use server';
-  await getGameRepository().hide(id, 'Hidden by admin');
-  revalidatePath('/admin');
-}
-
-async function unhideGame(id: string) {
-  'use server';
-  await getGameRepository().unhide(id);
-  revalidatePath('/admin');
-}
-
-async function removeGame(id: string) {
-  'use server';
-  await getGameRepository().remove(id);
-  revalidatePath('/admin');
-}
-
 export default async function AdminPage() {
-  if (!isAdminAuthorized()) {
-    const adminSecretConfigured = Boolean(process.env.ADMIN_SECRET?.trim());
+  const locale = getRequestLocale();
+  const user = await getCurrentUser();
 
+  if (!user) {
+    redirect('/login?next=/admin');
+  }
+
+  if (!isAdminUser(user)) {
     return (
-      <form className="card" method="post" action="/api/admin/auth">
-        <h2>Admin Login</h2>
-        <input name="secret" type="password" placeholder="ADMIN_SECRET" required />
-        <button type="submit">Unlock admin</button>
-        {!adminSecretConfigured ? (
-          <p className="small">ADMIN_SECRET is not configured. Set it in .env.local first.</p>
-        ) : null}
-      </form>
+      <section className="empty-state-card">
+        <h1>{locale === 'ko' ? '\uAD00\uB9AC\uC790 \uC804\uC6A9 \uD398\uC774\uC9C0' : 'Admin only'}</h1>
+        <p>
+          {locale === 'ko'
+            ? '\uC774 \uD398\uC774\uC9C0\uB294 \uAD00\uB9AC\uC790 \uACC4\uC815\uC5D0\uC11C\uB9CC \uC811\uADFC\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.'
+            : 'This page is available only to admin accounts.'}
+        </p>
+        <a href="/" className="button-primary">
+          {locale === 'ko' ? '\uD648\uC73C\uB85C' : 'Back home'}
+        </a>
+      </section>
     );
   }
 
   const games = await getGameRepository().listForAdmin(200);
 
   return (
-    <section>
-      <h1>Admin Panel</h1>
-      <div className="card" style={{ overflowX: 'auto' }}>
-        <table>
-          <thead>
-            <tr>
-              <th>Title</th><th>Status</th><th>Hidden</th><th>CDN Flag</th><th>Reports</th><th>Created</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {games.map((game) => (
-              <tr key={game.id}>
-                <td>{game.title}</td>
-                <td>{game.status}</td>
-                <td>{String(game.is_hidden)}</td>
-                <td>{String(game.allowlist_violation)}</td>
-                <td>{game.report_count}</td>
-                <td>{new Date(game.created_at).toLocaleString()}</td>
-                <td>
-                  <div className="inline">
-                    <form action={hideGame.bind(null, game.id)}><button type="submit">Hide</button></form>
-                    <form action={unhideGame.bind(null, game.id)}><button type="submit">Unhide</button></form>
-                    <form action={removeGame.bind(null, game.id)}><button type="submit">Delete</button></form>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <section className="admin-page">
+      <div className="panel-card admin-hero">
+        <div>
+          <span className="pill-label">{locale === 'ko' ? '\uAD00\uB9AC' : 'Admin'}</span>
+          <h1>{locale === 'ko' ? '\uAC8C\uC784 \uAD00\uB9AC \uD328\uB110' : 'Game Control Panel'}</h1>
+          <p>
+            {locale === 'ko'
+              ? '\uAC8C\uC784 \uACF5\uAC1C \uC0C1\uD0DC, \uC2E0\uACE0, \uC228\uAE40, \uC0AD\uC81C \uC5EC\uBD80\uB97C \uD55C \uACF3\uC5D0\uC11C \uD655\uC778\uD558\uACE0 \uAD00\uB9AC\uD569\uB2C8\uB2E4.'
+              : 'Review visibility, reports, moderation flags, and removal state for every uploaded game.'}
+          </p>
+        </div>
+        <div className="admin-hero-meta">
+          <strong>{user.loginId}</strong>
+          <p>
+            {locale === 'ko'
+              ? '\uC544\uBC14\uD0C0 \uBA54\uB274\uC5D0 \uAD00\uB9AC\uC790 \uBC84\uD2BC\uC774 \uB178\uCD9C\uB418\uB294 \uACC4\uC815\uB9CC \uC811\uADFC\uAC00 \uB418\uB3C4\uB85D \uC81C\uD55C\uD588\uC2B5\uB2C8\uB2E4.'
+              : 'Only the accounts that show the admin button in the avatar menu can open this page.'}
+          </p>
+        </div>
       </div>
+
+      <AdminDashboard initialGames={games} locale={locale} adminLoginId={user.loginId} />
     </section>
   );
 }

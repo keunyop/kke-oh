@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 export default async function GamePage({ params }: { params: { id: string } }) {
   const locale = getRequestLocale();
   const t = getDictionary(locale);
+  const creatorLabel = locale === 'ko' ? '만든 사람' : 'Creator';
   const game = await getGameRepository().getById(params.id);
 
   if (!game || game.status !== 'PUBLIC' || game.is_hidden) {
@@ -48,7 +49,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
           <div className="game-description-copy">
             <h1>{game.title}</h1>
             <p className="small-copy">
-              {t.common.creator} {game.uploader_name}
+              {creatorLabel} {game.uploader_name}
             </p>
           </div>
           <GameActions
