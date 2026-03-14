@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     const description = String(formData.get('description') ?? '').trim();
     const thumbnail = formData.get('thumbnail');
 
-    if (title.length < 2 || title.length > 80) {
+    if (title && (title.length < 2 || title.length > 80)) {
       return NextResponse.json({ error: 'Game name must be between 2 and 80 characters.' }, { status: 400 });
     }
 
@@ -41,20 +41,21 @@ export async function POST(request: Request) {
 
     const generated = await generateGameFromPrompt(prompt);
     const uploadThumbnail = await createThumbnailUpload(thumbnail instanceof File ? thumbnail : null);
+    const finalTitle = title || generated.title;
     const finalDescription = description || generated.description;
     const inspection = await prepareInspectionForPublishing(
       createSingleHtmlInspection(generated.html, uploadThumbnail ?? generated.thumbnail),
-      title
+      finalTitle
     );
 
     const driver = getGameDataDriver();
     const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
-    const gameId = await resolveGameIdFromTitle(storageDir, title);
+    const gameId = await resolveGameIdFromTitle(storageDir, finalTitle);
 
     if (driver === 'supabase') {
       await writeUploadedGameToSupabase({
         id: gameId,
-        title,
+        title: finalTitle,
         description: finalDescription,
         uploaderUserId: user.id,
         uploaderName: user.loginId,
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
       await writeUploadedGame({
         storageDir: storageDir as string,
         id: gameId,
-        title,
+        title: finalTitle,
         description: finalDescription,
         uploaderUserId: user.id,
         uploaderName: user.loginId,

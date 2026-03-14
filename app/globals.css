@@ -1003,22 +1003,27 @@ iframe {
   background: #000000;
 }
 
-.game-frame-wrap:fullscreen .game-frame-float-button,
-.game-frame-wrap:-webkit-full-screen .game-frame-float-button,
 .game-frame-wrap:fullscreen .game-frame-status,
 .game-frame-wrap:-webkit-full-screen .game-frame-status {
   display: none;
 }
 
+.game-frame-wrap:fullscreen .game-frame-float-button,
+.game-frame-wrap:-webkit-full-screen .game-frame-float-button,
 .game-frame-wrap.game-frame-wrap-fallback-fullscreen .game-frame-float-button {
-  top: 18px;
-  right: 18px;
+  top: calc(env(safe-area-inset-top, 0px) + 18px);
+  right: calc(env(safe-area-inset-right, 0px) + 18px);
   bottom: auto;
   z-index: 3;
 }
 
 .game-fullscreen-lock {
   overflow: hidden;
+}
+
+body.game-fullscreen-active .site-header,
+body.game-fullscreen-active .site-footer {
+  display: none;
 }
 
 .game-meta-stack {

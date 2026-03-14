@@ -24,6 +24,7 @@ type PublishResponse = {
 type TitleCheckResponse = {
   gameId?: string;
   available?: boolean;
+  issue?: 'invalid' | 'taken' | null;
   error?: string;
 };
 
@@ -43,9 +44,11 @@ function getCopy(locale: Locale) {
         gameName: '게임 이름',
         gameNamePlaceholder: '예: 우주 피하기',
         gameNameHint: '게임 링크도 이 이름으로 만들어져요.',
+        gameNameOptionalHint: '\uBE44\uC6CC \uB450\uBA74 AI\uAC00 \uAC8C\uC784\uBA85\uC744 \uC9C0\uC5B4\uC918\uC694. \uC785\uB825\uD558\uBA74 \uADF8 \uC774\uB984\uC744 \uADF8\uB300\uB85C \uC0AC\uC6A9\uD574\uC694.',
         checkingName: '이름 확인 중...',
         nameAvailable: '좋아요! 이 이름을 쓸 수 있어요.',
         nameTaken: '이미 쓰는 이름이에요. 다른 이름으로 바꿔주세요.',
+        nameInvalid: '\uAC8C\uC784\uBA85\uC740 2\uAE00\uC790 \uC774\uC0C1\uC774\uACE0 \uAE00\uC790\uB098 \uC22B\uC790\uAC00 \uB4E4\uC5B4\uAC00\uC57C \uD574\uC694.',
         namePreview: '게임 주소',
         promptLabel: '게임 아이디어',
         promptPlaceholder: '예: 별을 피하고 점수를 모으는 쉬운 우주 게임을 만들어줘.',
@@ -79,6 +82,7 @@ function getCopy(locale: Locale) {
         errHtml: 'HTML 파일을 골라주세요.',
         errZip: 'ZIP 파일을 골라주세요.',
         errTitleTaken: '이미 쓰는 이름이에요. 다른 이름으로 바꿔주세요.',
+        errInvalidGameName: '\uAC8C\uC784\uBA85\uC740 2\uAE00\uC790 \uC774\uC0C1\uC774\uACE0 \uAE00\uC790\uB098 \uC22B\uC790\uAC00 \uB4E4\uC5B4\uAC00\uC57C \uD574\uC694.',
         dropChoose: '파일 고르기',
         dropOr: '또는 여기로 끌어오세요',
         dropActive: '여기에 놓아주세요',
@@ -95,9 +99,11 @@ function getCopy(locale: Locale) {
         gameName: 'Game name',
         gameNamePlaceholder: 'Example: Space Dodge',
         gameNameHint: 'Your game link will use this name too.',
+        gameNameOptionalHint: 'Leave this empty if you want AI to name the game for you.',
         checkingName: 'Checking name...',
         nameAvailable: 'Nice! You can use this game name.',
         nameTaken: 'That game name is already used. Please choose another one.',
+        nameInvalid: 'Game names need at least 2 characters and one letter or number.',
         namePreview: 'Game URL',
         promptLabel: 'Game idea',
         promptPlaceholder: 'Example: Make an easy space game where players dodge stars and collect points.',
@@ -131,6 +137,7 @@ function getCopy(locale: Locale) {
         errHtml: 'Please choose an HTML file.',
         errZip: 'Please choose a ZIP file.',
         errTitleTaken: 'That game name is already used. Please choose another one.',
+        errInvalidGameName: 'Game names need at least 2 characters and one letter or number.',
         dropChoose: 'Choose file',
         dropOr: 'or drop it here',
         dropActive: 'Drop the file here',
@@ -253,9 +260,17 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   const [isInspecting, setIsInspecting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isCheckingTitle, setIsCheckingTitle] = useState(false);
-  const [titleState, setTitleState] = useState<{ gameId: string; available: boolean | null; message: string | null }>({
+  const [titleState, setTitleState] = useState<{
+    checkedTitle: string;
+    gameId: string;
+    available: boolean | null;
+    issue: 'invalid' | 'taken' | null;
+    message: string | null;
+  }>({
+    checkedTitle: '',
     gameId: '',
     available: null,
+    issue: null,
     message: null
   });
   const htmlInputRef = useRef<HTMLInputElement>(null);
@@ -267,19 +282,33 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
 
   useEffect(() => {
     const trimmedTitle = activeTitle.trim();
-    if (trimmedTitle.length < 2) {
-      setTitleState({ gameId: '', available: null, message: null });
+    if (!trimmedTitle) {
+      setTitleState({ checkedTitle: '', gameId: '', available: null, issue: null, message: null });
       setIsCheckingTitle(false);
       return;
     }
 
+    if (trimmedTitle.length < 2) {
+      setTitleState({
+        checkedTitle: trimmedTitle,
+        gameId: '',
+        available: null,
+        issue: 'invalid',
+        message: copy.nameInvalid
+      });
+      setIsCheckingTitle(false);
+      return;
+    }
+
+    const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setIsCheckingTitle(true);
 
       try {
         const response = await fetch(`/api/upload/title-check?title=${encodeURIComponent(trimmedTitle)}`, {
           method: 'GET',
-          cache: 'no-store'
+          cache: 'no-store',
+          signal: controller.signal
         });
         const data = (await response.json()) as TitleCheckResponse;
 
@@ -287,16 +316,25 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
           throw new Error(data.error ?? copy.errTitleTaken);
         }
 
+        const issue = data.available ? null : (data.issue ?? (data.gameId ? 'taken' : 'invalid'));
         setTitleState({
+          checkedTitle: trimmedTitle,
           gameId: data.gameId ?? '',
           available: Boolean(data.available),
-          message: data.available ? copy.nameAvailable : copy.nameTaken
+          issue,
+          message: data.available ? copy.nameAvailable : issue === 'taken' ? copy.nameTaken : copy.nameInvalid
         });
       } catch (cause) {
+        if (cause instanceof DOMException && cause.name === 'AbortError') {
+          return;
+        }
+
         setTitleState({
+          checkedTitle: trimmedTitle,
           gameId: '',
           available: false,
-          message: cause instanceof Error ? cause.message : copy.errTitleTaken
+          issue: 'invalid',
+          message: cause instanceof Error ? cause.message : copy.errInvalidGameName
         });
       } finally {
         setIsCheckingTitle(false);
@@ -305,8 +343,9 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
 
     return () => {
       window.clearTimeout(timer);
+      controller.abort();
     };
-  }, [activeTitle, copy.errTitleTaken, copy.nameAvailable, copy.nameTaken]);
+  }, [activeTitle, copy.errInvalidGameName, copy.errTitleTaken, copy.nameAvailable, copy.nameInvalid, copy.nameTaken]);
 
   function clearMessages() {
     setError(null);
@@ -335,16 +374,35 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
 
   function isCurrentTitleAvailable(title: string) {
     const trimmedTitle = title.trim();
-    return trimmedTitle.length >= 2 && titleState.gameId.length > 0 && titleState.available === true;
+    return (
+      trimmedTitle.length >= 2 &&
+      trimmedTitle === titleState.checkedTitle &&
+      titleState.gameId.length > 0 &&
+      titleState.available === true
+    );
+  }
+
+  function getTitleError(title: string, options: { required: boolean }) {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      return options.required ? copy.errGameName : null;
+    }
+
+    if (trimmedTitle.length < 2) {
+      return copy.errInvalidGameName;
+    }
+
+    if (!isCurrentTitleAvailable(trimmedTitle)) {
+      return titleState.issue === 'taken' ? copy.errTitleTaken : copy.errInvalidGameName;
+    }
+
+    return null;
   }
 
   function validateAiForm() {
-    if (!aiTitle.trim()) {
-      setError(copy.errGameName);
-      return false;
-    }
-    if (!isCurrentTitleAvailable(aiTitle)) {
-      setError(copy.errTitleTaken);
+    const titleError = getTitleError(aiTitle, { required: false });
+    if (titleError) {
+      setError(titleError);
       return false;
     }
     if (aiPrompt.trim().length < 8) {
@@ -355,12 +413,9 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   }
 
   function validateManualForm() {
-    if (!manualTitle.trim()) {
-      setError(copy.errGameName);
-      return false;
-    }
-    if (!isCurrentTitleAvailable(manualTitle)) {
-      setError(copy.errTitleTaken);
+    const titleError = getTitleError(manualTitle, { required: true });
+    if (titleError) {
+      setError(titleError);
       return false;
     }
     if (!manualDescription.trim()) {
@@ -379,12 +434,9 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   }
 
   async function runZipInspection() {
-    if (!manualTitle.trim()) {
-      setError(copy.errGameName);
-      return null;
-    }
-    if (!isCurrentTitleAvailable(manualTitle)) {
-      setError(copy.errTitleTaken);
+    const titleError = getTitleError(manualTitle, { required: true });
+    if (titleError) {
+      setError(titleError);
       return null;
     }
     if (!zipFile) {
@@ -430,7 +482,9 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
 
     try {
       const formData = new FormData();
-      formData.append('title', aiTitle.trim());
+      if (aiTitle.trim()) {
+        formData.append('title', aiTitle.trim());
+      }
       formData.append('prompt', aiPrompt.trim());
       if (aiDescription.trim()) {
         formData.append('description', aiDescription.trim());
@@ -575,6 +629,20 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
       {mode === 'ai' ? (
         <div className="submit-section-stack">
           <label className="field-label">
+            <span>{copy.promptLabel}</span>
+            <textarea
+              value={aiPrompt}
+              onChange={(event) => {
+                setAiPrompt(event.target.value);
+                clearMessages();
+              }}
+              rows={5}
+              maxLength={1200}
+              placeholder={copy.promptPlaceholder}
+            />
+          </label>
+
+          <label className="field-label">
             <span>{copy.gameName}</span>
             <input
               value={aiTitle}
@@ -588,9 +656,9 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
           </label>
 
           <div className="submit-title-status">
-            <span className="small-copy">{copy.gameNameHint}</span>
+            <span className="small-copy">{copy.gameNameOptionalHint}</span>
             {activeTitle.trim() ? (
-              <span className={`small-copy${titleState.available === false ? ' error-text' : ''}`}>
+              <span className={`small-copy${titleState.issue || titleState.available === false ? ' error-text' : ''}`}>
                 {isCheckingTitle ? copy.checkingName : titleState.message}
               </span>
             ) : null}
@@ -600,20 +668,6 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
               </span>
             ) : null}
           </div>
-
-          <label className="field-label">
-            <span>{copy.promptLabel}</span>
-            <textarea
-              value={aiPrompt}
-              onChange={(event) => {
-                setAiPrompt(event.target.value);
-                clearMessages();
-              }}
-              rows={5}
-              maxLength={1200}
-              placeholder={copy.promptPlaceholder}
-            />
-          </label>
 
           <label className="field-label">
             <span>{copy.aiDescription}</span>
@@ -675,7 +729,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
           <div className="submit-title-status">
             <span className="small-copy">{copy.gameNameHint}</span>
             {activeTitle.trim() ? (
-              <span className={`small-copy${titleState.available === false ? ' error-text' : ''}`}>
+              <span className={`small-copy${titleState.issue || titleState.available === false ? ' error-text' : ''}`}>
                 {isCheckingTitle ? copy.checkingName : titleState.message}
               </span>
             ) : null}

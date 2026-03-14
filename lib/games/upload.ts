@@ -214,17 +214,25 @@ function normalizeZipPath(fileName: string): string | null {
 
 export function slugifyGameTitle(value: string): string {
   return value
-    .toLowerCase()
+    .normalize('NFKC')
+    .toLocaleLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/['’]/gu, '')
+    .replace(/[^\p{Letter}\p{Number}]+/gu, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 64);
 }
 
-export async function isGameTitleAvailable(storageDir: string | null, title: string): Promise<{ gameId: string; available: boolean }> {
+export type TitleAvailabilityResult = {
+  gameId: string;
+  available: boolean;
+  issue: 'invalid' | 'taken' | null;
+};
+
+export async function isGameTitleAvailable(storageDir: string | null, title: string): Promise<TitleAvailabilityResult> {
   const gameId = slugifyGameTitle(title);
   if (!gameId) {
-    return { gameId: '', available: false };
+    return { gameId: '', available: false, issue: 'invalid' };
   }
 
   const exists = storageDir
@@ -233,7 +241,8 @@ export async function isGameTitleAvailable(storageDir: string | null, title: str
 
   return {
     gameId,
-    available: !exists
+    available: !exists,
+    issue: exists ? 'taken' : null
   };
 }
 

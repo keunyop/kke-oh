@@ -1,4 +1,5 @@
 import { GameActions, GameFullscreenButton } from '@/components/game/game-actions';
+import { GameFullscreenShell } from '@/components/game/game-fullscreen-shell';
 import { getGameAssetUrl } from '@/lib/games/urls';
 import { getGameRepository } from '@/lib/games/repository';
 import { getDictionary } from '@/lib/i18n';
@@ -31,6 +32,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
   return (
     <section className="game-page">
       <div id={frameId} className="game-frame-wrap">
+        <GameFullscreenShell frameId={frameId} />
         <iframe
           id={iframeId}
           src={src}
@@ -67,3 +69,4 @@ export default async function GamePage({ params }: { params: { id: string } }) {
     </section>
   );
 }
+
