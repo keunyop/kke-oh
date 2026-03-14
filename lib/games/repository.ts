@@ -26,6 +26,8 @@ export interface GameRepository {
   applyReaction(id: string, nextReaction: GameReaction, previousReaction?: GameReaction | null): Promise<ReactionResult | null>;
   addFeedback(id: string, message: string): Promise<boolean>;
   report(id: string, reason: string): Promise<ReportResult | null>;
+  publish(id: string): Promise<boolean>;
+  unpublish(id: string): Promise<boolean>;
   hide(id: string, reason: string): Promise<boolean>;
   unhide(id: string): Promise<boolean>;
   remove(id: string, reason?: string): Promise<boolean>;

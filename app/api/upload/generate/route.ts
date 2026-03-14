@@ -1,4 +1,4 @@
-import { revalidatePath } from 'next/cache';
+﻿import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/auth';
@@ -44,6 +44,7 @@ export async function POST(request: Request) {
         slug: gameSlug,
         title: generated.title,
         description: generated.description,
+        leaderboardEnabled: true,
         uploaderUserId: user.id,
         uploaderName: user.loginId,
         inspection,
@@ -57,6 +58,7 @@ export async function POST(request: Request) {
         slug: gameSlug,
         title: generated.title,
         description: generated.description,
+        leaderboardEnabled: true,
         uploaderUserId: user.id,
         uploaderName: user.loginId,
         inspection

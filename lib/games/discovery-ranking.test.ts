@@ -17,6 +17,7 @@ function buildGame(partial: Partial<GameRecord> & Pick<GameRecord, 'id' | 'title
     storage_prefix: partial.storage_prefix ?? partial.id,
     report_count: partial.report_count ?? 0,
     allowlist_violation: partial.allowlist_violation ?? false,
+    leaderboard_enabled: partial.leaderboard_enabled ?? false,
     like_count: partial.like_count ?? 0,
     dislike_count: partial.dislike_count ?? 0,
     plays_7d: partial.plays_7d ?? 0,

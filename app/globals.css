@@ -941,6 +941,30 @@ textarea {
   font-weight: 700;
 }
 
+.submit-progress-card {
+  gap: 10px;
+  background: linear-gradient(180deg, rgba(255, 248, 215, 0.92) 0%, rgba(255, 255, 255, 0.86) 100%);
+  border-color: rgba(255, 188, 79, 0.24);
+}
+
+.submit-progress-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.submit-progress-step {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(95, 120, 146, 0.18);
+  overflow: hidden;
+}
+
+.submit-progress-step.is-active,
+.submit-progress-step.is-complete {
+  background: linear-gradient(90deg, #ffd85a 0%, #ff9966 100%);
+}
+
 .error-text {
   margin: 0;
   color: #c23e2a;
@@ -1794,4 +1818,228 @@ td {
   background: linear-gradient(180deg, #ffb18d 0%, #ff8e66 100%);
   color: #5c2510;
   box-shadow: 0 12px 20px rgba(255, 142, 102, 0.24);
+}
+
+.home-champions {
+  display: grid;
+  gap: 18px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(255, 216, 90, 0.34), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.97) 0%, rgba(255, 248, 228, 0.95) 100%);
+}
+
+.home-champions-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.home-champions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.home-champion-card {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 14px;
+  padding: 12px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 196, 110, 0.22);
+  box-shadow: 0 12px 24px rgba(121, 174, 225, 0.12);
+}
+
+.home-champion-media {
+  position: relative;
+  min-height: 110px;
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+.home-champion-rank {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(36, 66, 92, 0.82);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.home-champion-body {
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.home-champion-body h3,
+.home-champion-score,
+.home-champion-player {
+  margin: 0;
+}
+
+.home-champion-body h3 {
+  font-size: 1.05rem;
+  line-height: 1.35;
+}
+
+.home-champion-player {
+  color: #8b5606;
+  font-weight: 800;
+}
+
+.home-champion-score {
+  color: var(--muted);
+}
+
+.leaderboard-card {
+  display: grid;
+  gap: 14px;
+  background:
+    radial-gradient(circle at top right, rgba(126, 217, 255, 0.18), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.97) 0%, rgba(241, 250, 255, 0.95) 100%);
+}
+
+.leaderboard-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.leaderboard-card-waiting {
+  max-width: 300px;
+  text-align: right;
+}
+
+.leaderboard-table {
+  display: grid;
+  gap: 8px;
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 120px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(112, 184, 255, 0.14);
+}
+
+.leaderboard-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-row-head {
+  background: rgba(255, 248, 215, 0.82);
+  color: #8b5606;
+  font-weight: 800;
+}
+
+.leaderboard-status {
+  color: #2d6b25;
+}
+
+.game-preview-note {
+  color: #8b5606;
+  font-weight: 700;
+}
+
+.my-game-status.is-draft {
+  background: rgba(126, 217, 255, 0.18);
+  color: #24597a;
+}
+
+@media (max-width: 900px) {
+  .home-champions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-champion-card {
+    grid-template-columns: 110px minmax(0, 1fr);
+  }
+
+  .leaderboard-card-head {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .leaderboard-card-waiting {
+    max-width: none;
+    text-align: left;
+  }
+
+  .edit-mode-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .game-card.game-card-no-summary .game-card-stats {
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .game-card.game-card-no-summary .game-card-stats span {
+    min-width: 0;
+    justify-content: center;
+    padding: 0 8px;
+    white-space: nowrap;
+  }
+
+  .my-game-actions {
+    flex-direction: column;
+  }
+
+  .my-game-actions > * {
+    width: 100%;
+  }
+
+  .leaderboard-row {
+    grid-template-columns: 72px minmax(0, 1fr) 88px;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .edit-game-preview {
+    grid-template-columns: 1fr;
+  }
+
+  .edit-game-preview-media {
+    min-height: 210px;
+  }
+
+  .edit-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .edit-mode-grid ~ .submit-section-stack .button-row {
+    flex-direction: column;
+  }
+
+  .edit-mode-grid ~ .submit-section-stack .button-row > * {
+    width: 100%;
+  }
+}
+
+.edit-game-preview-copy {
+  min-width: 0;
+}
+
+.edit-game-preview-copy .small-copy {
+  overflow-wrap: anywhere;
 }

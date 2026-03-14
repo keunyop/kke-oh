@@ -1,4 +1,4 @@
-import { revalidatePath } from 'next/cache';
+﻿import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import path from 'node:path';
 import { getCurrentUser } from '@/lib/auth';
@@ -150,6 +150,7 @@ export async function POST(request: Request, context: { params: { id: string } }
         title,
         description: nextDescription,
         inspection,
+        leaderboardEnabled: mode === 'ai' ? true : undefined,
         thumbnail: mode === 'details' ? thumbnail : null
       });
     } else {
@@ -159,6 +160,7 @@ export async function POST(request: Request, context: { params: { id: string } }
         title,
         description: nextDescription,
         inspection,
+        leaderboardEnabled: mode === 'ai' ? true : undefined,
         thumbnail: mode === 'details' ? thumbnail : null
       });
     }
@@ -180,4 +182,5 @@ export async function POST(request: Request, context: { params: { id: string } }
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
 

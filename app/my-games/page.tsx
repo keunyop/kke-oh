@@ -1,4 +1,4 @@
-import { requireUser } from '@/lib/auth';
+﻿import { requireUser } from '@/lib/auth';
 import { getGameRepository } from '@/lib/games/repository';
 import { getRequestLocale } from '@/lib/i18n/server';
 import MyGamesPanel from './my-games-panel';
@@ -11,8 +11,8 @@ export default async function MyGamesPage() {
   const games = await getGameRepository().listByUser(user.id);
   const subtitle =
     locale === 'ko'
-      ? '내가 만든 게임을 수정하거나, 숨기거나, 삭제할 수 있어요.'
-      : 'Manage the games you created, including editing, visibility, and removal.';
+      ? '비공개 초안을 테스트하고, 준비가 되면 직접 게시할 수 있어요.'
+      : 'Manage your private drafts, test them, and publish them when they are ready.';
 
   return (
     <section className="upload-page">

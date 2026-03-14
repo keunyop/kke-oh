@@ -74,6 +74,7 @@ export async function POST(request: Request) {
         slug: finalSlug,
         title,
         description,
+        leaderboardEnabled: false,
         uploaderUserId: user.id,
         uploaderName: user.loginId,
         inspection,
@@ -87,6 +88,7 @@ export async function POST(request: Request) {
         slug: finalSlug,
         title,
         description,
+        leaderboardEnabled: false,
         uploaderUserId: user.id,
         uploaderName: user.loginId,
         inspection

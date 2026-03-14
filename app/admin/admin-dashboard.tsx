@@ -67,6 +67,7 @@ function getCopy(locale: Locale) {
         filterFlagged: '\uD50C\uB798\uADF8',
         filterRemoved: '\uC0AD\uC81C\uB428',
         removedStatus: '\uC0AD\uC81C\uB428',
+        draftStatus: '\uCD08\uC548',
         publicStatus: '\uACF5\uAC1C',
         hiddenStatus: '\uBE44\uACF5\uAC1C',
         reviewHint: '\uC2E0\uACE0 \uB610\uB294 CDN \uD50C\uB798\uADF8 \uC0C1\uD0DC\uB97C \uC6B0\uC120 \uD655\uC778\uD574 \uC8FC\uC138\uC694.',
@@ -114,6 +115,7 @@ function getCopy(locale: Locale) {
         filterFlagged: 'Flagged',
         filterRemoved: 'Removed',
         removedStatus: 'Removed',
+        draftStatus: 'Draft',
         publicStatus: 'Public',
         hiddenStatus: 'Hidden',
         reviewHint: 'Prioritize items that have reports or CDN flags.',
@@ -156,6 +158,7 @@ function matchesFilter(game: GameRecord, filter: FilterKey) {
 function getStatusLabel(game: GameRecord, copy: ReturnType<typeof getCopy>) {
   if (game.status === 'REMOVED') return copy.removedStatus;
   if (game.is_hidden) return copy.hiddenStatus;
+  if (game.status === 'DRAFT') return copy.draftStatus;
   return copy.publicStatus;
 }
 

@@ -1,4 +1,4 @@
-import { createPlaceholderThumbnail } from '@/lib/games/placeholder';
+﻿import { createPlaceholderThumbnail } from '@/lib/games/placeholder';
 import type { UploadedFile } from '@/lib/games/upload';
 
 type GeneratedGamePayload = {
@@ -17,6 +17,45 @@ type GeneratedGame = {
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/responses';
 const OPENAI_MODEL = process.env.OPENAI_GAME_MODEL?.trim() || 'gpt-4.1-mini';
+
+function injectLeaderboardBridge(html: string): string {
+  const bridge = `<script>
+(function () {
+  if (typeof window === 'undefined' || window.kkeohSubmitScore) return;
+  let lastSubmittedScore = null;
+  let lastSubmittedAt = 0;
+  window.kkeohSubmitScore = function (score) {
+    const numericScore = Number(score);
+    if (!Number.isFinite(numericScore)) return false;
+    const safeScore = Math.max(0, Math.round(numericScore));
+    const now = Date.now();
+    if (lastSubmittedScore === safeScore && now - lastSubmittedAt < 2000) {
+      return false;
+    }
+    lastSubmittedScore = safeScore;
+    lastSubmittedAt = now;
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'kkeoh:submit-score', score: safeScore }, window.location.origin);
+        return true;
+      }
+    } catch {}
+    return false;
+  };
+})();
+</script>`;
+
+  const hasBridgeDefinition = /window\.kkeohSubmitScore\s*=|function\s+kkeohSubmitScore\s*\(/.test(html);
+  if (hasBridgeDefinition) {
+    return html;
+  }
+
+  if (/<\/body>/i.test(html)) {
+    return html.replace(/<\/body>/i, `${bridge}\n</body>`);
+  }
+
+  return `${html}\n${bridge}`;
+}
 
 function extractTextOutput(payload: unknown): string | null {
   if (!payload || typeof payload !== 'object') {
@@ -65,6 +104,7 @@ export async function generateGameFromPrompt(prompt: string): Promise<GeneratedG
     'The html field must be one complete standalone HTML document with inline CSS and inline JavaScript.',
     'Do not use external scripts, remote assets, or network requests.',
     'Keep controls simple, mobile friendly, and keyboard friendly.',
+    'Every game must track a numeric score and call window.kkeohSubmitScore(score) when a round ends, the player loses, or the player wins, if that function exists.',
     'The thumbnailSvg field must be a complete SVG image sized for 1200x630.',
     'Keep the description under 200 characters.'
   ].join(' ');
@@ -137,7 +177,7 @@ export async function generateGameFromPrompt(prompt: string): Promise<GeneratedG
   return {
     title: generated.title.trim(),
     description: generated.description.trim(),
-    html: generated.html.trim(),
+    html: injectLeaderboardBridge(generated.html.trim()),
     thumbnail: {
       path: 'thumbnail.svg',
       content: Buffer.from(normalizeSvg(generated.thumbnailSvg, generated.title), 'utf8'),
@@ -145,3 +185,5 @@ export async function generateGameFromPrompt(prompt: string): Promise<GeneratedG
     }
   };
 }
+
+

@@ -12,7 +12,7 @@ type GameRow = {
   description: string | null;
   uploader_user_id?: string | null;
   uploader_name?: string | null;
-  status: 'PUBLIC' | 'REMOVED';
+  status: 'DRAFT' | 'PUBLIC' | 'REMOVED';
   is_hidden: boolean;
   hidden_reason: string | null;
   storage_prefix: string;
@@ -20,6 +20,7 @@ type GameRow = {
   thumbnail_url: string | null;
   allowlist_violation: boolean;
   report_count: number;
+  leaderboard_enabled?: boolean | null;
   like_count?: number | null;
   dislike_count?: number | null;
   plays_7d: number;
@@ -29,20 +30,34 @@ type GameRow = {
 };
 
 const CORE_GAME_SELECT =
+  'id,title,description,status,is_hidden,hidden_reason,storage_prefix,entry_path,thumbnail_url,allowlist_violation,report_count,leaderboard_enabled,plays_7d,plays_30d,created_at,updated_at';
+const CORE_GAME_SELECT_NO_LEADERBOARD =
   'id,title,description,status,is_hidden,hidden_reason,storage_prefix,entry_path,thumbnail_url,allowlist_violation,report_count,plays_7d,plays_30d,created_at,updated_at';
 const CORE_GAME_SELECT_WITH_SLUG =
+  'id,slug,title,description,status,is_hidden,hidden_reason,storage_prefix,entry_path,thumbnail_url,allowlist_violation,report_count,leaderboard_enabled,plays_7d,plays_30d,created_at,updated_at';
+const CORE_GAME_SELECT_WITH_SLUG_NO_LEADERBOARD =
   'id,slug,title,description,status,is_hidden,hidden_reason,storage_prefix,entry_path,thumbnail_url,allowlist_violation,report_count,plays_7d,plays_30d,created_at,updated_at';
 const GAME_SELECT_WITH_UPLOADER = `${CORE_GAME_SELECT_WITH_SLUG},uploader_user_id,uploader_name`;
 const GAME_SELECT_WITH_REACTIONS = `${GAME_SELECT_WITH_UPLOADER},like_count,dislike_count`;
+const GAME_SELECT_WITH_UPLOADER_NO_LEADERBOARD = `${CORE_GAME_SELECT_WITH_SLUG_NO_LEADERBOARD},uploader_user_id,uploader_name`;
+const GAME_SELECT_WITH_REACTIONS_NO_LEADERBOARD = `${GAME_SELECT_WITH_UPLOADER_NO_LEADERBOARD},like_count,dislike_count`;
 const GAME_SELECT_WITH_UPLOADER_NO_SLUG = `${CORE_GAME_SELECT},uploader_user_id,uploader_name`;
 const GAME_SELECT_WITH_REACTIONS_NO_SLUG = `${GAME_SELECT_WITH_UPLOADER_NO_SLUG},like_count,dislike_count`;
+const GAME_SELECT_WITH_UPLOADER_NO_SLUG_NO_LEADERBOARD = `${CORE_GAME_SELECT_NO_LEADERBOARD},uploader_user_id,uploader_name`;
+const GAME_SELECT_WITH_REACTIONS_NO_SLUG_NO_LEADERBOARD = `${GAME_SELECT_WITH_UPLOADER_NO_SLUG_NO_LEADERBOARD},like_count,dislike_count`;
 const GAME_SELECT_VARIANTS = [
   GAME_SELECT_WITH_REACTIONS,
   GAME_SELECT_WITH_UPLOADER,
   CORE_GAME_SELECT_WITH_SLUG,
+  GAME_SELECT_WITH_REACTIONS_NO_LEADERBOARD,
+  GAME_SELECT_WITH_UPLOADER_NO_LEADERBOARD,
+  CORE_GAME_SELECT_WITH_SLUG_NO_LEADERBOARD,
   GAME_SELECT_WITH_REACTIONS_NO_SLUG,
   GAME_SELECT_WITH_UPLOADER_NO_SLUG,
-  CORE_GAME_SELECT
+  CORE_GAME_SELECT,
+  GAME_SELECT_WITH_REACTIONS_NO_SLUG_NO_LEADERBOARD,
+  GAME_SELECT_WITH_UPLOADER_NO_SLUG_NO_LEADERBOARD,
+  CORE_GAME_SELECT_NO_LEADERBOARD
 ];
 
 function isOptionalColumnError(message: string): boolean {
@@ -51,7 +66,8 @@ function isOptionalColumnError(message: string): boolean {
     message.includes('dislike_count') ||
     message.includes('uploader_user_id') ||
     message.includes('uploader_name') ||
-    message.includes('slug')
+    message.includes('slug') ||
+    message.includes('leaderboard_enabled')
   );
 }
 
@@ -101,6 +117,7 @@ async function mapRow(row: GameRow): Promise<GameRecord> {
     storage_prefix: row.storage_prefix,
     report_count: row.report_count,
     allowlist_violation: row.allowlist_violation,
+    leaderboard_enabled: Boolean(row.leaderboard_enabled),
     like_count: row.like_count ?? fallbackReaction?.likeCount ?? 0,
     dislike_count: row.dislike_count ?? fallbackReaction?.dislikeCount ?? 0,
     plays_7d: row.plays_7d,
@@ -343,6 +360,48 @@ export class SupabaseGameRepository implements GameRepository {
         { count: 'exact' }
       )
       .eq('id', id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return (count ?? 0) > 0;
+  }
+
+  async publish(id: string): Promise<boolean> {
+    const supabase = createServiceClient();
+    const { error, count } = await supabase
+      .from('games')
+      .update(
+        {
+          status: 'PUBLIC',
+          updated_at: new Date().toISOString()
+        },
+        { count: 'exact' }
+      )
+      .eq('id', id)
+      .neq('status', 'REMOVED');
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return (count ?? 0) > 0;
+  }
+
+  async unpublish(id: string): Promise<boolean> {
+    const supabase = createServiceClient();
+    const { error, count } = await supabase
+      .from('games')
+      .update(
+        {
+          status: 'DRAFT',
+          updated_at: new Date().toISOString()
+        },
+        { count: 'exact' }
+      )
+      .eq('id', id)
+      .neq('status', 'REMOVED');
 
     if (error) {
       throw new Error(error.message);

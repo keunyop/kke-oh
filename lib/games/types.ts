@@ -1,4 +1,4 @@
-export type GameStatus = 'PUBLIC' | 'REMOVED';
+export type GameStatus = 'DRAFT' | 'PUBLIC' | 'REMOVED';
 
 export type GameRecord = {
   id: string;
@@ -13,6 +13,7 @@ export type GameRecord = {
   storage_prefix: string;
   report_count: number;
   allowlist_violation: boolean;
+  leaderboard_enabled: boolean;
   like_count: number;
   dislike_count: number;
   plays_7d: number;

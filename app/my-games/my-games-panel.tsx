@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import Image from 'next/image';
@@ -25,12 +25,14 @@ function getCopy(locale: Locale) {
         empty: '아직 만든 게임이 없어요.',
         create: '게임 만들기',
         open: '열기',
+        preview: '미리보기',
         edit: '수정',
-        hide: '숨기기',
-        unhide: '다시 공개',
+        publish: '게시하기',
+        unpublish: '초안으로 이동',
         delete: '삭제',
         deleting: '처리 중...',
-        public: '공개 중',
+        public: '게시됨',
+        draft: '초안',
         hidden: '숨김',
         removed: '삭제됨',
         createdAt: '만든 날짜',
@@ -38,19 +40,21 @@ function getCopy(locale: Locale) {
         dislikes: '싫어요',
         plays: '플레이',
         deleteTitle: '게임 삭제',
-        deleteMessage: '이 게임을 정말 삭제할까요?',
+        deleteMessage: '이 게임을 삭제할까요?',
         cancel: '취소'
       }
     : {
         empty: 'You have not created any games yet.',
         create: 'Create Game',
         open: 'Open',
+        preview: 'Preview',
         edit: 'Edit',
-        hide: 'Hide',
-        unhide: 'Show Again',
+        publish: 'Publish',
+        unpublish: 'Move to Drafts',
         delete: 'Delete',
         deleting: 'Working...',
-        public: 'Public',
+        public: 'Published',
+        draft: 'Draft',
         hidden: 'Hidden',
         removed: 'Removed',
         createdAt: 'Created',
@@ -67,6 +71,13 @@ function formatDate(value: string) {
   return value.slice(0, 10);
 }
 
+function getStatusLabel(game: GameRecord, copy: ReturnType<typeof getCopy>) {
+  if (game.status === 'REMOVED') return copy.removed;
+  if (game.is_hidden) return copy.hidden;
+  if (game.status === 'DRAFT') return copy.draft;
+  return copy.public;
+}
+
 export default function MyGamesPanel({ initialGames, locale }: Props) {
   const [games, setGames] = useState(initialGames);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -74,7 +85,7 @@ export default function MyGamesPanel({ initialGames, locale }: Props) {
   const [error, setError] = useState<string | null>(null);
   const copy = getCopy(locale);
 
-  async function runAction(gameId: string, action: 'hide' | 'unhide' | 'delete') {
+  async function runAction(gameId: string, action: 'publish' | 'unpublish' | 'delete') {
     setPendingId(gameId);
     setError(null);
 
@@ -154,8 +165,10 @@ export default function MyGamesPanel({ initialGames, locale }: Props) {
         {error ? <p className="error-text">{error}</p> : null}
         {games.map((game) => {
           const imageUrl = game.thumbnail_path ? getGameAssetUrl(game.id, game.thumbnail_path) : getPlaceholderThumbnailDataUrl(game.title);
-          const statusLabel = game.status === 'REMOVED' ? copy.removed : game.is_hidden ? copy.hidden : copy.public;
+          const statusLabel = getStatusLabel(game, copy);
           const isPending = pendingId === game.id;
+          const isDraft = game.status === 'DRAFT';
+          const showDraftStyle = isDraft && !game.is_hidden;
 
           return (
             <article key={game.id} className="panel-card my-game-card">
@@ -170,7 +183,7 @@ export default function MyGamesPanel({ initialGames, locale }: Props) {
                       {copy.createdAt}: {formatDate(game.created_at)}
                     </p>
                   </div>
-                  <span className="my-game-status">{statusLabel}</span>
+                  <span className={`my-game-status${showDraftStyle ? ' is-draft' : ''}`}>{statusLabel}</span>
                 </div>
                 <p>{game.description}</p>
                 <div className="game-card-stats">
@@ -186,7 +199,7 @@ export default function MyGamesPanel({ initialGames, locale }: Props) {
                 </div>
                 <div className="button-row my-game-actions">
                   <a href={`/game/${game.slug}`} className="button-secondary">
-                    {copy.open}
+                    {isDraft ? copy.preview : copy.open}
                   </a>
                   {game.status !== 'REMOVED' ? (
                     <a href={`/my-games/${game.id}/edit`} className="button-secondary">
@@ -197,10 +210,10 @@ export default function MyGamesPanel({ initialGames, locale }: Props) {
                     <button
                       type="button"
                       className="button-ghost"
-                      onClick={() => void runAction(game.id, game.is_hidden ? 'unhide' : 'hide')}
+                      onClick={() => void runAction(game.id, isDraft ? 'publish' : 'unpublish')}
                       disabled={isPending}
                     >
-                      {isPending ? copy.deleting : game.is_hidden ? copy.unhide : copy.hide}
+                      {isPending ? copy.deleting : isDraft ? copy.publish : copy.unpublish}
                     </button>
                   ) : null}
                   {game.status !== 'REMOVED' ? (

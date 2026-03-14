@@ -1,4 +1,4 @@
-export function UploadCTA() {
+﻿export function UploadCTA() {
   return (
     <section className="upload-cta" id="makers">
       <div>
@@ -10,8 +10,9 @@ export function UploadCTA() {
         <a href="/submit" className="button-primary">
           Create Your Game
         </a>
-        <p>AI, HTML, or ZIP. Quick publish.</p>
+        <p>AI, HTML, or ZIP. Save drafts first, then publish when ready.</p>
       </div>
     </section>
   );
 }
+

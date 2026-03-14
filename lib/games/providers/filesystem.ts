@@ -56,12 +56,13 @@ function normalizeGameRecord(id: string, raw: unknown): GameRecord | null {
     description: typeof data.description === 'string' ? data.description : '',
     uploader_user_id: typeof data.uploader_user_id === 'string' ? data.uploader_user_id : null,
     uploader_name: typeof data.uploader_name === 'string' && data.uploader_name.trim() ? data.uploader_name : 'Maker',
-    status: data.status === 'REMOVED' ? 'REMOVED' : 'PUBLIC',
+    status: data.status === 'REMOVED' ? 'REMOVED' : data.status === 'DRAFT' ? 'DRAFT' : 'PUBLIC',
     is_hidden: Boolean(data.is_hidden),
     hidden_reason: typeof data.hidden_reason === 'string' ? data.hidden_reason : null,
     storage_prefix: typeof data.storage_prefix === 'string' ? data.storage_prefix : rawId,
     report_count: typeof data.report_count === 'number' ? data.report_count : 0,
     allowlist_violation: Boolean(data.allowlist_violation),
+    leaderboard_enabled: Boolean(data.leaderboard_enabled),
     like_count: typeof data.like_count === 'number' ? data.like_count : 0,
     dislike_count: typeof data.dislike_count === 'number' ? data.dislike_count : 0,
     plays_7d: typeof data.plays_7d === 'number' ? data.plays_7d : 0,
@@ -251,6 +252,26 @@ export class FilesystemGameRepository extends FilesystemGameStoreBase implements
 
     game.is_hidden = true;
     game.hidden_reason = reason;
+    game.updated_at = new Date().toISOString();
+    await this.writeGame(game);
+    return true;
+  }
+
+  async publish(id: string): Promise<boolean> {
+    const game = await this.readGame(id);
+    if (!game || game.status === 'REMOVED') return false;
+
+    game.status = 'PUBLIC';
+    game.updated_at = new Date().toISOString();
+    await this.writeGame(game);
+    return true;
+  }
+
+  async unpublish(id: string): Promise<boolean> {
+    const game = await this.readGame(id);
+    if (!game || game.status === 'REMOVED') return false;
+
+    game.status = 'DRAFT';
     game.updated_at = new Date().toISOString();
     await this.writeGame(game);
     return true;

@@ -32,6 +32,11 @@ type ErrorResponse = {
   error?: string;
 };
 
+type AiProgressCopy = {
+  title: string;
+  detail: string[];
+};
+
 function suggestSlug(value: string) {
   return value
     .normalize('NFKC')
@@ -167,6 +172,28 @@ function getCopy(locale: Locale) {
       };
 }
 
+function getAiProgressCopy(locale: Locale): AiProgressCopy {
+  return locale === 'ko'
+    ? {
+        title: 'AI가 게임을 만들고 있어요',
+        detail: [
+          '게임 아이디어를 정리하고 있어요.',
+          '플레이 규칙과 화면 구성을 만들고 있어요.',
+          '게임 코드와 에셋을 준비하고 있어요.',
+          '마지막으로 저장하고 공개할 준비를 하고 있어요.'
+        ]
+      }
+    : {
+        title: 'AI is building your game',
+        detail: [
+          'Turning your idea into a game plan.',
+          'Designing the gameplay and screen layout.',
+          'Generating the game code and assets.',
+          'Saving everything and getting the page ready.'
+        ]
+      };
+}
+
 function FileDropzone({
   inputId,
   accept,
@@ -264,6 +291,7 @@ function FileDropzone({
 
 export default function SubmitForm({ locale }: { locale: Locale }) {
   const copy = getCopy(locale);
+  const aiProgressCopy = getAiProgressCopy(locale);
   const [mode, setMode] = useState<CreationMode>('ai');
   const [manualMode, setManualMode] = useState<ManualMode>('html');
   const [aiTitle, setAiTitle] = useState('');
@@ -284,6 +312,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   const [success, setSuccess] = useState<PublishResponse | null>(null);
   const [isInspecting, setIsInspecting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [aiProgressStep, setAiProgressStep] = useState(0);
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
   const [slugState, setSlugState] = useState<{
     checkedValue: string;
@@ -304,6 +333,28 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   const manualThumbnailInputRef = useRef<HTMLInputElement>(null);
 
   const activeSlug = mode === 'ai' ? aiSlug : manualSlug;
+  const isAiPublishing = mode === 'ai' && isPublishing;
+
+  useEffect(() => {
+    if (!isAiPublishing) {
+      setAiProgressStep(0);
+      return;
+    }
+
+    setAiProgressStep(0);
+
+    const timers = [
+      window.setTimeout(() => setAiProgressStep(1), 1400),
+      window.setTimeout(() => setAiProgressStep(2), 4200),
+      window.setTimeout(() => setAiProgressStep(3), 8200)
+    ];
+
+    return () => {
+      for (const timer of timers) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [isAiPublishing]);
 
   useEffect(() => {
     const trimmedSlug = activeSlug.trim();
@@ -794,6 +845,23 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
             removeLabel={copy.removeFile}
           />
 
+          {isAiPublishing ? (
+            <div className="status-card submit-progress-card" role="status" aria-live="polite">
+              <p className="status-title">{aiProgressCopy.title}</p>
+              <p className="small-copy">{aiProgressCopy.detail[aiProgressStep]}</p>
+              <div className="submit-progress-steps" aria-hidden="true">
+                {aiProgressCopy.detail.map((label, index) => (
+                  <span
+                    key={label}
+                    className={`submit-progress-step${
+                      index < aiProgressStep ? ' is-complete' : index === aiProgressStep ? ' is-active' : ''
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <button
             type="button"
             className="button-primary button-fill"
@@ -971,6 +1039,11 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
       {success ? (
         <div className="status-card status-success">
           <p className="status-title">{copy.success}</p>
+          <p className="small-copy">
+            {locale === 'ko'
+              ? '지금은 초안으로 저장되었어요. 내 게임에서 테스트한 뒤 게시할 수 있어요.'
+              : 'This was saved as a private draft. Test it in My Games, then publish it when you are ready.'}
+          </p>
           <p className="small-copy">
             {copy.open}: <a href={success.gameUrl}>{success.gameUrl}</a>
           </p>

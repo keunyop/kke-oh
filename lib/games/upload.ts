@@ -428,6 +428,7 @@ export async function writeUploadedGame(options: {
   slug: string;
   title: string;
   description: string;
+  leaderboardEnabled?: boolean;
   uploaderUserId?: string | null;
   uploaderName: string;
   inspection: ZipInspection;
@@ -451,12 +452,13 @@ export async function writeUploadedGame(options: {
     description: options.description,
     uploader_user_id: options.uploaderUserId ?? null,
     uploader_name: options.uploaderName,
-    status: 'PUBLIC' as const,
+    status: 'DRAFT' as const,
     is_hidden: false,
     hidden_reason: null,
     storage_prefix: options.id,
     report_count: 0,
     allowlist_violation: options.inspection.allowlistViolation,
+    leaderboard_enabled: Boolean(options.leaderboardEnabled),
     like_count: 0,
     dislike_count: 0,
     plays_7d: 0,
@@ -479,6 +481,7 @@ export async function writeUploadedGameToSupabase(options: {
   slug: string;
   title: string;
   description: string;
+  leaderboardEnabled?: boolean;
   uploaderUserId?: string | null;
   uploaderName: string;
   inspection: ZipInspection;
@@ -502,12 +505,13 @@ export async function writeUploadedGameToSupabase(options: {
     description: options.description,
     uploader_user_id: options.uploaderUserId ?? null,
     uploader_name: options.uploaderName,
-    status: 'PUBLIC',
+    status: 'DRAFT',
     is_hidden: false,
     hidden_reason: null,
     storage_prefix: storagePrefix,
     entry_path: options.inspection.entryPath,
     thumbnail_url: preferredThumbnail,
+    leaderboard_enabled: Boolean(options.leaderboardEnabled),
     uploader_email_hash: options.uploaderEmailHash,
     uploader_ip_hash: options.uploaderIpHash,
     allowlist_violation: options.inspection.allowlistViolation,
@@ -539,6 +543,7 @@ export async function updateUploadedGame(options: {
   title: string;
   description: string;
   slug?: string;
+  leaderboardEnabled?: boolean;
   inspection?: ZipInspection | null;
   thumbnail?: UploadedFile | null;
 }): Promise<void> {
@@ -568,6 +573,7 @@ export async function updateUploadedGame(options: {
     title: options.title,
     description: options.description,
     allowlist_violation: options.inspection?.allowlistViolation ?? options.game.allowlist_violation,
+    leaderboard_enabled: options.leaderboardEnabled ?? options.game.leaderboard_enabled,
     entry_path: options.inspection?.entryPath ?? options.game.entry_path,
     thumbnail_path: nextThumbnailPath,
     updated_at: new Date().toISOString()
@@ -581,6 +587,7 @@ export async function updateUploadedGameInSupabase(options: {
   title: string;
   description: string;
   slug?: string;
+  leaderboardEnabled?: boolean;
   inspection?: ZipInspection | null;
   thumbnail?: UploadedFile | null;
 }): Promise<void> {
@@ -604,6 +611,7 @@ export async function updateUploadedGameInSupabase(options: {
       slug: options.slug ?? options.game.slug,
       title: options.title,
       description: options.description,
+      leaderboard_enabled: options.leaderboardEnabled ?? options.game.leaderboard_enabled,
       entry_path: options.inspection?.entryPath ?? options.game.entry_path,
       thumbnail_url: thumbnailPath,
       allowlist_violation: options.inspection?.allowlistViolation ?? options.game.allowlist_violation,
