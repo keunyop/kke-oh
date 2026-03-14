@@ -44,7 +44,7 @@ export async function POST(request: Request, context: { params: { id: string } }
 
     revalidatePath('/');
     revalidatePath('/my-games');
-    revalidatePath(`/game/${game.id}`);
+    revalidatePath(`/game/${game.slug}`);
 
     return NextResponse.json({ ok: true, game: updatedGame });
   } catch (error) {
@@ -56,3 +56,4 @@ export async function POST(request: Request, context: { params: { id: string } }
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+

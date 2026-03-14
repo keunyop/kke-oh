@@ -48,6 +48,10 @@ function normalizeGameRecord(id: string, raw: unknown): GameRecord | null {
 
   return {
     id: rawId,
+    slug:
+      typeof data.slug === 'string' && data.slug.trim()
+        ? data.slug.toLowerCase()
+        : rawId.toLowerCase(),
     title: typeof data.title === 'string' ? data.title : rawId,
     description: typeof data.description === 'string' ? data.description : '',
     uploader_user_id: typeof data.uploader_user_id === 'string' ? data.uploader_user_id : null,
@@ -162,6 +166,17 @@ export class FilesystemGameRepository extends FilesystemGameStoreBase implements
 
   async getById(id: string): Promise<GameRecord | null> {
     return this.readGame(id);
+  }
+
+  async getBySlug(slug: string): Promise<GameRecord | null> {
+    const normalizedSlug = slug.toLowerCase();
+    const direct = await this.readGame(normalizedSlug);
+    if (direct?.slug === normalizedSlug || direct?.id === normalizedSlug) {
+      return direct;
+    }
+
+    const records = await this.listForAdmin(1000);
+    return records.find((record) => record.slug.toLowerCase() === normalizedSlug) ?? null;
   }
 
   async incrementPlay(id: string): Promise<boolean> {

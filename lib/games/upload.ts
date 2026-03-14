@@ -212,52 +212,93 @@ function normalizeZipPath(fileName: string): string | null {
   return parts.join('/');
 }
 
-export function slugifyGameTitle(value: string): string {
+export function slugifyGameSlug(value: string): string {
   return value
     .normalize('NFKC')
     .toLocaleLowerCase()
     .trim()
     .replace(/['’]/gu, '')
-    .replace(/[^\p{Letter}\p{Number}]+/gu, '-')
+    .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 64);
 }
 
-export type TitleAvailabilityResult = {
-  gameId: string;
+export function isGameSlugFormatValid(value: string): boolean {
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
+}
+
+export type GameSlugAvailabilityResult = {
+  slug: string;
   available: boolean;
   issue: 'invalid' | 'taken' | null;
 };
 
-export async function isGameTitleAvailable(storageDir: string | null, title: string): Promise<TitleAvailabilityResult> {
-  const gameId = slugifyGameTitle(title);
-  if (!gameId) {
-    return { gameId: '', available: false, issue: 'invalid' };
+export async function isGameSlugAvailable(storageDir: string | null, value: string): Promise<GameSlugAvailabilityResult> {
+  const slug = slugifyGameSlug(value);
+  if (!slug || !isGameSlugFormatValid(slug)) {
+    return { slug: '', available: false, issue: 'invalid' };
   }
 
   const exists = storageDir
-    ? await gameIdExistsInFilesystem(storageDir, gameId)
-    : await gameIdExistsInSupabase(gameId);
+    ? await gameSlugExistsInFilesystem(storageDir, slug)
+    : await gameSlugExistsInSupabase(slug);
 
   return {
-    gameId,
+    slug,
     available: !exists,
     issue: exists ? 'taken' : null
   };
 }
 
-async function gameIdExistsInFilesystem(storageDir: string, gameId: string): Promise<boolean> {
+type StoredGameIdentity = {
+  id: string;
+  slug: string;
+};
+
+async function readStoredGameIdentity(storageDir: string, directoryName: string): Promise<StoredGameIdentity | null> {
   try {
-    await fs.access(path.join(storageDir, gameId));
-    return true;
+    const raw = await fs.readFile(path.join(storageDir, directoryName, RESERVED_META_FILE), 'utf8');
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const id = typeof parsed.id === 'string' && parsed.id.trim() ? parsed.id.trim() : directoryName;
+    const slug =
+      typeof parsed.slug === 'string' && parsed.slug.trim()
+        ? slugifyGameSlug(parsed.slug)
+        : slugifyGameSlug(typeof parsed.id === 'string' ? parsed.id : directoryName);
+
+    return slug ? { id, slug } : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
-async function gameIdExistsInSupabase(gameId: string): Promise<boolean> {
+async function gameSlugExistsInFilesystem(storageDir: string, slug: string): Promise<boolean> {
+  try {
+    await fs.access(path.join(storageDir, slug));
+    return true;
+  } catch {}
+
+  try {
+    const entries = await fs.readdir(storageDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      const identity = await readStoredGameIdentity(storageDir, entry.name);
+      if (identity?.slug === slug) {
+        return true;
+      }
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+
+async function gameSlugExistsInSupabase(slug: string): Promise<boolean> {
   const supabase = createServiceClient();
-  const { data, error } = await supabase.from('games').select('id').eq('id', gameId).maybeSingle();
+  const { data, error } = await supabase.from('games').select('id').eq('slug', slug).maybeSingle();
   if (error) {
     throw new Error(error.message);
   }
@@ -339,26 +380,52 @@ export async function inspectZipUpload(file: File): Promise<ZipInspection> {
   };
 }
 
-export async function resolveGameIdFromTitle(storageDir: string | null, title: string): Promise<string> {
-  const result = await isGameTitleAvailable(storageDir, title);
-  if (!result.gameId) {
-    throw new Error('Game name must include letters or numbers.');
+function applySlugSuffix(baseSlug: string, suffix: string): string {
+  const normalizedSuffix = suffix.replace(/^-+/, '');
+  const maxBaseLength = Math.max(1, 64 - normalizedSuffix.length - 1);
+  const trimmedBase = baseSlug.slice(0, maxBaseLength).replace(/-+$/g, '') || 'game';
+  return `${trimmedBase}-${normalizedSuffix}`;
+}
+
+export async function resolveGameSlug(storageDir: string | null, value: string): Promise<string> {
+  const result = await isGameSlugAvailable(storageDir, value);
+  if (!result.slug) {
+    throw new Error('URL game name must use English letters, numbers, or hyphens.');
   }
 
   if (!result.available) {
-    throw new Error('That game name is already being used. Please choose a different game name.');
+    throw new Error('That URL game name is already being used. Please choose a different one.');
   }
 
-  return result.gameId;
+  return result.slug;
 }
 
-export async function allocateGameId(storageDir: string | null, title: string): Promise<string> {
-  return resolveGameIdFromTitle(storageDir, title);
+export async function generateUniqueGameSlug(storageDir: string | null, value: string): Promise<string> {
+  const baseSlug = slugifyGameSlug(value) || 'game';
+  const initialAttempt = await isGameSlugAvailable(storageDir, baseSlug);
+  if (initialAttempt.available) {
+    return initialAttempt.slug;
+  }
+
+  for (let index = 2; index < 1000; index += 1) {
+    const candidate = applySlugSuffix(baseSlug, String(index));
+    const attempt = await isGameSlugAvailable(storageDir, candidate);
+    if (attempt.available) {
+      return attempt.slug;
+    }
+  }
+
+  return applySlugSuffix(baseSlug, crypto.randomUUID().slice(0, 8));
+}
+
+export function createGameId(): string {
+  return crypto.randomUUID();
 }
 
 export async function writeUploadedGame(options: {
   storageDir: string;
   id: string;
+  slug: string;
   title: string;
   description: string;
   uploaderUserId?: string | null;
@@ -379,6 +446,7 @@ export async function writeUploadedGame(options: {
 
   const gameRecord = {
     id: options.id,
+    slug: options.slug,
     title: options.title,
     description: options.description,
     uploader_user_id: options.uploaderUserId ?? null,
@@ -408,6 +476,7 @@ export async function writeUploadedGame(options: {
 
 export async function writeUploadedGameToSupabase(options: {
   id: string;
+  slug: string;
   title: string;
   description: string;
   uploaderUserId?: string | null;
@@ -428,6 +497,7 @@ export async function writeUploadedGameToSupabase(options: {
   const now = new Date().toISOString();
   const { error } = await supabase.from('games').insert({
     id: options.id,
+    slug: options.slug,
     title: options.title,
     description: options.description,
     uploader_user_id: options.uploaderUserId ?? null,
@@ -468,6 +538,7 @@ export async function updateUploadedGame(options: {
   game: GameRecord;
   title: string;
   description: string;
+  slug?: string;
   inspection?: ZipInspection | null;
   thumbnail?: UploadedFile | null;
 }): Promise<void> {
@@ -493,6 +564,7 @@ export async function updateUploadedGame(options: {
 
   const nextRecord = {
     ...options.game,
+    slug: options.slug ?? options.game.slug,
     title: options.title,
     description: options.description,
     allowlist_violation: options.inspection?.allowlistViolation ?? options.game.allowlist_violation,
@@ -508,6 +580,7 @@ export async function updateUploadedGameInSupabase(options: {
   game: GameRecord;
   title: string;
   description: string;
+  slug?: string;
   inspection?: ZipInspection | null;
   thumbnail?: UploadedFile | null;
 }): Promise<void> {
@@ -528,6 +601,7 @@ export async function updateUploadedGameInSupabase(options: {
   const { error } = await supabase
     .from('games')
     .update({
+      slug: options.slug ?? options.game.slug,
       title: options.title,
       description: options.description,
       entry_path: options.inspection?.entryPath ?? options.game.entry_path,

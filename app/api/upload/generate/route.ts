@@ -4,8 +4,9 @@ import { z } from 'zod';
 import { getCurrentUser } from '@/lib/auth';
 import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
 import {
-  allocateGameId,
+  createGameId,
   createSingleHtmlInspection,
+  generateUniqueGameSlug,
   prepareInspectionForPublishing,
   writeUploadedGame,
   writeUploadedGameToSupabase
@@ -34,11 +35,13 @@ export async function POST(request: Request) {
 
     const driver = getGameDataDriver();
     const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
-    const gameId = await allocateGameId(storageDir, generated.title);
+    const gameId = createGameId();
+    const gameSlug = await generateUniqueGameSlug(storageDir, generated.title);
 
     if (driver === 'supabase') {
       await writeUploadedGameToSupabase({
         id: gameId,
+        slug: gameSlug,
         title: generated.title,
         description: generated.description,
         uploaderUserId: user.id,
@@ -51,6 +54,7 @@ export async function POST(request: Request) {
       await writeUploadedGame({
         storageDir: storageDir as string,
         id: gameId,
+        slug: gameSlug,
         title: generated.title,
         description: generated.description,
         uploaderUserId: user.id,
@@ -62,12 +66,12 @@ export async function POST(request: Request) {
     revalidatePath('/');
     revalidatePath('/submit');
     revalidatePath('/my-games');
-    revalidatePath(`/game/${gameId}`);
+    revalidatePath(`/game/${gameSlug}`);
 
     return NextResponse.json({
       ok: true,
       gameId,
-      gameUrl: `/game/${gameId}`,
+      gameUrl: `/game/${gameSlug}`,
       flagged: inspection.allowlistViolation
     });
   } catch (error) {

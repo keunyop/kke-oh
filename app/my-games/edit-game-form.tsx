@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useRef, useState, type ChangeEvent, type DragEvent, type RefObject } from 'react';
 import Image from 'next/image';
@@ -186,7 +186,7 @@ export function EditGameForm({ game, locale }: Props) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [gameUrl, setGameUrl] = useState(`/game/${game.id}`);
+  const [gameUrl, setGameUrl] = useState(`/game/${game.slug}`);
   const [currentGame, setCurrentGame] = useState(game);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const htmlInputRef = useRef<HTMLInputElement>(null);
@@ -224,7 +224,7 @@ export function EditGameForm({ game, locale }: Props) {
       setCurrentGame(data.game);
       setTitle(data.game.title);
       setDescription(data.game.description);
-      setGameUrl(data.gameUrl ?? `/game/${data.game.id}`);
+      setGameUrl(data.gameUrl ?? `/game/${data.game.slug}`);
       setThumbnailFile(null);
       setHtmlFile(null);
       setZipFile(null);
@@ -358,3 +358,4 @@ export function EditGameForm({ game, locale }: Props) {
     </section>
   );
 }
+

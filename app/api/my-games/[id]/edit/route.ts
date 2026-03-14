@@ -1,4 +1,4 @@
-﻿import { revalidatePath } from 'next/cache';
+import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import path from 'node:path';
 import { getCurrentUser } from '@/lib/auth';
@@ -168,15 +168,16 @@ export async function POST(request: Request, context: { params: { id: string } }
     revalidatePath('/');
     revalidatePath('/my-games');
     revalidatePath(`/my-games/${game.id}/edit`);
-    revalidatePath(`/game/${game.id}`);
+    revalidatePath(`/game/${game.slug}`);
 
     return NextResponse.json({
       ok: true,
       game: updatedGame,
-      gameUrl: `/game/${game.id}`
+      gameUrl: `/game/${updatedGame?.slug ?? game.slug}`
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not update the game.';
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+

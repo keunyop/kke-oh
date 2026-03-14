@@ -21,6 +21,7 @@ export interface GameRepository {
   listForAdmin(limit?: number): Promise<GameRecord[]>;
   listByUser(userId: string): Promise<GameRecord[]>;
   getById(id: string): Promise<GameRecord | null>;
+  getBySlug(slug: string): Promise<GameRecord | null>;
   incrementPlay(id: string): Promise<boolean>;
   applyReaction(id: string, nextReaction: GameReaction, previousReaction?: GameReaction | null): Promise<ReactionResult | null>;
   addFeedback(id: string, message: string): Promise<boolean>;

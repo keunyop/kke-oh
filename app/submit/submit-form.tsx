@@ -21,8 +21,8 @@ type PublishResponse = {
   flagged: boolean;
 };
 
-type TitleCheckResponse = {
-  gameId?: string;
+type SlugCheckResponse = {
+  slug?: string;
   available?: boolean;
   issue?: 'invalid' | 'taken' | null;
   error?: string;
@@ -31,6 +31,17 @@ type TitleCheckResponse = {
 type ErrorResponse = {
   error?: string;
 };
+
+function suggestSlug(value: string) {
+  return value
+    .normalize('NFKC')
+    .toLocaleLowerCase()
+    .trim()
+    .replace(/['’]/gu, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+}
 
 function getCopy(locale: Locale) {
   return locale === 'ko'
@@ -41,15 +52,19 @@ function getCopy(locale: Locale) {
         manualSubtitle: '내가 만든 파일이 있으면 바로 올리면 돼요.',
         htmlMode: 'Upload HTML',
         zipMode: 'Upload ZIP',
-        gameName: '게임 이름',
+        gameName: '화면에 보일 게임 이름',
         gameNamePlaceholder: '예: 우주 피하기',
-        gameNameHint: '게임 링크도 이 이름으로 만들어져요.',
-        gameNameOptionalHint: '\uBE44\uC6CC \uB450\uBA74 AI\uAC00 \uAC8C\uC784\uBA85\uC744 \uC9C0\uC5B4\uC918\uC694. \uC785\uB825\uD558\uBA74 \uADF8 \uC774\uB984\uC744 \uADF8\uB300\uB85C \uC0AC\uC6A9\uD574\uC694.',
-        checkingName: '이름 확인 중...',
-        nameAvailable: '좋아요! 이 이름을 쓸 수 있어요.',
-        nameTaken: '이미 쓰는 이름이에요. 다른 이름으로 바꿔주세요.',
-        nameInvalid: '\uAC8C\uC784\uBA85\uC740 2\uAE00\uC790 \uC774\uC0C1\uC774\uACE0 \uAE00\uC790\uB098 \uC22B\uC790\uAC00 \uB4E4\uC5B4\uAC00\uC57C \uD574\uC694.',
-        namePreview: '게임 주소',
+        gameNameHint: '친구들에게 보이는 게임 이름이에요.',
+        gameNameOptionalHint: '비워 두면 AI가 화면에 보일 게임 이름을 지어줘요.',
+        urlGameName: 'URL로 사용할 게임 이름',
+        urlGameNamePlaceholder: '예: color-pop-mania',
+        urlGameNameHint: '영문, 숫자, 하이픈(-)만 사용할 수 있어요.',
+        urlGameNameOptionalHint: '비워 두면 AI가 URL 이름도 함께 만들어요.',
+        checkingUrlName: 'URL 이름 확인 중...',
+        urlNameAvailable: '좋아요! 이 URL 이름을 쓸 수 있어요.',
+        urlNameTaken: '이미 쓰는 URL 이름이에요. 다른 이름으로 바꿔주세요.',
+        urlNameInvalid: 'URL 이름은 영문, 숫자, 하이픈(-)만 사용할 수 있어요.',
+        urlPreview: '게임 주소',
         promptLabel: '게임 아이디어',
         promptPlaceholder: '예: 별을 피하고 점수를 모으는 쉬운 우주 게임을 만들어줘.',
         aiDescription: '게임 설명',
@@ -76,13 +91,14 @@ function getCopy(locale: Locale) {
         success: '게임이 준비됐어요!',
         open: '바로 열기',
         createAnother: '다른 게임 만들기',
-        errGameName: '게임 이름을 입력해주세요.',
+        errGameName: '화면에 보일 게임 이름을 입력해주세요.',
         errPrompt: '게임 아이디어를 8글자 이상 써주세요.',
         errDescription: '게임 설명을 입력해주세요.',
         errHtml: 'HTML 파일을 골라주세요.',
         errZip: 'ZIP 파일을 골라주세요.',
-        errTitleTaken: '이미 쓰는 이름이에요. 다른 이름으로 바꿔주세요.',
-        errInvalidGameName: '\uAC8C\uC784\uBA85\uC740 2\uAE00\uC790 \uC774\uC0C1\uC774\uACE0 \uAE00\uC790\uB098 \uC22B\uC790\uAC00 \uB4E4\uC5B4\uAC00\uC57C \uD574\uC694.',
+        errUrlName: 'URL로 사용할 게임 이름을 입력해주세요.',
+        errUrlNameTaken: '이미 쓰는 URL 이름이에요. 다른 이름으로 바꿔주세요.',
+        errInvalidUrlName: 'URL 이름은 영문, 숫자, 하이픈(-)만 사용할 수 있어요.',
         dropChoose: '파일 고르기',
         dropOr: '또는 여기로 끌어오세요',
         dropActive: '여기에 놓아주세요',
@@ -91,20 +107,24 @@ function getCopy(locale: Locale) {
       }
     : {
         aiTitle: 'AI Create',
-        aiSubtitle: 'Type an idea and AI will bild the game for you',
+        aiSubtitle: 'Type an idea and AI will build the game for you.',
         manualTitle: 'Upload My Files',
         manualSubtitle: 'If you already made the game, just upload it.',
         htmlMode: 'Upload HTML',
         zipMode: 'Upload ZIP',
-        gameName: 'Game name',
+        gameName: 'Display game name',
         gameNamePlaceholder: 'Example: Space Dodge',
-        gameNameHint: 'Your game link will use this name too.',
+        gameNameHint: 'This is the name players will see.',
         gameNameOptionalHint: 'Leave this empty if you want AI to name the game for you.',
-        checkingName: 'Checking name...',
-        nameAvailable: 'Nice! You can use this game name.',
-        nameTaken: 'That game name is already used. Please choose another one.',
-        nameInvalid: 'Game names need at least 2 characters and one letter or number.',
-        namePreview: 'Game URL',
+        urlGameName: 'URL game name',
+        urlGameNamePlaceholder: 'Example: color-pop-mania',
+        urlGameNameHint: 'Use only English letters, numbers, and hyphens.',
+        urlGameNameOptionalHint: 'Leave this empty if you want AI to generate the URL name too.',
+        checkingUrlName: 'Checking URL name...',
+        urlNameAvailable: 'Nice! You can use this URL name.',
+        urlNameTaken: 'That URL game name is already used. Please choose another one.',
+        urlNameInvalid: 'URL game names can use only English letters, numbers, and hyphens.',
+        urlPreview: 'Game URL',
         promptLabel: 'Game idea',
         promptPlaceholder: 'Example: Make an easy space game where players dodge stars and collect points.',
         aiDescription: 'Game description',
@@ -131,13 +151,14 @@ function getCopy(locale: Locale) {
         success: 'Your game is ready!',
         open: 'Open now',
         createAnother: 'Make another game',
-        errGameName: 'Please enter a game name.',
+        errGameName: 'Please enter the display game name.',
         errPrompt: 'Please write at least 8 characters for the game idea.',
         errDescription: 'Please enter a game description.',
         errHtml: 'Please choose an HTML file.',
         errZip: 'Please choose a ZIP file.',
-        errTitleTaken: 'That game name is already used. Please choose another one.',
-        errInvalidGameName: 'Game names need at least 2 characters and one letter or number.',
+        errUrlName: 'Please enter the URL game name.',
+        errUrlNameTaken: 'That URL game name is already used. Please choose another one.',
+        errInvalidUrlName: 'URL game names can use only English letters, numbers, and hyphens.',
         dropChoose: 'Choose file',
         dropOr: 'or drop it here',
         dropActive: 'Drop the file here',
@@ -246,10 +267,14 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   const [mode, setMode] = useState<CreationMode>('ai');
   const [manualMode, setManualMode] = useState<ManualMode>('html');
   const [aiTitle, setAiTitle] = useState('');
+  const [aiSlug, setAiSlug] = useState('');
+  const [aiSlugEdited, setAiSlugEdited] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiDescription, setAiDescription] = useState('');
   const [aiThumbnail, setAiThumbnail] = useState<File | null>(null);
   const [manualTitle, setManualTitle] = useState('');
+  const [manualSlug, setManualSlug] = useState('');
+  const [manualSlugEdited, setManualSlugEdited] = useState(false);
   const [manualDescription, setManualDescription] = useState('');
   const [htmlFile, setHtmlFile] = useState<File | null>(null);
   const [zipFile, setZipFile] = useState<File | null>(null);
@@ -259,16 +284,16 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   const [success, setSuccess] = useState<PublishResponse | null>(null);
   const [isInspecting, setIsInspecting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [isCheckingTitle, setIsCheckingTitle] = useState(false);
-  const [titleState, setTitleState] = useState<{
-    checkedTitle: string;
-    gameId: string;
+  const [isCheckingSlug, setIsCheckingSlug] = useState(false);
+  const [slugState, setSlugState] = useState<{
+    checkedValue: string;
+    slug: string;
     available: boolean | null;
     issue: 'invalid' | 'taken' | null;
     message: string | null;
   }>({
-    checkedTitle: '',
-    gameId: '',
+    checkedValue: '',
+    slug: '',
     available: null,
     issue: null,
     message: null
@@ -278,66 +303,54 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   const aiThumbnailInputRef = useRef<HTMLInputElement>(null);
   const manualThumbnailInputRef = useRef<HTMLInputElement>(null);
 
-  const activeTitle = mode === 'ai' ? aiTitle : manualTitle;
+  const activeSlug = mode === 'ai' ? aiSlug : manualSlug;
 
   useEffect(() => {
-    const trimmedTitle = activeTitle.trim();
-    if (!trimmedTitle) {
-      setTitleState({ checkedTitle: '', gameId: '', available: null, issue: null, message: null });
-      setIsCheckingTitle(false);
-      return;
-    }
-
-    if (trimmedTitle.length < 2) {
-      setTitleState({
-        checkedTitle: trimmedTitle,
-        gameId: '',
-        available: null,
-        issue: 'invalid',
-        message: copy.nameInvalid
-      });
-      setIsCheckingTitle(false);
+    const trimmedSlug = activeSlug.trim();
+    if (!trimmedSlug) {
+      setSlugState({ checkedValue: '', slug: '', available: null, issue: null, message: null });
+      setIsCheckingSlug(false);
       return;
     }
 
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
-      setIsCheckingTitle(true);
+      setIsCheckingSlug(true);
 
       try {
-        const response = await fetch(`/api/upload/title-check?title=${encodeURIComponent(trimmedTitle)}`, {
+        const response = await fetch(`/api/upload/title-check?slug=${encodeURIComponent(trimmedSlug)}`, {
           method: 'GET',
           cache: 'no-store',
           signal: controller.signal
         });
-        const data = (await response.json()) as TitleCheckResponse;
+        const data = (await response.json()) as SlugCheckResponse;
 
         if (!response.ok) {
-          throw new Error(data.error ?? copy.errTitleTaken);
+          throw new Error(data.error ?? copy.errInvalidUrlName);
         }
 
-        const issue = data.available ? null : (data.issue ?? (data.gameId ? 'taken' : 'invalid'));
-        setTitleState({
-          checkedTitle: trimmedTitle,
-          gameId: data.gameId ?? '',
+        const issue = data.available ? null : (data.issue ?? (data.slug ? 'taken' : 'invalid'));
+        setSlugState({
+          checkedValue: trimmedSlug,
+          slug: data.slug ?? '',
           available: Boolean(data.available),
           issue,
-          message: data.available ? copy.nameAvailable : issue === 'taken' ? copy.nameTaken : copy.nameInvalid
+          message: data.available ? copy.urlNameAvailable : issue === 'taken' ? copy.urlNameTaken : copy.urlNameInvalid
         });
       } catch (cause) {
         if (cause instanceof DOMException && cause.name === 'AbortError') {
           return;
         }
 
-        setTitleState({
-          checkedTitle: trimmedTitle,
-          gameId: '',
+        setSlugState({
+          checkedValue: trimmedSlug,
+          slug: '',
           available: false,
           issue: 'invalid',
-          message: cause instanceof Error ? cause.message : copy.errInvalidGameName
+          message: cause instanceof Error ? cause.message : copy.errInvalidUrlName
         });
       } finally {
-        setIsCheckingTitle(false);
+        setIsCheckingSlug(false);
       }
     }, 350);
 
@@ -345,15 +358,45 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [activeTitle, copy.errInvalidGameName, copy.errTitleTaken, copy.nameAvailable, copy.nameInvalid, copy.nameTaken]);
+  }, [activeSlug, copy.errInvalidUrlName, copy.urlNameAvailable, copy.urlNameInvalid, copy.urlNameTaken]);
 
   function clearMessages() {
     setError(null);
     setSuccess(null);
   }
 
+  function handleAiTitleChange(nextTitle: string) {
+    setAiTitle(nextTitle);
+    if (!aiSlugEdited) {
+      setAiSlug(suggestSlug(nextTitle));
+    }
+    clearMessages();
+  }
+
+  function handleManualTitleChange(nextTitle: string) {
+    setManualTitle(nextTitle);
+    if (!manualSlugEdited) {
+      setManualSlug(suggestSlug(nextTitle));
+    }
+    clearMessages();
+  }
+
+  function handleAiSlugChange(nextSlug: string) {
+    setAiSlug(nextSlug);
+    setAiSlugEdited(nextSlug.trim().length > 0);
+    clearMessages();
+  }
+
+  function handleManualSlugChange(nextSlug: string) {
+    setManualSlug(nextSlug);
+    setManualSlugEdited(nextSlug.trim().length > 0);
+    clearMessages();
+  }
+
   function resetAiForm() {
     setAiTitle('');
+    setAiSlug('');
+    setAiSlugEdited(false);
     setAiPrompt('');
     setAiDescription('');
     setAiThumbnail(null);
@@ -362,6 +405,8 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
 
   function resetManualForm() {
     setManualTitle('');
+    setManualSlug('');
+    setManualSlugEdited(false);
     setManualDescription('');
     setHtmlFile(null);
     setZipFile(null);
@@ -372,73 +417,102 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
     if (manualThumbnailInputRef.current) manualThumbnailInputRef.current.value = '';
   }
 
-  function isCurrentTitleAvailable(title: string) {
-    const trimmedTitle = title.trim();
-    return (
-      trimmedTitle.length >= 2 &&
-      trimmedTitle === titleState.checkedTitle &&
-      titleState.gameId.length > 0 &&
-      titleState.available === true
-    );
-  }
-
-  function getTitleError(title: string, options: { required: boolean }) {
+  function getDisplayTitleError(title: string, options: { required: boolean }) {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
       return options.required ? copy.errGameName : null;
     }
 
-    if (trimmedTitle.length < 2) {
-      return copy.errInvalidGameName;
+    if (trimmedTitle.length < 2 || trimmedTitle.length > 80) {
+      return copy.errGameName;
     }
 
-    if (!isCurrentTitleAvailable(trimmedTitle)) {
-      return titleState.issue === 'taken' ? copy.errTitleTaken : copy.errInvalidGameName;
+    return null;
+  }
+
+  function isCurrentSlugAvailable(slug: string) {
+    const trimmedSlug = slug.trim();
+    return trimmedSlug.length > 0 && trimmedSlug === slugState.checkedValue && slugState.available === true;
+  }
+
+  function getSlugError(slug: string, options: { required: boolean }) {
+    const trimmedSlug = slug.trim();
+    if (!trimmedSlug) {
+      return options.required ? copy.errUrlName : null;
+    }
+
+    if (!isCurrentSlugAvailable(trimmedSlug)) {
+      return slugState.issue === 'taken' ? copy.errUrlNameTaken : copy.errInvalidUrlName;
     }
 
     return null;
   }
 
   function validateAiForm() {
-    const titleError = getTitleError(aiTitle, { required: false });
+    const titleError = getDisplayTitleError(aiTitle, { required: false });
     if (titleError) {
       setError(titleError);
       return false;
     }
+
+    const slugError = getSlugError(aiSlug, { required: Boolean(aiTitle.trim()) });
+    if (slugError) {
+      setError(slugError);
+      return false;
+    }
+
     if (aiPrompt.trim().length < 8) {
       setError(copy.errPrompt);
       return false;
     }
+
     return true;
   }
 
   function validateManualForm() {
-    const titleError = getTitleError(manualTitle, { required: true });
+    const titleError = getDisplayTitleError(manualTitle, { required: true });
     if (titleError) {
       setError(titleError);
       return false;
     }
+
+    const slugError = getSlugError(manualSlug, { required: true });
+    if (slugError) {
+      setError(slugError);
+      return false;
+    }
+
     if (!manualDescription.trim()) {
       setError(copy.errDescription);
       return false;
     }
+
     if (manualMode === 'html' && !htmlFile) {
       setError(copy.errHtml);
       return false;
     }
+
     if (manualMode === 'zip' && !zipFile) {
       setError(copy.errZip);
       return false;
     }
+
     return true;
   }
 
   async function runZipInspection() {
-    const titleError = getTitleError(manualTitle, { required: true });
+    const titleError = getDisplayTitleError(manualTitle, { required: true });
     if (titleError) {
       setError(titleError);
       return null;
     }
+
+    const slugError = getSlugError(manualSlug, { required: true });
+    if (slugError) {
+      setError(slugError);
+      return null;
+    }
+
     if (!zipFile) {
       setError(copy.errZip);
       return null;
@@ -485,6 +559,9 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
       if (aiTitle.trim()) {
         formData.append('title', aiTitle.trim());
       }
+      if (aiSlug.trim()) {
+        formData.append('slug', aiSlug.trim());
+      }
       formData.append('prompt', aiPrompt.trim());
       if (aiDescription.trim()) {
         formData.append('description', aiDescription.trim());
@@ -524,6 +601,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
       if (manualMode === 'html') {
         const formData = new FormData();
         formData.append('title', manualTitle.trim());
+        formData.append('slug', manualSlug.trim());
         formData.append('description', manualDescription.trim());
         if (htmlFile) {
           formData.append('htmlFile', htmlFile);
@@ -560,6 +638,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
         body: JSON.stringify({
           inspectionId: inspection.inspectionId,
           title: manualTitle.trim(),
+          slug: manualSlug.trim(),
           description: manualDescription.trim()
         })
       });
@@ -580,6 +659,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
           body: JSON.stringify({
             inspectionId: inspection.inspectionId,
             title: manualTitle.trim(),
+            slug: manualSlug.trim(),
             description: manualDescription.trim()
           })
         });
@@ -646,25 +726,37 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
             <span>{copy.gameName}</span>
             <input
               value={aiTitle}
-              onChange={(event) => {
-                setAiTitle(event.target.value);
-                clearMessages();
-              }}
+              onChange={(event) => handleAiTitleChange(event.target.value)}
               maxLength={80}
               placeholder={copy.gameNamePlaceholder}
+            />
+            <span className="small-copy upload-input-hint">{copy.gameNameOptionalHint}</span>
+          </label>
+
+          <label className="field-label">
+            <span>{copy.urlGameName}</span>
+            <input
+              value={aiSlug}
+              onChange={(event) => handleAiSlugChange(event.target.value)}
+              maxLength={80}
+              placeholder={copy.urlGameNamePlaceholder}
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
             />
           </label>
 
           <div className="submit-title-status">
-            <span className="small-copy">{copy.gameNameOptionalHint}</span>
-            {activeTitle.trim() ? (
-              <span className={`small-copy${titleState.issue || titleState.available === false ? ' error-text' : ''}`}>
-                {isCheckingTitle ? copy.checkingName : titleState.message}
+            <span className="small-copy">{copy.urlGameNameOptionalHint}</span>
+            <span className="small-copy">{copy.urlGameNameHint}</span>
+            {activeSlug.trim() ? (
+              <span className={`small-copy${slugState.issue || slugState.available === false ? ' error-text' : ''}`}>
+                {isCheckingSlug ? copy.checkingUrlName : slugState.message}
               </span>
             ) : null}
-            {titleState.gameId ? (
+            {slugState.slug ? (
               <span className="small-copy">
-                {copy.namePreview}: `/game/${titleState.gameId}`
+                {copy.urlPreview}: `/game/${slugState.slug}`
               </span>
             ) : null}
           </div>
@@ -706,7 +798,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
             type="button"
             className="button-primary button-fill"
             onClick={() => void publishAiGame()}
-            disabled={isPublishing || isCheckingTitle}
+            disabled={isPublishing || isCheckingSlug}
           >
             {isPublishing ? copy.creating : copy.createWithAi}
           </button>
@@ -717,25 +809,36 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
             <span>{copy.gameName}</span>
             <input
               value={manualTitle}
-              onChange={(event) => {
-                setManualTitle(event.target.value);
-                clearMessages();
-              }}
+              onChange={(event) => handleManualTitleChange(event.target.value)}
               maxLength={80}
               placeholder={copy.gameNamePlaceholder}
+            />
+            <span className="small-copy upload-input-hint">{copy.gameNameHint}</span>
+          </label>
+
+          <label className="field-label">
+            <span>{copy.urlGameName}</span>
+            <input
+              value={manualSlug}
+              onChange={(event) => handleManualSlugChange(event.target.value)}
+              maxLength={80}
+              placeholder={copy.urlGameNamePlaceholder}
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
             />
           </label>
 
           <div className="submit-title-status">
-            <span className="small-copy">{copy.gameNameHint}</span>
-            {activeTitle.trim() ? (
-              <span className={`small-copy${titleState.issue || titleState.available === false ? ' error-text' : ''}`}>
-                {isCheckingTitle ? copy.checkingName : titleState.message}
+            <span className="small-copy">{copy.urlGameNameHint}</span>
+            {activeSlug.trim() ? (
+              <span className={`small-copy${slugState.issue || slugState.available === false ? ' error-text' : ''}`}>
+                {isCheckingSlug ? copy.checkingUrlName : slugState.message}
               </span>
             ) : null}
-            {titleState.gameId ? (
+            {slugState.slug ? (
               <span className="small-copy">
-                {copy.namePreview}: `/game/${titleState.gameId}`
+                {copy.urlPreview}: `/game/${slugState.slug}`
               </span>
             ) : null}
           </div>
@@ -856,7 +959,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
             type="button"
             className="button-primary button-fill"
             onClick={() => void publishManualGame()}
-            disabled={isPublishing || isCheckingTitle || isInspecting}
+            disabled={isPublishing || isCheckingSlug || isInspecting}
           >
             {isInspecting ? copy.checkingZip : isPublishing ? copy.creating : copy.createGame}
           </button>

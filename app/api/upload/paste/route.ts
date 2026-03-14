@@ -4,10 +4,11 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
 import {
+  createGameId,
   createSingleHtmlInspection,
   createThumbnailUpload,
   prepareInspectionForPublishing,
-  resolveGameIdFromTitle,
+  resolveGameSlug,
   writeUploadedGame,
   writeUploadedGameToSupabase
 } from '@/lib/games/upload';
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const title = String(formData.get('title') ?? '').trim();
+    const slug = String(formData.get('slug') ?? '').trim();
     const description = String(formData.get('description') ?? '').trim();
     const htmlFile = formData.get('htmlFile');
     const thumbnail = formData.get('thumbnail');
@@ -30,6 +32,10 @@ export async function POST(request: Request) {
 
     if (title.length < 2 || title.length > 80) {
       return NextResponse.json({ error: 'Title must be between 2 and 80 characters.' }, { status: 400 });
+    }
+
+    if (!slug) {
+      return NextResponse.json({ error: 'URL game name is required.' }, { status: 400 });
     }
 
     if (!description) {
@@ -59,11 +65,13 @@ export async function POST(request: Request) {
 
     const driver = getGameDataDriver();
     const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
-    const gameId = await resolveGameIdFromTitle(storageDir, title);
+    const finalSlug = await resolveGameSlug(storageDir, slug);
+    const gameId = createGameId();
 
     if (driver === 'supabase') {
       await writeUploadedGameToSupabase({
         id: gameId,
+        slug: finalSlug,
         title,
         description,
         uploaderUserId: user.id,
@@ -76,6 +84,7 @@ export async function POST(request: Request) {
       await writeUploadedGame({
         storageDir: storageDir as string,
         id: gameId,
+        slug: finalSlug,
         title,
         description,
         uploaderUserId: user.id,
@@ -87,12 +96,12 @@ export async function POST(request: Request) {
     revalidatePath('/');
     revalidatePath('/submit');
     revalidatePath('/my-games');
-    revalidatePath(`/game/${gameId}`);
+    revalidatePath(`/game/${finalSlug}`);
 
     return NextResponse.json({
       ok: true,
       gameId,
-      gameUrl: `/game/${gameId}`,
+      gameUrl: `/game/${finalSlug}`,
       flagged: inspection.allowlistViolation
     });
   } catch (error) {

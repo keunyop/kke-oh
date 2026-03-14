@@ -6,6 +6,7 @@ import type { GameRecord } from './types';
 function buildGame(partial: Partial<GameRecord> & Pick<GameRecord, 'id' | 'title' | 'created_at'>): GameRecord {
   return {
     id: partial.id,
+    slug: partial.slug ?? partial.id,
     title: partial.title,
     description: partial.description ?? '',
     uploader_user_id: partial.uploader_user_id ?? null,

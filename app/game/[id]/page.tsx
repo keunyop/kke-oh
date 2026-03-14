@@ -11,7 +11,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
   const locale = getRequestLocale();
   const t = getDictionary(locale);
   const creatorLabel = locale === 'ko' ? '만든 사람' : 'Creator';
-  const game = await getGameRepository().getById(params.id);
+  const game = await getGameRepository().getBySlug(params.id.toLowerCase());
 
   if (!game || game.status !== 'PUBLIC' || game.is_hidden) {
     return (

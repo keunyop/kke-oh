@@ -106,7 +106,7 @@ export function createDiscoveryGames(games: GameRecord[]): DiscoveryGame[] {
       id: game.id,
       title: game.title,
       description: truncateText(game.description || 'A fun web game shared by a maker.', 110),
-      href: `/game/${game.id}`,
+      href: `/game/${game.slug}`,
       imageUrl: game.thumbnail_path ? getGameAssetUrl(game.id, game.thumbnail_path) : getPlaceholderThumbnailDataUrl(game.title),
       uploaderName: game.uploader_name || 'Maker',
       playCount: Math.max(0, Math.round((game.plays_7d ?? 0) + (game.plays_30d ?? 0) * 0.2)),

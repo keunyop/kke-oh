@@ -2,6 +2,7 @@ export type GameStatus = 'PUBLIC' | 'REMOVED';
 
 export type GameRecord = {
   id: string;
+  slug: string;
   title: string;
   description: string;
   uploader_user_id: string | null;

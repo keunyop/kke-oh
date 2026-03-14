@@ -3,10 +3,12 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
 import {
+  createGameId,
   createSingleHtmlInspection,
   createThumbnailUpload,
+  generateUniqueGameSlug,
   prepareInspectionForPublishing,
-  resolveGameIdFromTitle,
+  resolveGameSlug,
   writeUploadedGame,
   writeUploadedGameToSupabase
 } from '@/lib/games/upload';
@@ -23,12 +25,21 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const title = String(formData.get('title') ?? '').trim();
+    const slug = String(formData.get('slug') ?? '').trim();
     const prompt = String(formData.get('prompt') ?? '').trim();
     const description = String(formData.get('description') ?? '').trim();
     const thumbnail = formData.get('thumbnail');
 
     if (title && (title.length < 2 || title.length > 80)) {
       return NextResponse.json({ error: 'Game name must be between 2 and 80 characters.' }, { status: 400 });
+    }
+
+    if (title && !slug) {
+      return NextResponse.json({ error: 'URL game name is required when display game name is set.' }, { status: 400 });
+    }
+
+    if (slug && slug.length > 80) {
+      return NextResponse.json({ error: 'URL game name must be 80 characters or fewer.' }, { status: 400 });
     }
 
     if (prompt.length < 8 || prompt.length > 1200) {
@@ -39,22 +50,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Description must be 400 characters or fewer.' }, { status: 400 });
     }
 
+    const driver = getGameDataDriver();
+    const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
     const generated = await generateGameFromPrompt(prompt);
     const uploadThumbnail = await createThumbnailUpload(thumbnail instanceof File ? thumbnail : null);
     const finalTitle = title || generated.title;
+    const finalSlug = slug
+      ? await resolveGameSlug(storageDir, slug)
+      : await generateUniqueGameSlug(storageDir, generated.title);
     const finalDescription = description || generated.description;
     const inspection = await prepareInspectionForPublishing(
       createSingleHtmlInspection(generated.html, uploadThumbnail ?? generated.thumbnail),
       finalTitle
     );
-
-    const driver = getGameDataDriver();
-    const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
-    const gameId = await resolveGameIdFromTitle(storageDir, finalTitle);
+    const gameId = createGameId();
 
     if (driver === 'supabase') {
       await writeUploadedGameToSupabase({
         id: gameId,
+        slug: finalSlug,
         title: finalTitle,
         description: finalDescription,
         uploaderUserId: user.id,
@@ -67,6 +81,7 @@ export async function POST(request: Request) {
       await writeUploadedGame({
         storageDir: storageDir as string,
         id: gameId,
+        slug: finalSlug,
         title: finalTitle,
         description: finalDescription,
         uploaderUserId: user.id,
@@ -78,12 +93,12 @@ export async function POST(request: Request) {
     revalidatePath('/');
     revalidatePath('/submit');
     revalidatePath('/my-games');
-    revalidatePath(`/game/${gameId}`);
+    revalidatePath(`/game/${finalSlug}`);
 
     return NextResponse.json({
       ok: true,
       gameId,
-      gameUrl: `/game/${gameId}`,
+      gameUrl: `/game/${finalSlug}`,
       flagged: inspection.allowlistViolation
     });
   } catch (error) {

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/auth';
 import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
-import { prepareInspectionForPublishing, resolveGameIdFromTitle, writeUploadedGame, writeUploadedGameToSupabase } from '@/lib/games/upload';
+import { createGameId, prepareInspectionForPublishing, resolveGameSlug, writeUploadedGame, writeUploadedGameToSupabase } from '@/lib/games/upload';
 import { sha256 } from '@/lib/security/hash';
 import { getRequestIp } from '@/lib/security/ip';
 import { consumeInspection } from '@/lib/security/uploadCache';
@@ -11,6 +11,7 @@ import { consumeInspection } from '@/lib/security/uploadCache';
 const submitSchema = z.object({
   inspectionId: z.string().min(1),
   title: z.string().trim().min(2).max(80),
+  slug: z.string().trim().min(1).max(80),
   description: z.string().trim().min(1).max(400)
 });
 
@@ -31,7 +32,8 @@ export async function POST(request: Request) {
     const inspection = await prepareInspectionForPublishing(cachedInspection, body.title);
     const driver = getGameDataDriver();
     const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
-    const gameId = await resolveGameIdFromTitle(storageDir, body.title);
+    const finalSlug = await resolveGameSlug(storageDir, body.slug);
+    const gameId = createGameId();
 
     if (driver === 'supabase') {
       const uploaderIpHash = sha256(getRequestIp());
@@ -39,6 +41,7 @@ export async function POST(request: Request) {
 
       await writeUploadedGameToSupabase({
         id: gameId,
+        slug: finalSlug,
         title: body.title,
         description: body.description,
         uploaderUserId: user.id,
@@ -51,6 +54,7 @@ export async function POST(request: Request) {
       await writeUploadedGame({
         storageDir: storageDir as string,
         id: gameId,
+        slug: finalSlug,
         title: body.title,
         description: body.description,
         uploaderUserId: user.id,
@@ -62,12 +66,12 @@ export async function POST(request: Request) {
     revalidatePath('/');
     revalidatePath('/admin');
     revalidatePath('/my-games');
-    revalidatePath(`/game/${gameId}`);
+    revalidatePath(`/game/${finalSlug}`);
 
     return NextResponse.json({
       ok: true,
       gameId,
-      gameUrl: `/game/${gameId}`,
+      gameUrl: `/game/${finalSlug}`,
       flagged: inspection.allowlistViolation
     });
   } catch (error) {

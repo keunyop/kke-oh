@@ -406,7 +406,7 @@ export default function AdminDashboard({ initialGames, locale, adminLoginId }: P
                       </a>
                     ) : null}
                     {showGamePageLink ? (
-                      <a href={`/game/${game.id}`} className="button-secondary" target="_blank" rel="noreferrer">
+                      <a href={`/game/${game.slug}`} className="button-secondary" target="_blank" rel="noreferrer">
                         {copy.page}
                       </a>
                     ) : null}
@@ -479,3 +479,4 @@ export default function AdminDashboard({ initialGames, locale, adminLoginId }: P
     </div>
   );
 }
+

@@ -7,6 +7,7 @@ import { readFromR2 } from '@/lib/r2/client';
 
 type GameRow = {
   id: string;
+  slug?: string | null;
   title: string;
   description: string | null;
   uploader_user_id?: string | null;
@@ -29,15 +30,28 @@ type GameRow = {
 
 const CORE_GAME_SELECT =
   'id,title,description,status,is_hidden,hidden_reason,storage_prefix,entry_path,thumbnail_url,allowlist_violation,report_count,plays_7d,plays_30d,created_at,updated_at';
-const GAME_SELECT_WITH_UPLOADER = `${CORE_GAME_SELECT},uploader_user_id,uploader_name`;
+const CORE_GAME_SELECT_WITH_SLUG =
+  'id,slug,title,description,status,is_hidden,hidden_reason,storage_prefix,entry_path,thumbnail_url,allowlist_violation,report_count,plays_7d,plays_30d,created_at,updated_at';
+const GAME_SELECT_WITH_UPLOADER = `${CORE_GAME_SELECT_WITH_SLUG},uploader_user_id,uploader_name`;
 const GAME_SELECT_WITH_REACTIONS = `${GAME_SELECT_WITH_UPLOADER},like_count,dislike_count`;
+const GAME_SELECT_WITH_UPLOADER_NO_SLUG = `${CORE_GAME_SELECT},uploader_user_id,uploader_name`;
+const GAME_SELECT_WITH_REACTIONS_NO_SLUG = `${GAME_SELECT_WITH_UPLOADER_NO_SLUG},like_count,dislike_count`;
+const GAME_SELECT_VARIANTS = [
+  GAME_SELECT_WITH_REACTIONS,
+  GAME_SELECT_WITH_UPLOADER,
+  CORE_GAME_SELECT_WITH_SLUG,
+  GAME_SELECT_WITH_REACTIONS_NO_SLUG,
+  GAME_SELECT_WITH_UPLOADER_NO_SLUG,
+  CORE_GAME_SELECT
+];
 
 function isOptionalColumnError(message: string): boolean {
   return (
     message.includes('like_count') ||
     message.includes('dislike_count') ||
     message.includes('uploader_user_id') ||
-    message.includes('uploader_name')
+    message.includes('uploader_name') ||
+    message.includes('slug')
   );
 }
 
@@ -76,6 +90,7 @@ async function mapRow(row: GameRow): Promise<GameRecord> {
 
   return {
     id: row.id,
+    slug: row.slug?.trim().toLowerCase() || row.id,
     title: row.title,
     description: row.description ?? '',
     uploader_user_id: row.uploader_user_id ?? null,
@@ -101,7 +116,7 @@ export class SupabaseGameRepository implements GameRepository {
   private async selectGames<T>(
     buildQuery: (selectClause: string) => Promise<{ data: unknown; error: { message: string } | null }>
   ): Promise<T[]> {
-    for (const selectClause of [GAME_SELECT_WITH_REACTIONS, GAME_SELECT_WITH_UPLOADER, CORE_GAME_SELECT]) {
+    for (const selectClause of GAME_SELECT_VARIANTS) {
       const result = await buildQuery(selectClause);
       if (!result.error) {
         return (result.data as T[] | null) ?? [];
@@ -118,7 +133,7 @@ export class SupabaseGameRepository implements GameRepository {
   private async selectSingleGame<T>(
     buildQuery: (selectClause: string) => Promise<{ data: unknown; error: { message: string } | null }>
   ): Promise<T | null> {
-    for (const selectClause of [GAME_SELECT_WITH_REACTIONS, GAME_SELECT_WITH_UPLOADER, CORE_GAME_SELECT]) {
+    for (const selectClause of GAME_SELECT_VARIANTS) {
       const result = await buildQuery(selectClause);
       if (!result.error) {
         return (result.data as T | null) ?? null;
@@ -181,6 +196,19 @@ export class SupabaseGameRepository implements GameRepository {
         .from('games')
         .select(selectClause)
         .eq('id', id)
+        .maybeSingle()
+    );
+
+    return data ? mapRow(data) : null;
+  }
+
+  async getBySlug(slug: string): Promise<GameRecord | null> {
+    const supabase = createServiceClient();
+    const data = await this.selectSingleGame<GameRow>(async (selectClause) =>
+      await supabase
+        .from('games')
+        .select(selectClause)
+        .eq('slug', slug.toLowerCase())
         .maybeSingle()
     );
 

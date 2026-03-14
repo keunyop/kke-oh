@@ -185,7 +185,7 @@ export default function MyGamesPanel({ initialGames, locale }: Props) {
                   </span>
                 </div>
                 <div className="button-row my-game-actions">
-                  <a href={`/game/${game.id}`} className="button-secondary">
+                  <a href={`/game/${game.slug}`} className="button-secondary">
                     {copy.open}
                   </a>
                   {game.status !== 'REMOVED' ? (
