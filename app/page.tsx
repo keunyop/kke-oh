@@ -23,54 +23,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const discoveryGames = sortDiscoveryGames(createDiscoveryGames(allGames));
   const query = searchParams?.q ?? '';
   const visibleGames = filterDiscoveryGames(discoveryGames, query, 'all');
-  const champions = await listLeaderboardChampions(allGames, 6);
-  const championsTitle = locale === 'ko' ? '이번 주 챔피언' : 'Top Champions';
-  const championsDescription =
-    locale === 'ko'
-      ? '리더보드가 있는 게임들 중 각 게임 1위만 모았어요.'
-      : 'Only the #1 score from each leaderboard-enabled game.';
+  const firstRowGames = visibleGames.slice(0, 6);
+  const remainingGames = visibleGames.slice(6);
+  const champions = await listLeaderboardChampions(allGames, 12);
+  const marqueeChampions = champions.length > 1 ? [...champions, ...champions] : champions;
+  const championsTitle = locale === 'ko' ? '올타임 챔피언' : 'All Time Champions';
   const championScoreLabel = locale === 'ko' ? '점수' : 'Score';
-  const championWinnerLabel = locale === 'ko' ? '1위' : '#1';
 
   return (
     <section className="mvp-home">
-      {champions.length ? (
-        <section className="panel-card home-champions">
-          <div className="home-champions-copy">
-            <span className="pill-label">Leaderboard</span>
-            <h2>{championsTitle}</h2>
-            <p>{championsDescription}</p>
-          </div>
-          <div className="home-champions-grid" role="list">
-            {champions.map((champion, index) => {
-              const imageUrl = champion.thumbnailPath
-                ? getGameAssetUrl(champion.gameId, champion.thumbnailPath)
-                : getPlaceholderThumbnailDataUrl(champion.title);
-
-              return (
-                <a key={`${champion.gameId}-${champion.playerName}`} href={`/game/${champion.slug}`} className="home-champion-card" role="listitem">
-                  <div className="home-champion-media">
-                    <Image src={imageUrl} alt={champion.title} fill className="game-card-image" unoptimized />
-                    <span className="home-champion-rank">#{index + 1}</span>
-                  </div>
-                  <div className="home-champion-body">
-                    <p className="small-copy">{championWinnerLabel}</p>
-                    <h3>{champion.title}</h3>
-                    <p className="home-champion-player">{champion.playerName}</p>
-                    <p className="home-champion-score">
-                      {championScoreLabel} <strong>{champion.score.toLocaleString(locale === 'ko' ? 'ko-KR' : 'en-US')}</strong>
-                    </p>
-                  </div>
-                </a>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
-
-      {visibleGames.length ? (
+      {firstRowGames.length ? (
         <div className="game-grid" role="list">
-          {visibleGames.map((game) => (
+          {firstRowGames.map((game) => (
             <div key={game.id} role="listitem">
               <GameCard
                 id={game.id}
@@ -91,7 +55,74 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </div>
           ))}
         </div>
-      ) : (
+      ) : null}
+
+      {champions.length ? (
+        <section className="panel-card home-champions" aria-labelledby="home-champions-title">
+          <div className="home-champions-copy">
+            <h2 id="home-champions-title">{championsTitle}</h2>
+          </div>
+          <div className="home-champions-marquee">
+            <div className={`home-champions-track${champions.length > 1 ? ' is-animated' : ''}`} role="list" aria-label={championsTitle}>
+              {marqueeChampions.map((champion, index) => {
+                const imageUrl = champion.thumbnailPath
+                  ? getGameAssetUrl(champion.gameId, champion.thumbnailPath)
+                  : getPlaceholderThumbnailDataUrl(champion.title);
+                const isDuplicate = champions.length > 1 && index >= champions.length;
+
+                return (
+                  <a
+                    key={`${champion.gameId}-${champion.playerName}-${index}`}
+                    href={`/game/${champion.slug}`}
+                    className="home-champion-card"
+                    role="listitem"
+                    aria-hidden={isDuplicate}
+                    tabIndex={isDuplicate ? -1 : undefined}
+                  >
+                    <div className="home-champion-media">
+                      <Image src={imageUrl} alt={champion.title} fill className="game-card-image" unoptimized />
+                    </div>
+                    <div className="home-champion-body">
+                      <h3>{champion.title}</h3>
+                      <p className="home-champion-player">{champion.playerName}</p>
+                      <p className="home-champion-score">
+                        {championScoreLabel} <strong>{champion.score.toLocaleString(locale === 'ko' ? 'ko-KR' : 'en-US')}</strong>
+                      </p>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {remainingGames.length ? (
+        <div className="game-grid" role="list">
+          {remainingGames.map((game) => (
+            <div key={game.id} role="listitem">
+              <GameCard
+                id={game.id}
+                title={game.title}
+                description={game.description}
+                href={game.href}
+                imageUrl={game.imageUrl}
+                uploaderName={game.uploaderName}
+                playCount={game.playCount}
+                likeCount={game.likeCount}
+                dislikeCount={game.dislikeCount}
+                isNew={game.isNew}
+                locale={locale}
+                showDescription={false}
+                showPlayButton={false}
+                reactionDisplay="approval"
+              />
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {!visibleGames.length ? (
         <section className="empty-state-card">
           <h2>{t.home.emptyTitle}</h2>
           <p>{t.home.emptyDescription}</p>
@@ -99,7 +130,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             {t.home.firstUpload}
           </a>
         </section>
-      )}
+      ) : null}
     </section>
   );
 }

@@ -1,4 +1,4 @@
-import { promises as fs } from 'node:fs';
+﻿import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
 import { createServiceClient } from '@/lib/db/supabase';
@@ -7,6 +7,7 @@ import type { GameRecord } from '@/lib/games/types';
 const MAX_PLAYER_NAME_LENGTH = 24;
 const MAX_STORED_ENTRIES = 50;
 const DEFAULT_LIST_LIMIT = 10;
+const DUPLICATE_SCORE_WINDOW_MS = 15_000;
 const LEADERBOARD_TABLE = 'game_leaderboard_entries';
 
 export type LeaderboardEntry = {
@@ -124,6 +125,26 @@ export function normalizeLeaderboardScore(value: unknown): number | null {
   return score;
 }
 
+function hasRecentDuplicateScore(entries: LeaderboardEntry[], playerName: string, score: number, createdAt: string) {
+  const createdTime = Date.parse(createdAt);
+  if (!Number.isFinite(createdTime)) {
+    return false;
+  }
+
+  return entries.some((entry) => {
+    if (entry.playerName !== playerName || entry.score !== score) {
+      return false;
+    }
+
+    const entryTime = Date.parse(entry.createdAt);
+    if (!Number.isFinite(entryTime)) {
+      return false;
+    }
+
+    return Math.abs(createdTime - entryTime) <= DUPLICATE_SCORE_WINDOW_MS;
+  });
+}
+
 export async function listGameLeaderboard(gameId: string, limit = DEFAULT_LIST_LIMIT): Promise<LeaderboardEntry[]> {
   const safeLimit = Math.max(1, Math.min(50, limit));
   if (getGameDataDriver() !== 'supabase') {
@@ -173,9 +194,13 @@ export async function submitGameLeaderboardScore(game: GameRecord, playerName: s
     createdAt: new Date().toISOString()
   };
 
+  const currentEntries = await listGameLeaderboard(game.id, MAX_STORED_ENTRIES);
+  if (hasRecentDuplicateScore(currentEntries, entry.playerName, entry.score, entry.createdAt)) {
+    return currentEntries.slice(0, DEFAULT_LIST_LIMIT);
+  }
+
   if (getGameDataDriver() !== 'supabase') {
-    const current = await readFallbackEntries(game.id);
-    await writeFallbackEntries(game.id, sortEntries([entry, ...current]));
+    await writeFallbackEntries(game.id, sortEntries([entry, ...currentEntries]));
     return listGameLeaderboard(game.id);
   }
 
@@ -198,8 +223,7 @@ export async function submitGameLeaderboardScore(game: GameRecord, playerName: s
       throw error;
     }
 
-    const current = await readFallbackEntries(game.id);
-    await writeFallbackEntries(game.id, sortEntries([entry, ...current]));
+    await writeFallbackEntries(game.id, sortEntries([entry, ...currentEntries]));
     return listGameLeaderboard(game.id);
   }
 }
@@ -238,3 +262,4 @@ export async function listLeaderboardChampions(games: GameRecord[], limit = 6): 
     })
     .slice(0, Math.max(1, limit));
 }
+

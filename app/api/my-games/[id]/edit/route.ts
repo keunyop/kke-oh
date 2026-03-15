@@ -1,4 +1,4 @@
-﻿import { revalidatePath } from 'next/cache';
+import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import path from 'node:path';
 import { getCurrentUser } from '@/lib/auth';
@@ -13,7 +13,7 @@ import {
   updateUploadedGame,
   updateUploadedGameInSupabase
 } from '@/lib/games/upload';
-import { generateGameFromPrompt } from '@/lib/openai/game-generator';
+import { generateGameFromPrompt } from '@/lib/games/ai-game-generator';
 
 type EditMode = 'details' | 'html' | 'zip' | 'ai';
 

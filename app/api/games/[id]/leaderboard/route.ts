@@ -35,7 +35,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
       score?: unknown;
     };
 
-    const entries = await submitGameLeaderboardScore(game, String(body.playerName ?? ''), Number(body.score));
+    const playerName = user?.loginId ?? String(body.playerName ?? '');
+    const entries = await submitGameLeaderboardScore(game, playerName, Number(body.score));
     return NextResponse.json({ ok: true, entries });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not save the score.';

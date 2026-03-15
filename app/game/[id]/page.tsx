@@ -1,4 +1,4 @@
-﻿import { GameActions, GameFullscreenButton } from '@/components/game/game-actions';
+import { GameActions, GameFullscreenButton } from '@/components/game/game-actions';
 import { GameFullscreenShell } from '@/components/game/game-fullscreen-shell';
 import { GameLeaderboard } from '@/components/game/game-leaderboard';
 import { getCurrentUser } from '@/lib/auth';
@@ -71,6 +71,8 @@ export default async function GamePage({ params }: { params: { id: string } }) {
       {game.leaderboard_enabled || leaderboardEntries.length ? (
         <GameLeaderboard
           gameId={game.id}
+          iframeId={iframeId}
+          currentUserLoginId={user?.loginId ?? null}
           locale={locale}
           initialEntries={leaderboardEntries}
           allowSubmission={Boolean(game.leaderboard_enabled && (canUsePublicActions || isOwner))}

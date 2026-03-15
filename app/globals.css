@@ -947,6 +947,11 @@ textarea {
   border-color: rgba(255, 188, 79, 0.24);
 }
 
+.submit-progress-dots {
+  display: inline-block;
+  min-width: 1.7em;
+}
+
 .submit-progress-steps {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2042,4 +2047,248 @@ td {
 
 .edit-game-preview-copy .small-copy {
   overflow-wrap: anywhere;
+}
+
+.home-champions {
+  position: relative;
+  gap: 20px;
+  padding: 24px;
+  overflow: hidden;
+  border-color: rgba(255, 176, 90, 0.34);
+  background:
+    radial-gradient(circle at 0% 50%, rgba(255, 216, 90, 0.2), transparent 28%),
+    radial-gradient(circle at 100% 0%, rgba(255, 153, 102, 0.24), transparent 24%),
+    linear-gradient(135deg, rgba(255, 251, 235, 0.98) 0%, rgba(255, 244, 222, 0.96) 52%, rgba(255, 250, 241, 0.98) 100%);
+}
+
+.home-champions::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  pointer-events: none;
+}
+
+.home-champions-copy {
+  position: relative;
+  z-index: 1;
+  gap: 6px;
+}
+
+.home-champions-copy h2 {
+  margin: 0;
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  letter-spacing: 0.02em;
+}
+
+.home-champions-marquee {
+  position: relative;
+  overflow: hidden;
+  margin-inline: -6px;
+  padding-inline: 6px;
+}
+
+.home-champions-marquee::before,
+.home-champions-marquee::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 56px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.home-champions-marquee::before {
+  left: 0;
+  background: linear-gradient(90deg, rgba(255, 249, 236, 0.98), rgba(255, 249, 236, 0));
+}
+
+.home-champions-marquee::after {
+  right: 0;
+  background: linear-gradient(270deg, rgba(255, 249, 236, 0.98), rgba(255, 249, 236, 0));
+}
+
+.home-champions-track {
+  display: flex;
+  gap: 14px;
+  width: max-content;
+}
+
+.home-champions-track.is-animated {
+  animation: home-champions-scroll 36s linear infinite;
+  will-change: transform;
+}
+
+.home-champions:hover .home-champions-track.is-animated {
+  animation-play-state: paused;
+}
+
+.home-champion-card {
+  position: relative;
+  flex: 0 0 320px;
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 196, 110, 0.28);
+  box-shadow: 0 14px 28px rgba(121, 174, 225, 0.12);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.home-champion-card:hover,
+.home-champion-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(255, 169, 87, 0.48);
+  box-shadow: 0 18px 30px rgba(121, 174, 225, 0.16);
+}
+
+.home-champion-media {
+  position: relative;
+  min-height: 88px;
+  overflow: hidden;
+  border-radius: 18px;
+  background: rgba(255, 230, 174, 0.45);
+}
+
+.home-champion-body {
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.home-champion-body h3,
+.home-champion-player,
+.home-champion-score {
+  margin: 0;
+}
+
+.home-champion-body h3 {
+  font-size: 1.02rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-champion-player {
+  color: #8b5606;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-champion-score {
+  color: var(--muted);
+}
+
+.submit-progress-dots {
+  display: inline-block;
+  min-width: 1.7em;
+  animation: submit-progress-breathe 900ms ease-in-out infinite;
+}
+
+.submit-progress-steps {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+@keyframes home-champions-scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(calc(-50% - 7px));
+  }
+}
+
+@keyframes submit-progress-breathe {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.52;
+  }
+
+  50% {
+    transform: translateY(-1px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-champions-track.is-animated,
+  .submit-progress-dots {
+    animation: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .home-champions {
+    padding: 20px;
+  }
+
+  .home-champion-card {
+    flex-basis: 280px;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .home-champion-media {
+    min-height: 78px;
+  }
+}
+
+@media (max-width: 760px) {
+  .home-champions {
+    gap: 14px;
+    padding: 16px 14px;
+  }
+
+  .home-champions-copy h2 {
+    font-size: 1.3rem;
+  }
+
+  .home-champions-marquee::before,
+  .home-champions-marquee::after {
+    width: 28px;
+  }
+
+  .home-champions-track.is-animated {
+    animation-duration: 24s;
+  }
+
+  .home-champion-card {
+    flex-basis: 232px;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px;
+    padding: 9px;
+    border-radius: 18px;
+  }
+
+  .home-champion-media {
+    min-height: 72px;
+    border-radius: 14px;
+  }
+
+  .home-champion-body {
+    gap: 4px;
+  }
+
+  .home-champion-body h3 {
+    font-size: 0.92rem;
+  }
+
+  .home-champion-player,
+  .home-champion-score {
+    font-size: 0.82rem;
+  }
 }

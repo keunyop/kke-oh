@@ -1,6 +1,7 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type RefObject } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Locale } from '@/lib/i18n';
 
 type CreationMode = 'ai' | 'manual';
@@ -37,12 +38,14 @@ type AiProgressCopy = {
   detail: string[];
 };
 
+const AI_PROGRESS_STEP_DELAYS = [8000, 26000, 52000, 78000] as const;
+
 function suggestSlug(value: string) {
   return value
     .normalize('NFKC')
     .toLocaleLowerCase()
     .trim()
-    .replace(/['’]/gu, '')
+    .replace(/[''’"]/gu, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 64);
@@ -52,63 +55,63 @@ function getCopy(locale: Locale) {
   return locale === 'ko'
     ? {
         aiTitle: 'AI로 만들기',
-        aiSubtitle: '아이디어를 쓰면 AI가 게임을 만들어줘요.',
+        aiSubtitle: '아이디어만 적으면 AI가 게임을 만들어줘요.',
         manualTitle: '직접 파일 올리기',
-        manualSubtitle: '내가 만든 파일이 있으면 바로 올리면 돼요.',
-        htmlMode: 'Upload HTML',
-        zipMode: 'Upload ZIP',
+        manualSubtitle: '이미 만든 게임이 있다면 파일을 바로 올릴 수 있어요.',
+        htmlMode: 'HTML 올리기',
+        zipMode: 'ZIP 올리기',
         gameName: '화면에 보일 게임 이름',
-        gameNamePlaceholder: '예: 우주 피하기',
-        gameNameHint: '친구들에게 보이는 게임 이름이에요.',
-        gameNameOptionalHint: '비워 두면 AI가 화면에 보일 게임 이름을 지어줘요.',
-        urlGameName: 'URL로 사용할 게임 이름',
-        urlGameNamePlaceholder: '예: color-pop-mania',
+        gameNamePlaceholder: '예시: 우주 피하기',
+        gameNameHint: '플레이어가 보게 될 게임 이름이에요.',
+        gameNameOptionalHint: '비워 두면 AI가 게임 이름까지 제안해줘요.',
+        urlGameName: 'URL 게임 이름',
+        urlGameNamePlaceholder: '예시: color-pop-mania',
         urlGameNameHint: '영문, 숫자, 하이픈(-)만 사용할 수 있어요.',
-        urlGameNameOptionalHint: '비워 두면 AI가 URL 이름도 함께 만들어요.',
+        urlGameNameOptionalHint: '비워 두면 AI가 URL 이름도 함께 만들어줘요.',
         checkingUrlName: 'URL 이름 확인 중...',
-        urlNameAvailable: '좋아요! 이 URL 이름을 쓸 수 있어요.',
-        urlNameTaken: '이미 쓰는 URL 이름이에요. 다른 이름으로 바꿔주세요.',
+        urlNameAvailable: '좋아요. 이 URL 이름을 사용할 수 있어요.',
+        urlNameTaken: '이미 사용 중인 URL 이름이에요. 다른 이름을 써주세요.',
         urlNameInvalid: 'URL 이름은 영문, 숫자, 하이픈(-)만 사용할 수 있어요.',
         urlPreview: '게임 주소',
         promptLabel: '게임 아이디어',
-        promptPlaceholder: '예: 별을 피하고 점수를 모으는 쉬운 우주 게임을 만들어줘.',
+        promptPlaceholder: '예시: 별을 피하고 점수를 모으는 쉬운 우주 게임을 만들어줘.',
         aiDescription: '게임 설명',
-        aiDescriptionHint: '비워두면 AI가 만들어줘요.',
-        aiDescriptionPlaceholder: '예: 별을 피하고 점수를 모으는 게임',
+        aiDescriptionHint: '비워 두면 AI가 설명도 만들어줘요.',
+        aiDescriptionPlaceholder: '예시: 별을 피하고 점수를 모으는 게임',
         thumbnail: '썸네일 그림',
-        thumbnailHint: '비워두면 AI가 만들어줘요.',
+        thumbnailHint: '비워 두면 AI가 썸네일까지 만들어줘요.',
         htmlFile: 'HTML 파일',
         htmlHint: '게임이 바로 시작되는 HTML 파일 1개를 올려주세요.',
         zipFile: 'ZIP 파일',
-        zipHint: 'HTML과 그림, 소리 파일을 함께 넣은 ZIP을 올려주세요.',
+        zipHint: 'HTML, 이미지, 소리 파일을 함께 담은 ZIP을 올려주세요.',
         manualDescription: '게임 설명',
-        manualDescriptionPlaceholder: '친구들이 게임을 쉽게 알 수 있게 짧게 써주세요.',
+        manualDescriptionPlaceholder: '아이들이 게임을 쉽게 이해할 수 있게 짧게 적어주세요.',
         createWithAi: 'AI로 게임 만들기',
-        createGame: 'Create Game',
+        createGame: '게임 만들기',
         creating: '만드는 중...',
         checkingZip: 'ZIP 확인 중...',
         zipReady: 'ZIP 확인 완료',
         zipEntry: '시작 파일',
         zipHtmlCount: 'HTML 파일 수',
         zipThumbCount: '썸네일 후보 수',
-        zipFlagged: '바깥 링크가 보여서 한 번 더 확인될 수 있어요.',
-        zipSafe: '바깥 링크 문제는 보이지 않았어요.',
-        success: '게임이 준비됐어요!',
+        zipFlagged: '외부 링크가 보여서 한 번 더 확인이 필요할 수 있어요.',
+        zipSafe: '외부 링크 문제는 보이지 않았어요.',
+        success: '게임이 준비되었어요!',
         open: '바로 열기',
         createAnother: '다른 게임 만들기',
         errGameName: '화면에 보일 게임 이름을 입력해주세요.',
-        errPrompt: '게임 아이디어를 8글자 이상 써주세요.',
+        errPrompt: '게임 아이디어를 8글자 이상 적어주세요.',
         errDescription: '게임 설명을 입력해주세요.',
-        errHtml: 'HTML 파일을 골라주세요.',
-        errZip: 'ZIP 파일을 골라주세요.',
-        errUrlName: 'URL로 사용할 게임 이름을 입력해주세요.',
-        errUrlNameTaken: '이미 쓰는 URL 이름이에요. 다른 이름으로 바꿔주세요.',
+        errHtml: 'HTML 파일을 선택해주세요.',
+        errZip: 'ZIP 파일을 선택해주세요.',
+        errUrlName: 'URL 게임 이름을 입력해주세요.',
+        errUrlNameTaken: '이미 사용 중인 URL 이름이에요. 다른 이름을 써주세요.',
         errInvalidUrlName: 'URL 이름은 영문, 숫자, 하이픈(-)만 사용할 수 있어요.',
         dropChoose: '파일 고르기',
-        dropOr: '또는 여기로 끌어오세요',
+        dropOr: '또는 여기로 끌어다 놓기',
         dropActive: '여기에 놓아주세요',
         selectedFile: '선택한 파일',
-        removeFile: '파일 빼기'
+        removeFile: '파일 비우기'
       }
     : {
         aiTitle: 'AI Create',
@@ -177,19 +180,21 @@ function getAiProgressCopy(locale: Locale): AiProgressCopy {
     ? {
         title: 'AI가 게임을 만들고 있어요',
         detail: [
-          '게임 아이디어를 정리하고 있어요.',
-          '플레이 규칙과 화면 구성을 만들고 있어요.',
-          '게임 코드와 에셋을 준비하고 있어요.',
-          '마지막으로 저장하고 공개할 준비를 하고 있어요.'
+          '아이디어를 게임 기획으로 정리하고 있어요.',
+          '규칙과 조작감, 점수 흐름을 설계하고 있어요.',
+          '게임 코드와 인터랙션을 만들고 있어요.',
+          '썸네일과 연출을 다듬고 있어요.',
+          '최종 점검과 저장을 마무리하고 있어요.'
         ]
       }
     : {
         title: 'AI is building your game',
         detail: [
           'Turning your idea into a game plan.',
-          'Designing the gameplay and screen layout.',
-          'Generating the game code and assets.',
-          'Saving everything and getting the page ready.'
+          'Designing the gameplay, HUD, and score flow.',
+          'Generating the game code and interactions.',
+          'Creating the thumbnail and final polish.',
+          'Running final checks and saving everything.'
         ]
       };
 }
@@ -290,6 +295,7 @@ function FileDropzone({
 }
 
 export default function SubmitForm({ locale }: { locale: Locale }) {
+  const router = useRouter();
   const copy = getCopy(locale);
   const aiProgressCopy = getAiProgressCopy(locale);
   const [mode, setMode] = useState<CreationMode>('ai');
@@ -313,6 +319,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   const [isInspecting, setIsInspecting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [aiProgressStep, setAiProgressStep] = useState(0);
+  const [aiProgressDots, setAiProgressDots] = useState(1);
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
   const [slugState, setSlugState] = useState<{
     checkedValue: string;
@@ -338,23 +345,29 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   useEffect(() => {
     if (!isAiPublishing) {
       setAiProgressStep(0);
+      setAiProgressDots(1);
       return;
     }
 
     setAiProgressStep(0);
+    setAiProgressDots(1);
 
-    const timers = [
-      window.setTimeout(() => setAiProgressStep(1), 1400),
-      window.setTimeout(() => setAiProgressStep(2), 4200),
-      window.setTimeout(() => setAiProgressStep(3), 8200)
-    ];
+    const timers = AI_PROGRESS_STEP_DELAYS.map((delay, index) => window.setTimeout(() => setAiProgressStep(index + 1), delay));
+    const dotsTimer = window.setInterval(() => {
+      setAiProgressDots((current) => (current % 3) + 1);
+    }, 420);
 
     return () => {
       for (const timer of timers) {
         window.clearTimeout(timer);
       }
+      window.clearInterval(dotsTimer);
     };
   }, [isAiPublishing]);
+
+  function getCreatedGameManageUrl() {
+    return '/my-games';
+  }
 
   useEffect(() => {
     const trimmedSlug = activeSlug.trim();
@@ -631,8 +644,8 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
         throw new Error(('error' in data ? data.error : undefined) ?? 'Could not create the game.');
       }
 
-      setSuccess(data);
       resetAiForm();
+      router.push(getCreatedGameManageUrl());
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not create the game.');
     } finally {
@@ -671,8 +684,8 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
           throw new Error(('error' in data ? data.error : undefined) ?? 'Could not create the game.');
         }
 
-        setSuccess(data);
         resetManualForm();
+        router.push(getCreatedGameManageUrl());
         return;
       }
 
@@ -721,8 +734,8 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
         throw new Error(('error' in data ? data.error : undefined) ?? 'Could not create the game.');
       }
 
-      setSuccess(data);
       resetManualForm();
+      router.push(getCreatedGameManageUrl());
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not create the game.');
     } finally {
@@ -847,8 +860,18 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
 
           {isAiPublishing ? (
             <div className="status-card submit-progress-card" role="status" aria-live="polite">
-              <p className="status-title">{aiProgressCopy.title}</p>
-              <p className="small-copy">{aiProgressCopy.detail[aiProgressStep]}</p>
+              <p className="status-title">
+                {aiProgressCopy.title}
+                <span className="submit-progress-dots" aria-hidden="true">
+                  {'.'.repeat(aiProgressDots)}
+                </span>
+              </p>
+              <p className="small-copy">
+                {aiProgressCopy.detail[Math.min(aiProgressStep, aiProgressCopy.detail.length - 1)]}
+                <span className="submit-progress-dots" aria-hidden="true">
+                  {'.'.repeat(aiProgressDots)}
+                </span>
+              </p>
               <div className="submit-progress-steps" aria-hidden="true">
                 {aiProgressCopy.detail.map((label, index) => (
                   <span
@@ -1041,7 +1064,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
           <p className="status-title">{copy.success}</p>
           <p className="small-copy">
             {locale === 'ko'
-              ? '지금은 초안으로 저장되었어요. 내 게임에서 테스트한 뒤 게시할 수 있어요.'
+              ? '吏湲덉? 珥덉븞?쇰줈 ??λ릺?덉뼱?? ??寃뚯엫?먯꽌 ?뚯뒪?명븳 ??寃뚯떆?????덉뼱??'
               : 'This was saved as a private draft. Test it in My Games, then publish it when you are ready.'}
           </p>
           <p className="small-copy">
@@ -1062,3 +1085,6 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
     </section>
   );
 }
+
+
+

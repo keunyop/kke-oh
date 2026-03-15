@@ -1,4 +1,4 @@
-﻿import { revalidatePath } from 'next/cache';
+import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/auth';
@@ -11,7 +11,7 @@ import {
   writeUploadedGame,
   writeUploadedGameToSupabase
 } from '@/lib/games/upload';
-import { generateGameFromPrompt } from '@/lib/openai/game-generator';
+import { generateGameFromPrompt } from '@/lib/games/ai-game-generator';
 import { sha256 } from '@/lib/security/hash';
 import { getRequestIp } from '@/lib/security/ip';
 
