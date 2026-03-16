@@ -1,7 +1,8 @@
-﻿'use client';
+'use client';
 
-import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type RefObject } from 'react';
 import { useRouter } from 'next/navigation';
+import { AiProgressCard } from '@/components/ai/ai-progress-card';
 import type { Locale } from '@/lib/i18n';
 
 type CreationMode = 'ai' | 'manual';
@@ -20,6 +21,7 @@ type PublishResponse = {
   gameId: string;
   gameUrl: string;
   flagged: boolean;
+  pointsSpent?: number;
 };
 
 type SlugCheckResponse = {
@@ -33,170 +35,36 @@ type ErrorResponse = {
   error?: string;
 };
 
-type AiProgressCopy = {
-  title: string;
-  detail: string[];
+type AiModel = {
+  id: string;
+  label: string;
+  provider: string;
+  modelName: string;
+  pointCostCreate: number;
+  pointCostEdit: number;
+};
+
+type AiModelsResponse = {
+  models?: AiModel[];
+  balance?: number;
+  error?: string;
 };
 
 const AI_PROGRESS_STEP_DELAYS = [8000, 26000, 52000, 78000] as const;
+
+function tx(_locale: Locale, _ko: string, en: string) {
+  return en;
+}
 
 function suggestSlug(value: string) {
   return value
     .normalize('NFKC')
     .toLocaleLowerCase()
     .trim()
-    .replace(/[''’"]/gu, '')
+    .replace(/["'’]+/gu, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 64);
-}
-
-function getCopy(locale: Locale) {
-  return locale === 'ko'
-    ? {
-        aiTitle: 'AI로 만들기',
-        aiSubtitle: '아이디어만 적으면 AI가 게임을 만들어줘요.',
-        manualTitle: '직접 파일 올리기',
-        manualSubtitle: '이미 만든 게임이 있다면 파일을 바로 올릴 수 있어요.',
-        htmlMode: 'HTML 올리기',
-        zipMode: 'ZIP 올리기',
-        gameName: '화면에 보일 게임 이름',
-        gameNamePlaceholder: '예시: 우주 피하기',
-        gameNameHint: '플레이어가 보게 될 게임 이름이에요.',
-        gameNameOptionalHint: '비워 두면 AI가 게임 이름까지 제안해줘요.',
-        urlGameName: 'URL 게임 이름',
-        urlGameNamePlaceholder: '예시: color-pop-mania',
-        urlGameNameHint: '영문, 숫자, 하이픈(-)만 사용할 수 있어요.',
-        urlGameNameOptionalHint: '비워 두면 AI가 URL 이름도 함께 만들어줘요.',
-        checkingUrlName: 'URL 이름 확인 중...',
-        urlNameAvailable: '좋아요. 이 URL 이름을 사용할 수 있어요.',
-        urlNameTaken: '이미 사용 중인 URL 이름이에요. 다른 이름을 써주세요.',
-        urlNameInvalid: 'URL 이름은 영문, 숫자, 하이픈(-)만 사용할 수 있어요.',
-        urlPreview: '게임 주소',
-        promptLabel: '게임 아이디어',
-        promptPlaceholder: '예시: 별을 피하고 점수를 모으는 쉬운 우주 게임을 만들어줘.',
-        aiDescription: '게임 설명',
-        aiDescriptionHint: '비워 두면 AI가 설명도 만들어줘요.',
-        aiDescriptionPlaceholder: '예시: 별을 피하고 점수를 모으는 게임',
-        thumbnail: '썸네일 그림',
-        thumbnailHint: '비워 두면 AI가 썸네일까지 만들어줘요.',
-        htmlFile: 'HTML 파일',
-        htmlHint: '게임이 바로 시작되는 HTML 파일 1개를 올려주세요.',
-        zipFile: 'ZIP 파일',
-        zipHint: 'HTML, 이미지, 소리 파일을 함께 담은 ZIP을 올려주세요.',
-        manualDescription: '게임 설명',
-        manualDescriptionPlaceholder: '아이들이 게임을 쉽게 이해할 수 있게 짧게 적어주세요.',
-        createWithAi: 'AI로 게임 만들기',
-        createGame: '게임 만들기',
-        creating: '만드는 중...',
-        checkingZip: 'ZIP 확인 중...',
-        zipReady: 'ZIP 확인 완료',
-        zipEntry: '시작 파일',
-        zipHtmlCount: 'HTML 파일 수',
-        zipThumbCount: '썸네일 후보 수',
-        zipFlagged: '외부 링크가 보여서 한 번 더 확인이 필요할 수 있어요.',
-        zipSafe: '외부 링크 문제는 보이지 않았어요.',
-        success: '게임이 준비되었어요!',
-        open: '바로 열기',
-        createAnother: '다른 게임 만들기',
-        errGameName: '화면에 보일 게임 이름을 입력해주세요.',
-        errPrompt: '게임 아이디어를 8글자 이상 적어주세요.',
-        errDescription: '게임 설명을 입력해주세요.',
-        errHtml: 'HTML 파일을 선택해주세요.',
-        errZip: 'ZIP 파일을 선택해주세요.',
-        errUrlName: 'URL 게임 이름을 입력해주세요.',
-        errUrlNameTaken: '이미 사용 중인 URL 이름이에요. 다른 이름을 써주세요.',
-        errInvalidUrlName: 'URL 이름은 영문, 숫자, 하이픈(-)만 사용할 수 있어요.',
-        dropChoose: '파일 고르기',
-        dropOr: '또는 여기로 끌어다 놓기',
-        dropActive: '여기에 놓아주세요',
-        selectedFile: '선택한 파일',
-        removeFile: '파일 비우기'
-      }
-    : {
-        aiTitle: 'AI Create',
-        aiSubtitle: 'Type an idea and AI will build the game for you.',
-        manualTitle: 'Upload My Files',
-        manualSubtitle: 'If you already made the game, just upload it.',
-        htmlMode: 'Upload HTML',
-        zipMode: 'Upload ZIP',
-        gameName: 'Display game name',
-        gameNamePlaceholder: 'Example: Space Dodge',
-        gameNameHint: 'This is the name players will see.',
-        gameNameOptionalHint: 'Leave this empty if you want AI to name the game for you.',
-        urlGameName: 'URL game name',
-        urlGameNamePlaceholder: 'Example: color-pop-mania',
-        urlGameNameHint: 'Use only English letters, numbers, and hyphens.',
-        urlGameNameOptionalHint: 'Leave this empty if you want AI to generate the URL name too.',
-        checkingUrlName: 'Checking URL name...',
-        urlNameAvailable: 'Nice! You can use this URL name.',
-        urlNameTaken: 'That URL game name is already used. Please choose another one.',
-        urlNameInvalid: 'URL game names can use only English letters, numbers, and hyphens.',
-        urlPreview: 'Game URL',
-        promptLabel: 'Game idea',
-        promptPlaceholder: 'Example: Make an easy space game where players dodge stars and collect points.',
-        aiDescription: 'Game description',
-        aiDescriptionHint: 'Leave it empty if you want AI to make it for you.',
-        aiDescriptionPlaceholder: 'Example: Dodge stars and collect points.',
-        thumbnail: 'Thumbnail image',
-        thumbnailHint: 'Leave it empty if you want AI to make it for you.',
-        htmlFile: 'HTML file',
-        htmlHint: 'Upload one HTML file that starts the game.',
-        zipFile: 'ZIP file',
-        zipHint: 'Upload one ZIP with HTML and any pictures or sounds inside.',
-        manualDescription: 'Game description',
-        manualDescriptionPlaceholder: 'Write a short description so kids know what the game is.',
-        createWithAi: 'Create with AI',
-        createGame: 'Create Game',
-        creating: 'Creating...',
-        checkingZip: 'Checking ZIP...',
-        zipReady: 'ZIP is ready',
-        zipEntry: 'Start file',
-        zipHtmlCount: 'HTML files',
-        zipThumbCount: 'Thumbnail choices',
-        zipFlagged: 'We found an outside link and may check it again.',
-        zipSafe: 'No outside link problem was found.',
-        success: 'Your game is ready!',
-        open: 'Open now',
-        createAnother: 'Make another game',
-        errGameName: 'Please enter the display game name.',
-        errPrompt: 'Please write at least 8 characters for the game idea.',
-        errDescription: 'Please enter a game description.',
-        errHtml: 'Please choose an HTML file.',
-        errZip: 'Please choose a ZIP file.',
-        errUrlName: 'Please enter the URL game name.',
-        errUrlNameTaken: 'That URL game name is already used. Please choose another one.',
-        errInvalidUrlName: 'URL game names can use only English letters, numbers, and hyphens.',
-        dropChoose: 'Choose file',
-        dropOr: 'or drop it here',
-        dropActive: 'Drop the file here',
-        selectedFile: 'Selected file',
-        removeFile: 'Remove file'
-      };
-}
-
-function getAiProgressCopy(locale: Locale): AiProgressCopy {
-  return locale === 'ko'
-    ? {
-        title: 'AI가 게임을 만들고 있어요',
-        detail: [
-          '아이디어를 게임 기획으로 정리하고 있어요.',
-          '규칙과 조작감, 점수 흐름을 설계하고 있어요.',
-          '게임 코드와 인터랙션을 만들고 있어요.',
-          '썸네일과 연출을 다듬고 있어요.',
-          '최종 점검과 저장을 마무리하고 있어요.'
-        ]
-      }
-    : {
-        title: 'AI is building your game',
-        detail: [
-          'Turning your idea into a game plan.',
-          'Designing the gameplay, HUD, and score flow.',
-          'Generating the game code and interactions.',
-          'Creating the thumbnail and final polish.',
-          'Running final checks and saving everything.'
-        ]
-      };
 }
 
 function FileDropzone({
@@ -207,11 +75,7 @@ function FileDropzone({
   file,
   onFileChange,
   inputRef,
-  chooseLabel,
-  orLabel,
-  activeLabel,
-  selectedLabel,
-  removeLabel
+  locale
 }: {
   inputId: string;
   accept: string;
@@ -220,11 +84,7 @@ function FileDropzone({
   file: File | null;
   onFileChange: (file: File | null) => void;
   inputRef: RefObject<HTMLInputElement>;
-  chooseLabel: string;
-  orLabel: string;
-  activeLabel: string;
-  selectedLabel: string;
-  removeLabel: string;
+  locale: Locale;
 }) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -267,13 +127,13 @@ function FileDropzone({
         }}
         onDrop={handleDrop}
       >
-        <strong>{isDragging ? activeLabel : chooseLabel}</strong>
-        <span>{orLabel}</span>
+        <strong>{tx(locale, isDragging ? '여기에 놓아주세요' : '파일 고르기', isDragging ? 'Drop the file here' : 'Choose file')}</strong>
+        <span>{tx(locale, '또는 여기로 끌어다 놓기', 'or drop it here')}</span>
       </button>
       {file ? (
         <div className="file-dropzone-meta">
           <span>
-            {selectedLabel}: {file.name}
+            {tx(locale, '선택한 파일', 'Selected file')}: {file.name}
           </span>
           <button
             type="button"
@@ -285,7 +145,7 @@ function FileDropzone({
               }
             }}
           >
-            {removeLabel}
+            {tx(locale, '파일 비우기', 'Remove file')}
           </button>
         </div>
       ) : null}
@@ -296,8 +156,6 @@ function FileDropzone({
 
 export default function SubmitForm({ locale }: { locale: Locale }) {
   const router = useRouter();
-  const copy = getCopy(locale);
-  const aiProgressCopy = getAiProgressCopy(locale);
   const [mode, setMode] = useState<CreationMode>('ai');
   const [manualMode, setManualMode] = useState<ManualMode>('html');
   const [aiTitle, setAiTitle] = useState('');
@@ -306,28 +164,26 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiDescription, setAiDescription] = useState('');
   const [aiThumbnail, setAiThumbnail] = useState<File | null>(null);
+  const [aiModels, setAiModels] = useState<AiModel[]>([]);
+  const [aiModelId, setAiModelId] = useState('');
+  const [pointBalance, setPointBalance] = useState(0);
   const [manualTitle, setManualTitle] = useState('');
   const [manualSlug, setManualSlug] = useState('');
   const [manualSlugEdited, setManualSlugEdited] = useState(false);
   const [manualDescription, setManualDescription] = useState('');
+  const [manualLeaderboardEnabled, setManualLeaderboardEnabled] = useState(false);
   const [htmlFile, setHtmlFile] = useState<File | null>(null);
   const [zipFile, setZipFile] = useState<File | null>(null);
   const [manualThumbnail, setManualThumbnail] = useState<File | null>(null);
   const [inspectResult, setInspectResult] = useState<InspectResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<PublishResponse | null>(null);
   const [isInspecting, setIsInspecting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [aiProgressStep, setAiProgressStep] = useState(0);
   const [aiProgressDots, setAiProgressDots] = useState(1);
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
-  const [slugState, setSlugState] = useState<{
-    checkedValue: string;
-    slug: string;
-    available: boolean | null;
-    issue: 'invalid' | 'taken' | null;
-    message: string | null;
-  }>({
+  const [isLoadingModels, setIsLoadingModels] = useState(true);
+  const [slugState, setSlugState] = useState<{ checkedValue: string; slug: string; available: boolean | null; issue: 'invalid' | 'taken' | null; message: string | null }>({
     checkedValue: '',
     slug: '',
     available: null,
@@ -338,9 +194,51 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   const zipInputRef = useRef<HTMLInputElement>(null);
   const aiThumbnailInputRef = useRef<HTMLInputElement>(null);
   const manualThumbnailInputRef = useRef<HTMLInputElement>(null);
-
   const activeSlug = mode === 'ai' ? aiSlug : manualSlug;
   const isAiPublishing = mode === 'ai' && isPublishing;
+  const selectedAiModel = useMemo(
+    () => aiModels.find((model) => model.id === aiModelId) ?? aiModels[0] ?? null,
+    [aiModelId, aiModels]
+  );
+  const aiPointCost = selectedAiModel?.pointCostCreate ?? 0;
+  const aiPointShortage = aiPointCost > 0 && pointBalance < aiPointCost;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAiModels() {
+      setIsLoadingModels(true);
+      try {
+        const response = await fetch('/api/ai/models', { cache: 'no-store' });
+        const data = (await response.json()) as AiModelsResponse;
+        if (!response.ok || !data.models?.length) {
+          throw new Error(data.error ?? 'Could not load AI models.');
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        setAiModels(data.models);
+        setPointBalance(data.balance ?? 0);
+        setAiModelId((current) => current || data.models?.[0]?.id || '');
+      } catch (cause) {
+        if (!cancelled) {
+          setError(cause instanceof Error ? cause.message : 'Could not load AI models.');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingModels(false);
+        }
+      }
+    }
+
+    void loadAiModels();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isAiPublishing) {
@@ -365,10 +263,6 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
     };
   }, [isAiPublishing]);
 
-  function getCreatedGameManageUrl() {
-    return '/my-games';
-  }
-
   useEffect(() => {
     const trimmedSlug = activeSlug.trim();
     if (!trimmedSlug) {
@@ -390,7 +284,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
         const data = (await response.json()) as SlugCheckResponse;
 
         if (!response.ok) {
-          throw new Error(data.error ?? copy.errInvalidUrlName);
+          throw new Error(data.error ?? tx(locale, 'URL 이름 형식이 올바르지 않아요.', 'That URL name format is invalid.'));
         }
 
         const issue = data.available ? null : (data.issue ?? (data.slug ? 'taken' : 'invalid'));
@@ -399,7 +293,11 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
           slug: data.slug ?? '',
           available: Boolean(data.available),
           issue,
-          message: data.available ? copy.urlNameAvailable : issue === 'taken' ? copy.urlNameTaken : copy.urlNameInvalid
+          message: data.available
+            ? tx(locale, '사용할 수 있는 URL 이름이에요.', 'This URL name is available.')
+            : issue === 'taken'
+              ? tx(locale, '이미 사용 중인 URL 이름이에요.', 'That URL name is already taken.')
+              : tx(locale, 'URL 이름 형식이 올바르지 않아요.', 'That URL name format is invalid.')
         });
       } catch (cause) {
         if (cause instanceof DOMException && cause.name === 'AbortError') {
@@ -411,7 +309,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
           slug: '',
           available: false,
           issue: 'invalid',
-          message: cause instanceof Error ? cause.message : copy.errInvalidUrlName
+          message: cause instanceof Error ? cause.message : tx(locale, 'URL 이름 형식이 올바르지 않아요.', 'That URL name format is invalid.')
         });
       } finally {
         setIsCheckingSlug(false);
@@ -422,11 +320,10 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [activeSlug, copy.errInvalidUrlName, copy.urlNameAvailable, copy.urlNameInvalid, copy.urlNameTaken]);
+  }, [activeSlug, locale]);
 
   function clearMessages() {
     setError(null);
-    setSuccess(null);
   }
 
   function handleAiTitleChange(nextTitle: string) {
@@ -457,6 +354,26 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
     clearMessages();
   }
 
+  function isCurrentSlugAvailable(slug: string) {
+    const trimmedSlug = slug.trim();
+    return trimmedSlug.length > 0 && trimmedSlug === slugState.checkedValue && slugState.available === true;
+  }
+
+  function validateSlug(slug: string, required: boolean) {
+    const trimmedSlug = slug.trim();
+    if (!trimmedSlug) {
+      return required ? tx(locale, 'URL 게임 이름을 입력해주세요.', 'Please enter the URL game name.') : null;
+    }
+
+    if (!isCurrentSlugAvailable(trimmedSlug)) {
+      return slugState.issue === 'taken'
+        ? tx(locale, '이미 사용 중인 URL 이름이에요.', 'That URL name is already taken.')
+        : tx(locale, 'URL 이름은 영문, 숫자, 하이픈(-)만 사용할 수 있어요.', 'URL game names can use only lowercase English letters, numbers, and hyphens.');
+    }
+
+    return null;
+  }
+
   function resetAiForm() {
     setAiTitle('');
     setAiSlug('');
@@ -472,6 +389,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
     setManualSlug('');
     setManualSlugEdited(false);
     setManualDescription('');
+    setManualLeaderboardEnabled(false);
     setHtmlFile(null);
     setZipFile(null);
     setManualThumbnail(null);
@@ -481,52 +399,42 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
     if (manualThumbnailInputRef.current) manualThumbnailInputRef.current.value = '';
   }
 
-  function getDisplayTitleError(title: string, options: { required: boolean }) {
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) {
-      return options.required ? copy.errGameName : null;
+  async function refreshPointBalance() {
+    try {
+      const response = await fetch('/api/points/balance', { cache: 'no-store' });
+      const data = (await response.json().catch(() => null)) as { balance?: number } | null;
+      if (response.ok && typeof data?.balance === 'number') {
+        setPointBalance(data.balance);
+      }
+    } catch {
+      // Ignore point balance refresh failures because creation success is more important.
     }
-
-    if (trimmedTitle.length < 2 || trimmedTitle.length > 80) {
-      return copy.errGameName;
-    }
-
-    return null;
-  }
-
-  function isCurrentSlugAvailable(slug: string) {
-    const trimmedSlug = slug.trim();
-    return trimmedSlug.length > 0 && trimmedSlug === slugState.checkedValue && slugState.available === true;
-  }
-
-  function getSlugError(slug: string, options: { required: boolean }) {
-    const trimmedSlug = slug.trim();
-    if (!trimmedSlug) {
-      return options.required ? copy.errUrlName : null;
-    }
-
-    if (!isCurrentSlugAvailable(trimmedSlug)) {
-      return slugState.issue === 'taken' ? copy.errUrlNameTaken : copy.errInvalidUrlName;
-    }
-
-    return null;
   }
 
   function validateAiForm() {
-    const titleError = getDisplayTitleError(aiTitle, { required: false });
-    if (titleError) {
-      setError(titleError);
+    if (aiTitle.trim() && (aiTitle.trim().length < 2 || aiTitle.trim().length > 80)) {
+      setError(tx(locale, '화면에 보일 게임 이름을 입력해주세요.', 'Please enter the display game name.'));
       return false;
     }
 
-    const slugError = getSlugError(aiSlug, { required: Boolean(aiTitle.trim()) });
+    const slugError = validateSlug(aiSlug, Boolean(aiTitle.trim()));
     if (slugError) {
       setError(slugError);
       return false;
     }
 
     if (aiPrompt.trim().length < 8) {
-      setError(copy.errPrompt);
+      setError(tx(locale, '게임 아이디어를 8자 이상 적어주세요.', 'Please write at least 8 characters for the game idea.'));
+      return false;
+    }
+
+    if (!selectedAiModel) {
+      setError(tx(locale, 'AI 모델을 선택해주세요.', 'Please choose an AI model.'));
+      return false;
+    }
+
+    if (aiPointShortage) {
+      setError(tx(locale, '포인트가 부족해요. 포인트 페이지에서 충전할 수 있어요.', 'You do not have enough points yet. Open the points page to top up.'));
       return false;
     }
 
@@ -534,30 +442,24 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   }
 
   function validateManualForm() {
-    const titleError = getDisplayTitleError(manualTitle, { required: true });
-    if (titleError) {
-      setError(titleError);
+    if (manualTitle.trim().length < 2 || manualTitle.trim().length > 80) {
+      setError(tx(locale, '화면에 보일 게임 이름을 입력해주세요.', 'Please enter the display game name.'));
       return false;
     }
 
-    const slugError = getSlugError(manualSlug, { required: true });
+    const slugError = validateSlug(manualSlug, true);
     if (slugError) {
       setError(slugError);
       return false;
     }
 
-    if (!manualDescription.trim()) {
-      setError(copy.errDescription);
-      return false;
-    }
-
     if (manualMode === 'html' && !htmlFile) {
-      setError(copy.errHtml);
+      setError(tx(locale, 'HTML 파일을 선택해주세요.', 'Please choose an HTML file.'));
       return false;
     }
 
     if (manualMode === 'zip' && !zipFile) {
-      setError(copy.errZip);
+      setError(tx(locale, 'ZIP 파일을 선택해주세요.', 'Please choose a ZIP file.'));
       return false;
     }
 
@@ -565,20 +467,19 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   }
 
   async function runZipInspection() {
-    const titleError = getDisplayTitleError(manualTitle, { required: true });
-    if (titleError) {
-      setError(titleError);
+    if (manualTitle.trim().length < 2 || manualTitle.trim().length > 80) {
+      setError(tx(locale, '화면에 보일 게임 이름을 입력해주세요.', 'Please enter the display game name.'));
       return null;
     }
 
-    const slugError = getSlugError(manualSlug, { required: true });
+    const slugError = validateSlug(manualSlug, true);
     if (slugError) {
       setError(slugError);
       return null;
     }
 
     if (!zipFile) {
-      setError(copy.errZip);
+      setError(tx(locale, 'ZIP 파일을 선택해주세요.', 'Please choose a ZIP file.'));
       return null;
     }
 
@@ -596,14 +497,14 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
 
       const data = (await response.json()) as InspectResponse | ErrorResponse;
       if (!response.ok || !('inspectionId' in data)) {
-        throw new Error(('error' in data ? data.error : undefined) ?? copy.errZip);
+        throw new Error(('error' in data ? data.error : undefined) ?? tx(locale, 'ZIP 파일을 확인하지 못했어요.', 'Could not inspect the ZIP file.'));
       }
 
       setInspectResult(data);
       return data;
     } catch (cause) {
       setInspectResult(null);
-      setError(cause instanceof Error ? cause.message : copy.errZip);
+      setError(cause instanceof Error ? cause.message : tx(locale, 'ZIP 파일을 확인하지 못했어요.', 'Could not inspect the ZIP file.'));
       return null;
     } finally {
       setIsInspecting(false);
@@ -620,19 +521,12 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
 
     try {
       const formData = new FormData();
-      if (aiTitle.trim()) {
-        formData.append('title', aiTitle.trim());
-      }
-      if (aiSlug.trim()) {
-        formData.append('slug', aiSlug.trim());
-      }
+      if (aiTitle.trim()) formData.append('title', aiTitle.trim());
+      if (aiSlug.trim()) formData.append('slug', aiSlug.trim());
       formData.append('prompt', aiPrompt.trim());
-      if (aiDescription.trim()) {
-        formData.append('description', aiDescription.trim());
-      }
-      if (aiThumbnail) {
-        formData.append('thumbnail', aiThumbnail);
-      }
+      formData.append('modelId', selectedAiModel?.id ?? '');
+      if (aiDescription.trim()) formData.append('description', aiDescription.trim());
+      if (aiThumbnail) formData.append('thumbnail', aiThumbnail);
 
       const response = await fetch('/api/upload/generate-v2', {
         method: 'POST',
@@ -641,13 +535,14 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
 
       const data = (await response.json()) as PublishResponse | ErrorResponse;
       if (!response.ok || !('ok' in data)) {
-        throw new Error(('error' in data ? data.error : undefined) ?? 'Could not create the game.');
+        throw new Error(('error' in data ? data.error : undefined) ?? tx(locale, '게임을 만들지 못했어요.', 'Could not create the game.'));
       }
 
       resetAiForm();
-      router.push(getCreatedGameManageUrl());
+      await refreshPointBalance();
+      router.push(`/my-games?notice=created&game=${encodeURIComponent(aiTitle.trim() || 'new')}`);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not create the game.');
+      setError(cause instanceof Error ? cause.message : tx(locale, '게임을 만들지 못했어요.', 'Could not create the game.'));
     } finally {
       setIsPublishing(false);
     }
@@ -667,12 +562,9 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
         formData.append('title', manualTitle.trim());
         formData.append('slug', manualSlug.trim());
         formData.append('description', manualDescription.trim());
-        if (htmlFile) {
-          formData.append('htmlFile', htmlFile);
-        }
-        if (manualThumbnail) {
-          formData.append('thumbnail', manualThumbnail);
-        }
+        formData.append('leaderboardEnabled', manualLeaderboardEnabled ? 'true' : 'false');
+        if (htmlFile) formData.append('htmlFile', htmlFile);
+        if (manualThumbnail) formData.append('thumbnail', manualThumbnail);
 
         const response = await fetch('/api/upload/paste', {
           method: 'POST',
@@ -681,11 +573,11 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
 
         const data = (await response.json()) as PublishResponse | ErrorResponse;
         if (!response.ok || !('ok' in data)) {
-          throw new Error(('error' in data ? data.error : undefined) ?? 'Could not create the game.');
+          throw new Error(('error' in data ? data.error : undefined) ?? tx(locale, '게임을 만들지 못했어요.', 'Could not create the game.'));
         }
 
         resetManualForm();
-        router.push(getCreatedGameManageUrl());
+        router.push(`/my-games?notice=created&game=${encodeURIComponent(manualTitle.trim())}`);
         return;
       }
 
@@ -703,7 +595,8 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
           inspectionId: inspection.inspectionId,
           title: manualTitle.trim(),
           slug: manualSlug.trim(),
-          description: manualDescription.trim()
+          description: manualDescription.trim(),
+          leaderboardEnabled: manualLeaderboardEnabled
         })
       });
 
@@ -724,20 +617,21 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
             inspectionId: inspection.inspectionId,
             title: manualTitle.trim(),
             slug: manualSlug.trim(),
-            description: manualDescription.trim()
+            description: manualDescription.trim(),
+            leaderboardEnabled: manualLeaderboardEnabled
           })
         });
         data = (await response.json()) as PublishResponse | ErrorResponse;
       }
 
       if (!response.ok || !('ok' in data)) {
-        throw new Error(('error' in data ? data.error : undefined) ?? 'Could not create the game.');
+        throw new Error(('error' in data ? data.error : undefined) ?? tx(locale, '게임을 만들지 못했어요.', 'Could not create the game.'));
       }
 
       resetManualForm();
-      router.push(getCreatedGameManageUrl());
+      router.push(`/my-games?notice=created&game=${encodeURIComponent(manualTitle.trim())}`);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not create the game.');
+      setError(cause instanceof Error ? cause.message : tx(locale, '게임을 만들지 못했어요.', 'Could not create the game.'));
     } finally {
       setIsPublishing(false);
     }
@@ -746,345 +640,147 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   return (
     <section className="panel-card panel-card-form submit-panel-simple">
       <div className="submit-main-mode-grid">
-        <button
-          type="button"
-          className={`submit-choice-card${mode === 'ai' ? ' is-active' : ''}`}
-          onClick={() => {
-            setMode('ai');
-            clearMessages();
-          }}
-        >
-          <strong>{copy.aiTitle}</strong>
-          <span>{copy.aiSubtitle}</span>
+        <button type="button" className={`submit-choice-card${mode === 'ai' ? ' is-active' : ''}`} onClick={() => setMode('ai')}>
+          <strong>{tx(locale, 'AI로 게임 만들기', 'Create with AI')}</strong>
+          <span>{tx(locale, '아이디어와 모델을 선택하면 AI가 초안 게임을 만들어줘요.', 'Describe an idea and choose a model to build a draft game.')}</span>
         </button>
-        <button
-          type="button"
-          className={`submit-choice-card${mode === 'manual' ? ' is-active' : ''}`}
-          onClick={() => {
-            setMode('manual');
-            clearMessages();
-          }}
-        >
-          <strong>{copy.manualTitle}</strong>
-          <span>{copy.manualSubtitle}</span>
+        <button type="button" className={`submit-choice-card${mode === 'manual' ? ' is-active' : ''}`} onClick={() => setMode('manual')}>
+          <strong>{tx(locale, '파일 직접 업로드', 'Upload my files')}</strong>
+          <span>{tx(locale, 'HTML 또는 ZIP 파일로 직접 만든 게임을 올릴 수 있어요.', 'Upload an HTML file or a ZIP package you already made.')}</span>
         </button>
       </div>
 
       {mode === 'ai' ? (
         <div className="submit-section-stack">
           <label className="field-label">
-            <span>{copy.promptLabel}</span>
-            <textarea
-              value={aiPrompt}
-              onChange={(event) => {
-                setAiPrompt(event.target.value);
-                clearMessages();
-              }}
-              rows={5}
-              maxLength={1200}
-              placeholder={copy.promptPlaceholder}
-            />
+            <span>{tx(locale, '게임 아이디어', 'Game idea')}</span>
+            <textarea value={aiPrompt} onChange={(event) => setAiPrompt(event.target.value)} rows={5} maxLength={1200} placeholder={tx(locale, '예시: 별을 피하고 점수를 모으는 쉬운 우주 게임을 만들어줘.', 'Example: Make an easy space game where players dodge stars and collect points.')} />
           </label>
 
-          <label className="field-label">
-            <span>{copy.gameName}</span>
-            <input
-              value={aiTitle}
-              onChange={(event) => handleAiTitleChange(event.target.value)}
-              maxLength={80}
-              placeholder={copy.gameNamePlaceholder}
-            />
-            <span className="small-copy upload-input-hint">{copy.gameNameOptionalHint}</span>
-          </label>
-
-          <label className="field-label">
-            <span>{copy.urlGameName}</span>
-            <input
-              value={aiSlug}
-              onChange={(event) => handleAiSlugChange(event.target.value)}
-              maxLength={80}
-              placeholder={copy.urlGameNamePlaceholder}
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
-            />
-          </label>
-
-          <div className="submit-title-status">
-            <span className="small-copy">{copy.urlGameNameOptionalHint}</span>
-            <span className="small-copy">{copy.urlGameNameHint}</span>
-            {activeSlug.trim() ? (
-              <span className={`small-copy${slugState.issue || slugState.available === false ? ' error-text' : ''}`}>
-                {isCheckingSlug ? copy.checkingUrlName : slugState.message}
+          <div className="submit-inline-grid">
+            <label className="field-label">
+              <span>{tx(locale, 'AI 모델', 'AI model')}</span>
+              <select value={aiModelId} onChange={(event) => setAiModelId(event.target.value)} disabled={isLoadingModels || isPublishing}>
+                {aiModels.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.label} · {model.modelName}
+                  </option>
+                ))}
+              </select>
+              <span className="small-copy upload-input-hint">
+                {isLoadingModels ? tx(locale, '모델 목록을 불러오는 중...', 'Loading AI models...') : tx(locale, '모델마다 필요한 포인트가 달라요.', 'Each model uses a different number of points.')}
               </span>
-            ) : null}
-            {slugState.slug ? (
-              <span className="small-copy">
-                {copy.urlPreview}: `/game/${slugState.slug}`
-              </span>
-            ) : null}
+            </label>
+
+            <div className="status-card submit-cost-card">
+              <p className="small-copy">{tx(locale, '현재 포인트', 'Current points')}</p>
+              <strong>{pointBalance}</strong>
+              <p className="small-copy">{tx(locale, '예상 차감', 'Expected cost')}</p>
+              <strong>{aiPointCost}</strong>
+              {aiPointShortage ? (
+                <p className="small-copy error-text">
+                  {tx(locale, '포인트가 부족해요.', 'You do not have enough points yet.')} <a href="/points">{tx(locale, '포인트 보기', 'Open points')}</a>
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <label className="field-label">
-            <span>{copy.aiDescription}</span>
-            <textarea
-              value={aiDescription}
-              onChange={(event) => {
-                setAiDescription(event.target.value);
-                clearMessages();
-              }}
-              rows={3}
-              maxLength={400}
-              placeholder={copy.aiDescriptionPlaceholder}
-            />
-            <span className="small-copy upload-input-hint">{copy.aiDescriptionHint}</span>
+            <span>{tx(locale, '화면에 보일 게임 이름', 'Display game name')}</span>
+            <input value={aiTitle} onChange={(event) => handleAiTitleChange(event.target.value)} maxLength={80} placeholder={tx(locale, '예시: 우주 피하기', 'Example: Space Dodge')} />
+            <span className="small-copy upload-input-hint">{tx(locale, '비워 두면 AI가 이름을 제안해줘요.', 'Leave it empty if you want AI to name the game.')}</span>
           </label>
 
-          <FileDropzone
-            inputId="ai-thumbnail-upload"
-            accept="image/png,image/jpeg,image/webp"
-            label={copy.thumbnail}
-            hint={copy.thumbnailHint}
-            file={aiThumbnail}
-            onFileChange={(file) => {
-              setAiThumbnail(file);
-              clearMessages();
-            }}
-            inputRef={aiThumbnailInputRef}
-            chooseLabel={copy.dropChoose}
-            orLabel={copy.dropOr}
-            activeLabel={copy.dropActive}
-            selectedLabel={copy.selectedFile}
-            removeLabel={copy.removeFile}
-          />
+          <label className="field-label">
+            <span>{tx(locale, 'URL 게임 이름', 'URL game name')}</span>
+            <input value={aiSlug} onChange={(event) => handleAiSlugChange(event.target.value)} maxLength={80} placeholder="color-pop-mania" autoCapitalize="off" autoCorrect="off" spellCheck={false} />
+          </label>
 
-          {isAiPublishing ? (
-            <div className="status-card submit-progress-card" role="status" aria-live="polite">
-              <p className="status-title">
-                {aiProgressCopy.title}
-                <span className="submit-progress-dots" aria-hidden="true">
-                  {'.'.repeat(aiProgressDots)}
-                </span>
-              </p>
-              <p className="small-copy">
-                {aiProgressCopy.detail[Math.min(aiProgressStep, aiProgressCopy.detail.length - 1)]}
-                <span className="submit-progress-dots" aria-hidden="true">
-                  {'.'.repeat(aiProgressDots)}
-                </span>
-              </p>
-              <div className="submit-progress-steps" aria-hidden="true">
-                {aiProgressCopy.detail.map((label, index) => (
-                  <span
-                    key={label}
-                    className={`submit-progress-step${
-                      index < aiProgressStep ? ' is-complete' : index === aiProgressStep ? ' is-active' : ''
-                    }`}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : null}
+          <div className="submit-title-status">
+            <span className="small-copy">{tx(locale, '영문 소문자, 숫자, 하이픈(-)만 사용할 수 있어요.', 'Use lowercase English letters, numbers, and hyphens only.')}</span>
+            {activeSlug.trim() ? <span className={`small-copy${slugState.issue || slugState.available === false ? ' error-text' : ''}`}>{isCheckingSlug ? tx(locale, 'URL 이름을 확인하고 있어요...', 'Checking the URL name...') : slugState.message}</span> : null}
+            {slugState.slug ? <span className="small-copy">{tx(locale, '게임 주소', 'Game URL')}: `/game/${slugState.slug}`</span> : null}
+          </div>
 
-          <button
-            type="button"
-            className="button-primary button-fill"
-            onClick={() => void publishAiGame()}
-            disabled={isPublishing || isCheckingSlug}
-          >
-            {isPublishing ? copy.creating : copy.createWithAi}
+          <label className="field-label">
+            <span>{tx(locale, '게임 설명', 'Game description')}</span>
+            <textarea value={aiDescription} onChange={(event) => setAiDescription(event.target.value)} rows={3} maxLength={400} placeholder={tx(locale, '예시: 별을 피하고 점수를 모으는 게임', 'Example: Dodge stars and collect points.')} />
+            <span className="small-copy upload-input-hint">{tx(locale, '비워 두면 AI가 설명도 함께 만들어줘요.', 'Leave it empty if you want AI to write it too.')}</span>
+          </label>
+
+          <FileDropzone inputId="ai-thumbnail-upload" accept="image/png,image/jpeg,image/webp" label={tx(locale, '썸네일 이미지', 'Thumbnail image')} hint={tx(locale, '비워 두면 AI 썸네일이나 기본 썸네일을 사용해요.', 'If you skip this, we will use the AI thumbnail or a default one.')} file={aiThumbnail} onFileChange={setAiThumbnail} inputRef={aiThumbnailInputRef} locale={locale} />
+
+          {isAiPublishing ? <AiProgressCard title={tx(locale, 'AI가 게임을 만들고 있어요', 'AI is building your game')} detail={tx(locale, ['아이디어를 정리하고 있어요.', '규칙과 조작을 설계하고 있어요.', '게임 코드와 인터랙션을 만들고 있어요.', '썸네일과 연출을 다듬고 있어요.', '최종 점검과 저장을 마무리하고 있어요.'].join('|'), ['Turning your idea into a plan.', 'Designing rules and controls.', 'Generating code and interactions.', 'Polishing the thumbnail and presentation.', 'Running final checks and saving the draft.'].join('|')).split('|')} step={aiProgressStep} dots={aiProgressDots} /> : null}
+
+          <button type="button" className="button-primary button-fill" onClick={() => void publishAiGame()} disabled={isPublishing || isCheckingSlug || isLoadingModels || aiPointShortage}>
+            {isPublishing ? tx(locale, '만드는 중...', 'Creating...') : tx(locale, 'AI로 게임 만들기', 'Create with AI')}
           </button>
         </div>
       ) : (
         <div className="submit-section-stack">
           <label className="field-label">
-            <span>{copy.gameName}</span>
-            <input
-              value={manualTitle}
-              onChange={(event) => handleManualTitleChange(event.target.value)}
-              maxLength={80}
-              placeholder={copy.gameNamePlaceholder}
-            />
-            <span className="small-copy upload-input-hint">{copy.gameNameHint}</span>
+            <span>{tx(locale, '게임 이름', 'Display game name')}</span>
+            <input value={manualTitle} onChange={(event) => handleManualTitleChange(event.target.value)} maxLength={80} placeholder="Space Dodge" />
           </label>
 
           <label className="field-label">
-            <span>{copy.urlGameName}</span>
-            <input
-              value={manualSlug}
-              onChange={(event) => handleManualSlugChange(event.target.value)}
-              maxLength={80}
-              placeholder={copy.urlGameNamePlaceholder}
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
-            />
+            <span>{tx(locale, 'URL 게임 이름', 'URL game name')}</span>
+            <input value={manualSlug} onChange={(event) => handleManualSlugChange(event.target.value)} maxLength={80} placeholder="color-pop-mania" autoCapitalize="off" autoCorrect="off" spellCheck={false} />
           </label>
 
           <div className="submit-title-status">
-            <span className="small-copy">{copy.urlGameNameHint}</span>
-            {activeSlug.trim() ? (
-              <span className={`small-copy${slugState.issue || slugState.available === false ? ' error-text' : ''}`}>
-                {isCheckingSlug ? copy.checkingUrlName : slugState.message}
-              </span>
-            ) : null}
-            {slugState.slug ? (
-              <span className="small-copy">
-                {copy.urlPreview}: `/game/${slugState.slug}`
-              </span>
-            ) : null}
+            <span className="small-copy">{tx(locale, '영문 소문자, 숫자, 하이픈(-)만 사용할 수 있어요.', 'Use lowercase English letters, numbers, and hyphens only.')}</span>
+            {activeSlug.trim() ? <span className={`small-copy${slugState.issue || slugState.available === false ? ' error-text' : ''}`}>{isCheckingSlug ? tx(locale, 'URL 이름을 확인하고 있어요...', 'Checking the URL name...') : slugState.message}</span> : null}
+            {slugState.slug ? <span className="small-copy">{tx(locale, '게임 주소', 'Game URL')}: `/game/${slugState.slug}`</span> : null}
           </div>
 
           <label className="field-label">
-            <span>{copy.manualDescription}</span>
-            <textarea
-              value={manualDescription}
-              onChange={(event) => {
-                setManualDescription(event.target.value);
-                clearMessages();
-              }}
-              rows={3}
-              maxLength={400}
-              placeholder={copy.manualDescriptionPlaceholder}
-            />
+            <span>{tx(locale, '게임 설명', 'Game description')}</span>
+            <textarea value={manualDescription} onChange={(event) => setManualDescription(event.target.value)} rows={3} maxLength={400} placeholder={tx(locale, '설명은 선택 입력이에요.', 'Description is optional.')} />
+          </label>
+
+          <label className="field-label">
+            <span>{tx(locale, 'KKE-OH 리더보드 사용', 'Use KKE-OH leaderboard')}</span>
+            <span className="toggle-row">
+              <input type="checkbox" checked={manualLeaderboardEnabled} onChange={(event) => setManualLeaderboardEnabled(event.target.checked)} />
+              <span className="small-copy">{tx(locale, '켜면 점수 제출 브리지를 자동으로 연결해줘요.', 'When enabled, we inject the score bridge for easier leaderboard support.')}</span>
+            </span>
           </label>
 
           <div className="submit-submode-row">
-            <button
-              type="button"
-              className={`button-ghost submit-submode-button${manualMode === 'html' ? ' is-active' : ''}`}
-              onClick={() => {
-                setManualMode('html');
-                setInspectResult(null);
-                clearMessages();
-              }}
-            >
-              {copy.htmlMode}
+            <button type="button" className={`button-ghost submit-submode-button${manualMode === 'html' ? ' is-active' : ''}`} onClick={() => { setManualMode('html'); setInspectResult(null); clearMessages(); }}>
+              {tx(locale, 'HTML 업로드', 'Upload HTML')}
             </button>
-            <button
-              type="button"
-              className={`button-ghost submit-submode-button${manualMode === 'zip' ? ' is-active' : ''}`}
-              onClick={() => {
-                setManualMode('zip');
-                setInspectResult(null);
-                clearMessages();
-              }}
-            >
-              {copy.zipMode}
+            <button type="button" className={`button-ghost submit-submode-button${manualMode === 'zip' ? ' is-active' : ''}`} onClick={() => { setManualMode('zip'); setInspectResult(null); clearMessages(); }}>
+              {tx(locale, 'ZIP 업로드', 'Upload ZIP')}
             </button>
           </div>
 
           {manualMode === 'html' ? (
-            <FileDropzone
-              inputId="html-upload"
-              accept=".html,.htm,text/html"
-              label={copy.htmlFile}
-              hint={copy.htmlHint}
-              file={htmlFile}
-              onFileChange={(file) => {
-                setHtmlFile(file);
-                clearMessages();
-              }}
-              inputRef={htmlInputRef}
-              chooseLabel={copy.dropChoose}
-              orLabel={copy.dropOr}
-              activeLabel={copy.dropActive}
-              selectedLabel={copy.selectedFile}
-              removeLabel={copy.removeFile}
-            />
+            <FileDropzone inputId="html-upload" accept=".html,.htm,text/html" label={tx(locale, 'HTML 파일', 'HTML file')} hint={tx(locale, '게임 시작 HTML 파일 1개를 올려주세요.', 'Upload one HTML file that starts the game.')} file={htmlFile} onFileChange={setHtmlFile} inputRef={htmlInputRef} locale={locale} />
           ) : (
-            <FileDropzone
-              inputId="zip-upload"
-              accept=".zip,application/zip"
-              label={copy.zipFile}
-              hint={copy.zipHint}
-              file={zipFile}
-              onFileChange={(file) => {
-                setZipFile(file);
-                setInspectResult(null);
-                clearMessages();
-              }}
-              inputRef={zipInputRef}
-              chooseLabel={copy.dropChoose}
-              orLabel={copy.dropOr}
-              activeLabel={copy.dropActive}
-              selectedLabel={copy.selectedFile}
-              removeLabel={copy.removeFile}
-            />
+            <FileDropzone inputId="zip-upload" accept=".zip,application/zip" label={tx(locale, 'ZIP 파일', 'ZIP file')} hint={tx(locale, 'HTML, 이미지, 소리 파일이 함께 들어있는 ZIP을 올려주세요.', 'Upload a ZIP with HTML and any images or sounds inside.')} file={zipFile} onFileChange={(file) => { setZipFile(file); setInspectResult(null); clearMessages(); }} inputRef={zipInputRef} locale={locale} />
           )}
 
-          <FileDropzone
-            inputId="manual-thumbnail-upload"
-            accept="image/png,image/jpeg,image/webp"
-            label={copy.thumbnail}
-            hint={copy.thumbnailHint}
-            file={manualThumbnail}
-            onFileChange={(file) => {
-              setManualThumbnail(file);
-              clearMessages();
-            }}
-            inputRef={manualThumbnailInputRef}
-            chooseLabel={copy.dropChoose}
-            orLabel={copy.dropOr}
-            activeLabel={copy.dropActive}
-            selectedLabel={copy.selectedFile}
-            removeLabel={copy.removeFile}
-          />
+          <FileDropzone inputId="manual-thumbnail-upload" accept="image/png,image/jpeg,image/webp" label={tx(locale, '썸네일 이미지', 'Thumbnail image')} hint={tx(locale, '비워 두면 기본 썸네일을 사용해요.', 'If you skip this, we will use a default thumbnail.')} file={manualThumbnail} onFileChange={setManualThumbnail} inputRef={manualThumbnailInputRef} locale={locale} />
 
           {manualMode === 'zip' && inspectResult ? (
             <div className="status-card">
-              <p className="status-title">{copy.zipReady}</p>
-              <p className="small-copy">
-                {copy.zipEntry}: {inspectResult.entryPath}
-              </p>
-              <p className="small-copy">
-                {copy.zipHtmlCount}: {inspectResult.htmlFiles.length}
-              </p>
-              <p className="small-copy">
-                {copy.zipThumbCount}: {inspectResult.thumbnailCandidates.length}
-              </p>
-              <p className="small-copy">{inspectResult.allowlistViolation ? copy.zipFlagged : copy.zipSafe}</p>
+              <p className="status-title">{tx(locale, 'ZIP 확인 완료', 'ZIP inspection complete')}</p>
+              <p className="small-copy">{tx(locale, '시작 파일', 'Start file')}: {inspectResult.entryPath}</p>
+              <p className="small-copy">{tx(locale, 'HTML 파일 수', 'HTML files')}: {inspectResult.htmlFiles.length}</p>
+              <p className="small-copy">{tx(locale, '썸네일 후보 수', 'Thumbnail candidates')}: {inspectResult.thumbnailCandidates.length}</p>
+              <p className="small-copy">{inspectResult.allowlistViolation ? tx(locale, '외부 링크가 있어 한 번 더 확인이 필요할 수 있어요.', 'We found an external link and may review it again.') : tx(locale, '외부 링크 문제는 보이지 않았어요.', 'No external link issue was found.')}</p>
             </div>
           ) : null}
 
-          <button
-            type="button"
-            className="button-primary button-fill"
-            onClick={() => void publishManualGame()}
-            disabled={isPublishing || isCheckingSlug || isInspecting}
-          >
-            {isInspecting ? copy.checkingZip : isPublishing ? copy.creating : copy.createGame}
+          <button type="button" className="button-primary button-fill" onClick={() => void publishManualGame()} disabled={isPublishing || isCheckingSlug || isInspecting}>
+            {isInspecting ? tx(locale, 'ZIP 확인 중...', 'Checking ZIP...') : isPublishing ? tx(locale, '만드는 중...', 'Creating...') : tx(locale, '게임 만들기', 'Create game')}
           </button>
         </div>
       )}
 
       {error ? <p className="error-text">{error}</p> : null}
-
-      {success ? (
-        <div className="status-card status-success">
-          <p className="status-title">{copy.success}</p>
-          <p className="small-copy">
-            {locale === 'ko'
-              ? '吏湲덉? 珥덉븞?쇰줈 ??λ릺?덉뼱?? ??寃뚯엫?먯꽌 ?뚯뒪?명븳 ??寃뚯떆?????덉뼱??'
-              : 'This was saved as a private draft. Test it in My Games, then publish it when you are ready.'}
-          </p>
-          <p className="small-copy">
-            {copy.open}: <a href={success.gameUrl}>{success.gameUrl}</a>
-          </p>
-          <button
-            type="button"
-            className="button-secondary"
-            onClick={() => {
-              setSuccess(null);
-              clearMessages();
-            }}
-          >
-            {copy.createAnother}
-          </button>
-        </div>
-      ) : null}
     </section>
   );
 }
-
-
-

@@ -3,7 +3,14 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/auth';
 import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
-import { createGameId, prepareInspectionForPublishing, resolveGameSlug, writeUploadedGame, writeUploadedGameToSupabase } from '@/lib/games/upload';
+import {
+  createGameId,
+  prepareInspectionForPublishing,
+  resolveGameSlug,
+  withLeaderboardBridge,
+  writeUploadedGame,
+  writeUploadedGameToSupabase
+} from '@/lib/games/upload';
 import { sha256 } from '@/lib/security/hash';
 import { getRequestIp } from '@/lib/security/ip';
 import { consumeInspection } from '@/lib/security/uploadCache';
@@ -12,7 +19,8 @@ const submitSchema = z.object({
   inspectionId: z.string().min(1),
   title: z.string().trim().min(2).max(80),
   slug: z.string().trim().min(1).max(80),
-  description: z.string().trim().min(1).max(400)
+  description: z.string().trim().max(400).optional().default(''),
+  leaderboardEnabled: z.boolean().optional().default(false)
 });
 
 export async function POST(request: Request) {
@@ -29,7 +37,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Upload session expired. Please upload the ZIP again.' }, { status: 410 });
     }
 
-    const inspection = await prepareInspectionForPublishing(cachedInspection, body.title);
+    const inspection = await prepareInspectionForPublishing(
+      body.leaderboardEnabled ? withLeaderboardBridge(cachedInspection) : cachedInspection,
+      body.title
+    );
     const driver = getGameDataDriver();
     const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
     const finalSlug = await resolveGameSlug(storageDir, body.slug);
@@ -44,7 +55,7 @@ export async function POST(request: Request) {
         slug: finalSlug,
         title: body.title,
         description: body.description,
-        leaderboardEnabled: false,
+        leaderboardEnabled: body.leaderboardEnabled,
         uploaderUserId: user.id,
         uploaderName: user.loginId,
         inspection,
@@ -58,7 +69,7 @@ export async function POST(request: Request) {
         slug: finalSlug,
         title: body.title,
         description: body.description,
-        leaderboardEnabled: false,
+        leaderboardEnabled: body.leaderboardEnabled,
         uploaderUserId: user.id,
         uploaderName: user.loginId,
         inspection

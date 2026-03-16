@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
-import { isGameSlugAvailable, resolveGameSlug, slugifyGameSlug } from './upload';
+import { createSingleHtmlInspection, isGameSlugAvailable, resolveGameSlug, slugifyGameSlug, withLeaderboardBridge } from './upload';
 
 test('slugifyGameSlug keeps only english letters, numbers, and hyphens', () => {
   assert.equal(slugifyGameSlug('별 피하기 2'), '2');
@@ -75,4 +75,30 @@ test('resolveGameSlug rejects invalid slugs', async () => {
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }
+});
+
+test('createSingleHtmlInspection injects the leaderboard bridge when requested', () => {
+  const inspection = createSingleHtmlInspection('<html><body><h1>Hello</h1></body></html>', null, {
+    injectScoreBridge: true
+  });
+
+  assert.match(inspection.files[0]?.content.toString('utf8') ?? '', /window\.kkeohSubmitScore/);
+});
+
+test('withLeaderboardBridge injects the score bridge into the entry html', () => {
+  const inspection = withLeaderboardBridge({
+    files: [
+      {
+        path: 'index.html',
+        content: Buffer.from('<html><body>Game</body></html>', 'utf8'),
+        contentType: 'text/html; charset=utf-8'
+      }
+    ],
+    htmlFiles: ['index.html'],
+    allowlistViolation: false,
+    entryPath: 'index.html',
+    thumbnailCandidates: []
+  });
+
+  assert.match(inspection.files[0]?.content.toString('utf8') ?? '', /window\.kkeohSubmitScore/);
 });

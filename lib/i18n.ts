@@ -1,4 +1,4 @@
-export const LOCALE_COOKIE_NAME = 'kkeoh_locale';
+﻿export const LOCALE_COOKIE_NAME = 'kkeoh_locale';
 export const SUPPORTED_LOCALES = ['ko', 'en'] as const;
 
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
@@ -11,7 +11,7 @@ export const dictionaries = {
       uploadGame: '게임 만들기',
       login: '로그인',
       logout: '로그아웃',
-      creator: '',
+      creator: '만든 사람',
       play: '플레이',
       plays: '플레이',
       likes: '좋아요',
@@ -23,45 +23,45 @@ export const dictionaries = {
     },
     home: {
       emptyTitle: '아직 공개된 게임이 없어요.',
-      emptyDescription: '검색어를 바꾸거나 새 게임을 만들어 보세요.',
+      emptyDescription: '다른 검색어를 시도하거나 새 게임을 만들어보세요.',
       firstUpload: '첫 게임 만들기'
     },
     login: {
       tabLogin: '로그인',
       tabSignup: '회원가입',
       titleLogin: '다시 만나서 반가워요!',
-      titleSignup: '바로 시작해 볼까요?',
+      titleSignup: '바로 시작해볼까요?',
       descriptionLogin: 'ID와 비밀번호만 입력하면 바로 들어갈 수 있어요.',
       descriptionSignup: 'ID와 비밀번호만 만들면 바로 시작할 수 있어요.',
-      signupHint: '회원가입은 ID와 비밀번호만 있으면 돼요.',
-      idPlaceholder: '예: gamekid',
-      passwordPlaceholder: '비밀번호를 입력해 주세요',
+      signupHint: '회원가입에는 ID와 비밀번호만 필요해요.',
+      idPlaceholder: '예시: gamekid',
+      passwordPlaceholder: '비밀번호를 입력해주세요',
       submitLogin: '로그인하기',
       submitSignup: '회원가입하고 시작하기',
       pending: '잠시만요...',
-      heroTitle: '아이들이 쉽게 쓸 수 있는 게임 놀이터',
-      heroDescription: '언어를 고르고 로그인한 뒤 게임을 만들고 함께 플레이해 보세요.',
-      heroRule1: '한국어와 영어를 바꿔가며 사용할 수 있어요.',
+      heroTitle: '아이들이 쉽게 쓰는 게임 놀이터',
+      heroDescription: '언어를 고르고 로그인한 뒤 게임을 만들고 함께 플레이해보세요.',
+      heroRule1: '한국어와 영어를 모두 지원해요.',
       heroRule2: 'ID와 비밀번호만 있으면 바로 시작할 수 있어요.',
       heroRule3: '로그인하면 게임 만들기가 열려요.'
     },
     game: {
       unavailableTitle: '이 게임은 지금 볼 수 없어요.',
-      unavailableDescription: '삭제되었거나, 안전 확인 중이거나, 링크가 바뀌었을 수 있어요.',
+      unavailableDescription: '삭제되었거나, 점검 중이거나, 링크가 오래되었을 수 있어요.',
       feedbackTitle: '피드백',
-      feedbackDescription: '이 게임에서 더 좋아지면 좋을 점을 알려주세요.',
-      feedbackPlaceholder: '하고 싶은 말을 적어 주세요',
-      feedbackButton: '💬',
+      feedbackDescription: '이 게임을 더 좋게 만들 아이디어를 알려주세요.',
+      feedbackPlaceholder: '메시지를 적어주세요',
+      feedbackButton: '피드백',
       feedbackSent: '피드백을 보냈어요.',
       feedbackFailed: '피드백을 보내지 못했어요.',
       reactionFailed: '반응을 저장하지 못했어요.',
-      fullscreenFailed: '이 브라우저에서는 전체 화면이 막혀 있어요.'
+      fullscreenFailed: '이 브라우저에서는 전체화면이 제한될 수 있어요.'
     },
     upload: {
       pageTitle: '게임 만들기',
-      pageDescription: '직접 만든 파일을 올리거나, 프롬프트로 새 게임을 만들 수 있어요.',
+      pageDescription: '직접 만든 파일을 올리거나 AI로 새 브라우저 게임을 만들 수 있어요.',
       loginAs: '로그인 중',
-      easyFlow: 'HTML 파일, ZIP 업로드, 또는 AI 게임 만들기 중에서 원하는 방식을 고르세요.'
+      easyFlow: 'HTML 업로드, ZIP 업로드, 또는 AI 게임 만들기 중에서 고르세요.'
     }
   },
   en: {
@@ -71,7 +71,7 @@ export const dictionaries = {
       uploadGame: 'Create Game',
       login: 'Login',
       logout: 'Logout',
-      creator: '',
+      creator: 'Creator',
       play: 'Play',
       plays: 'Plays',
       likes: 'Likes',
@@ -111,7 +111,7 @@ export const dictionaries = {
       feedbackTitle: 'Feedback',
       feedbackDescription: 'Tell us what could be better in this game.',
       feedbackPlaceholder: 'Write your message',
-      feedbackButton: '💬',
+      feedbackButton: 'Feedback',
       feedbackSent: 'Feedback sent.',
       feedbackFailed: 'Could not send feedback.',
       reactionFailed: 'Could not save your reaction.',

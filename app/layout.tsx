@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { SiteNavbar } from '@/app/_components/site-navbar';
+import { GoogleAdsBootstrap } from '@/components/ads/google-ads-bootstrap';
 import { Footer } from '@/components/site/footer';
 import { getRequestLocale } from '@/lib/i18n/server';
 import './globals.css';
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang={locale}>
       <body>
         <div className="site-shell">
+          <GoogleAdsBootstrap />
           <div className="site-backdrop" aria-hidden="true" />
           <SiteNavbar locale={locale} />
           <main className="page-shell">{children}</main>

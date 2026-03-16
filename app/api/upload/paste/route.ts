@@ -26,9 +26,9 @@ export async function POST(request: Request) {
     const title = String(formData.get('title') ?? '').trim();
     const slug = String(formData.get('slug') ?? '').trim();
     const description = String(formData.get('description') ?? '').trim();
+    const leaderboardEnabled = String(formData.get('leaderboardEnabled') ?? '').trim() === 'true';
     const htmlFile = formData.get('htmlFile');
     const thumbnail = formData.get('thumbnail');
-    let html = String(formData.get('html') ?? '').trim();
 
     if (title.length < 2 || title.length > 80) {
       return NextResponse.json({ error: 'Title must be between 2 and 80 characters.' }, { status: 400 });
@@ -38,74 +38,72 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'URL game name is required.' }, { status: 400 });
     }
 
-    if (!description) {
-      return NextResponse.json({ error: 'Description is required.' }, { status: 400 });
-    }
-
     if (htmlFile instanceof File) {
       const extension = path.extname(htmlFile.name).toLowerCase();
       if (extension && !['.html', '.htm'].includes(extension)) {
         return NextResponse.json({ error: 'Please upload an HTML file.' }, { status: 400 });
       }
 
-      html = (await htmlFile.text()).trim();
-    }
+      const html = (await htmlFile.text()).trim();
+      if (!html) {
+        return NextResponse.json({ error: 'HTML content is required.' }, { status: 400 });
+      }
 
-    if (!html) {
-      return NextResponse.json({ error: 'HTML content is required.' }, { status: 400 });
-    }
+      const inspection = await prepareInspectionForPublishing(
+        createSingleHtmlInspection(
+          html,
+          await createThumbnailUpload(thumbnail instanceof File ? thumbnail : null),
+          { injectScoreBridge: leaderboardEnabled }
+        ),
+        title
+      );
 
-    const inspection = await prepareInspectionForPublishing(
-      createSingleHtmlInspection(
-        html,
-        await createThumbnailUpload(thumbnail instanceof File ? thumbnail : null)
-      ),
-      title
-    );
+      const driver = getGameDataDriver();
+      const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
+      const finalSlug = await resolveGameSlug(storageDir, slug);
+      const gameId = createGameId();
 
-    const driver = getGameDataDriver();
-    const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
-    const finalSlug = await resolveGameSlug(storageDir, slug);
-    const gameId = createGameId();
+      if (driver === 'supabase') {
+        await writeUploadedGameToSupabase({
+          id: gameId,
+          slug: finalSlug,
+          title,
+          description,
+          leaderboardEnabled,
+          uploaderUserId: user.id,
+          uploaderName: user.loginId,
+          inspection,
+          uploaderEmailHash: sha256(''),
+          uploaderIpHash: sha256(getRequestIp())
+        });
+      } else {
+        await writeUploadedGame({
+          storageDir: storageDir as string,
+          id: gameId,
+          slug: finalSlug,
+          title,
+          description,
+          leaderboardEnabled,
+          uploaderUserId: user.id,
+          uploaderName: user.loginId,
+          inspection
+        });
+      }
 
-    if (driver === 'supabase') {
-      await writeUploadedGameToSupabase({
-        id: gameId,
-        slug: finalSlug,
-        title,
-        description,
-        leaderboardEnabled: false,
-        uploaderUserId: user.id,
-        uploaderName: user.loginId,
-        inspection,
-        uploaderEmailHash: sha256(''),
-        uploaderIpHash: sha256(getRequestIp())
+      revalidatePath('/');
+      revalidatePath('/submit');
+      revalidatePath('/my-games');
+      revalidatePath(`/game/${finalSlug}`);
+
+      return NextResponse.json({
+        ok: true,
+        gameId,
+        gameUrl: `/game/${finalSlug}`,
+        flagged: inspection.allowlistViolation
       });
-    } else {
-      await writeUploadedGame({
-        storageDir: storageDir as string,
-        id: gameId,
-        slug: finalSlug,
-        title,
-        description,
-        leaderboardEnabled: false,
-        uploaderUserId: user.id,
-        uploaderName: user.loginId,
-        inspection
-      });
     }
 
-    revalidatePath('/');
-    revalidatePath('/submit');
-    revalidatePath('/my-games');
-    revalidatePath(`/game/${finalSlug}`);
-
-    return NextResponse.json({
-      ok: true,
-      gameId,
-      gameUrl: `/game/${finalSlug}`,
-      flagged: inspection.allowlistViolation
-    });
+    return NextResponse.json({ error: 'Please upload an HTML file.' }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not create the game.';
     return NextResponse.json({ error: message }, { status: 400 });

@@ -11,5 +11,5 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ error: 'Game not found' }, { status: 404 });
   }
 
-  return NextResponse.json({ success: true, reportCount: result.reportCount, hidden: result.hidden });
+  return NextResponse.json({ success: true, reportCount: result.reportCount, adminAlert: result.adminAlert });
 }

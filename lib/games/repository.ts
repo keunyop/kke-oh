@@ -5,7 +5,7 @@ import type { GameRecord, StoredAsset } from '@/lib/games/types';
 
 export type ReportResult = {
   reportCount: number;
-  hidden: boolean;
+  adminAlert: boolean;
 };
 
 export type GameReaction = 'LIKE' | 'DISLIKE';
@@ -22,7 +22,7 @@ export interface GameRepository {
   listByUser(userId: string): Promise<GameRecord[]>;
   getById(id: string): Promise<GameRecord | null>;
   getBySlug(slug: string): Promise<GameRecord | null>;
-  incrementPlay(id: string): Promise<boolean>;
+  incrementPlay(id: string, ipHash?: string | null): Promise<boolean>;
   applyReaction(id: string, nextReaction: GameReaction, previousReaction?: GameReaction | null): Promise<ReactionResult | null>;
   addFeedback(id: string, message: string): Promise<boolean>;
   report(id: string, reason: string): Promise<ReportResult | null>;

@@ -74,7 +74,7 @@ export function buildGameGeneratorSystemPrompt(): string {
   ].join(' ');
 }
 
-export async function generateGameFromPrompt(prompt: string): Promise<GeneratedGame> {
+export async function generateGameFromPrompt(prompt: string, modelName?: string): Promise<GeneratedGame> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
 
   if (!apiKey) {
@@ -90,7 +90,7 @@ export async function generateGameFromPrompt(prompt: string): Promise<GeneratedG
       authorization: `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: OPENAI_MODEL,
+      model: modelName?.trim() || OPENAI_MODEL,
       input: [
         {
           role: 'system',

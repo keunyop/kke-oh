@@ -1,7 +1,8 @@
-import { revalidatePath } from 'next/cache';
+﻿import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import path from 'node:path';
 import { getCurrentUser } from '@/lib/auth';
+import { getAiModelById, getAiPointCost } from '@/lib/ai/models';
 import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
 import { getGameAssetStore, getGameRepository } from '@/lib/games/repository';
 import type { GameRecord } from '@/lib/games/types';
@@ -10,12 +11,14 @@ import {
   createThumbnailUpload,
   inspectZipUpload,
   prepareInspectionForPublishing,
+  withLeaderboardBridge,
   updateUploadedGame,
   updateUploadedGameInSupabase
 } from '@/lib/games/upload';
 import { generateGameFromPrompt } from '@/lib/games/ai-game-generator';
+import { getUserPointBalance, grantUserPoints, spendUserPoints } from '@/lib/points/service';
 
-type EditMode = 'details' | 'html' | 'zip' | 'ai';
+type EditMode = 'html' | 'zip' | 'ai';
 
 function getText(formData: FormData, key: string) {
   return String(formData.get(key) ?? '').trim();
@@ -62,11 +65,13 @@ export async function POST(request: Request, context: { params: { id: string } }
     const title = getText(formData, 'title');
     const description = getText(formData, 'description');
     const prompt = getText(formData, 'prompt');
+    const modelId = getText(formData, 'modelId');
+    const leaderboardEnabled = getText(formData, 'leaderboardEnabled') === 'true';
     const htmlFile = formData.get('htmlFile');
     const zipFile = formData.get('zipFile');
     const thumbnailFile = formData.get('thumbnail');
 
-    if (!['details', 'html', 'zip', 'ai'].includes(mode)) {
+    if (!['html', 'zip', 'ai'].includes(mode)) {
       return NextResponse.json({ error: 'Invalid edit mode.' }, { status: 400 });
     }
 
@@ -81,46 +86,61 @@ export async function POST(request: Request, context: { params: { id: string } }
     const thumbnail = await createThumbnailUpload(thumbnailFile instanceof File ? thumbnailFile : null);
     let inspection = null;
     let nextDescription = description || game.description;
+    let pointSpendSourceId: string | null = null;
+    let pointCost = 0;
+    let pointSpent = false;
 
     if (mode === 'html') {
-      if (!(htmlFile instanceof File)) {
-        return NextResponse.json({ error: 'Please upload an HTML file.' }, { status: 400 });
-      }
+      if (htmlFile instanceof File) {
+        const extension = path.extname(htmlFile.name).toLowerCase();
+        if (extension && !['.html', '.htm'].includes(extension)) {
+          return NextResponse.json({ error: 'Please upload an HTML file.' }, { status: 400 });
+        }
 
-      const extension = path.extname(htmlFile.name).toLowerCase();
-      if (extension && !['.html', '.htm'].includes(extension)) {
-        return NextResponse.json({ error: 'Please upload an HTML file.' }, { status: 400 });
-      }
+        const html = (await htmlFile.text()).trim();
+        if (!html) {
+          return NextResponse.json({ error: 'HTML content is required.' }, { status: 400 });
+        }
 
-      const html = (await htmlFile.text()).trim();
-      if (!html) {
-        return NextResponse.json({ error: 'HTML content is required.' }, { status: 400 });
+        inspection = await prepareInspectionForPublishing(
+          createSingleHtmlInspection(html, thumbnail, { injectScoreBridge: leaderboardEnabled }),
+          title
+        );
       }
-
-      inspection = await prepareInspectionForPublishing(createSingleHtmlInspection(html, thumbnail), title);
     }
 
     if (mode === 'zip') {
-      if (!(zipFile instanceof File)) {
-        return NextResponse.json({ error: 'Please upload a ZIP file.' }, { status: 400 });
-      }
-
-      const zipInspection = await inspectZipUpload(zipFile);
-      inspection = await prepareInspectionForPublishing(
-        thumbnail
+      if (zipFile instanceof File) {
+        const zipInspection = await inspectZipUpload(zipFile);
+        const mergedInspection = thumbnail
           ? {
               ...zipInspection,
               files: [...zipInspection.files, thumbnail],
               thumbnailCandidates: [thumbnail.path, ...zipInspection.thumbnailCandidates.filter((item) => item !== thumbnail.path)]
             }
-          : zipInspection,
-        title
-      );
+          : zipInspection;
+
+        inspection = await prepareInspectionForPublishing(
+          leaderboardEnabled ? withLeaderboardBridge(mergedInspection) : mergedInspection,
+          title
+        );
+      }
     }
 
     if (mode === 'ai') {
       if (prompt.length < 8 || prompt.length > 1200) {
         return NextResponse.json({ error: 'Please write at least 8 characters for the AI update.' }, { status: 400 });
+      }
+
+      if (!modelId) {
+        return NextResponse.json({ error: 'AI model selection is required.' }, { status: 400 });
+      }
+
+      const model = await getAiModelById(modelId);
+      pointCost = getAiPointCost(model, 'edit');
+      const balance = await getUserPointBalance(user.id);
+      if (balance < pointCost) {
+        return NextResponse.json({ error: 'Not enough points for the selected AI model.', requiredPoints: pointCost, balance }, { status: 400 });
       }
 
       const currentHtml = await loadCurrentEntryHtml(game);
@@ -133,36 +153,69 @@ export async function POST(request: Request, context: { params: { id: string } }
         .filter(Boolean)
         .join('\n\n');
 
-      const generated = await generateGameFromPrompt(aiPrompt);
+      const generated = await generateGameFromPrompt(aiPrompt, model.modelName);
       nextDescription = description || generated.description || game.description;
       inspection = await prepareInspectionForPublishing(
-        createSingleHtmlInspection(generated.html, thumbnail ?? generated.thumbnail),
+        createSingleHtmlInspection(generated.html, thumbnail ?? generated.thumbnail, { injectScoreBridge: leaderboardEnabled }),
         title
       );
+      pointSpendSourceId = `ai-edit:${game.id}:${Date.now()}`;
     }
 
     const driver = getGameDataDriver();
     const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
 
-    if (driver === 'supabase') {
-      await updateUploadedGameInSupabase({
-        game,
-        title,
-        description: nextDescription,
-        inspection,
-        leaderboardEnabled: mode === 'ai' ? true : undefined,
-        thumbnail: mode === 'details' ? thumbnail : null
-      });
-    } else {
-      await updateUploadedGame({
-        storageDir: storageDir as string,
-        game,
-        title,
-        description: nextDescription,
-        inspection,
-        leaderboardEnabled: mode === 'ai' ? true : undefined,
-        thumbnail: mode === 'details' ? thumbnail : null
-      });
+    try {
+      if (mode === 'ai' && pointSpendSourceId) {
+        await spendUserPoints({
+          userId: user.id,
+          delta: pointCost,
+          sourceType: 'ai_edit',
+          sourceId: pointSpendSourceId,
+          metadata: {
+            modelId,
+            gameId: game.id
+          }
+        });
+        pointSpent = true;
+      }
+
+      if (driver === 'supabase') {
+        await updateUploadedGameInSupabase({
+          game,
+          title,
+          description: nextDescription,
+          inspection,
+          leaderboardEnabled,
+          thumbnail
+        });
+      } else {
+        await updateUploadedGame({
+          storageDir: storageDir as string,
+          game,
+          title,
+          description: nextDescription,
+          inspection,
+          leaderboardEnabled,
+          thumbnail
+        });
+      }
+    } catch (error) {
+      if (pointSpent && pointSpendSourceId) {
+        await grantUserPoints({
+          userId: user.id,
+          delta: pointCost,
+          type: 'refund',
+          sourceType: 'ai_edit_refund',
+          sourceId: pointSpendSourceId,
+          metadata: {
+            modelId,
+            gameId: game.id
+          }
+        }).catch(() => {});
+      }
+
+      throw error;
     }
 
     const updatedGame = await repository.getById(game.id);
@@ -175,12 +228,11 @@ export async function POST(request: Request, context: { params: { id: string } }
     return NextResponse.json({
       ok: true,
       game: updatedGame,
-      gameUrl: `/game/${updatedGame?.slug ?? game.slug}`
+      gameUrl: `/game/${updatedGame?.slug ?? game.slug}`,
+      pointsSpent: pointCost
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not update the game.';
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
-
-

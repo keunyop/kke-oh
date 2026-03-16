@@ -145,8 +145,7 @@ export class FilesystemGameRepository extends FilesystemGameStoreBase implements
     return games.filter(
       (game) =>
         game.status === 'PUBLIC' &&
-        !game.is_hidden &&
-        game.report_count < 2
+        !game.is_hidden
     );
   }
 
@@ -180,7 +179,8 @@ export class FilesystemGameRepository extends FilesystemGameStoreBase implements
     return records.find((record) => record.slug.toLowerCase() === normalizedSlug) ?? null;
   }
 
-  async incrementPlay(id: string): Promise<boolean> {
+  async incrementPlay(id: string, _ipHash?: string | null): Promise<boolean> {
+    void _ipHash;
     const game = await this.readGame(id);
     if (!game || game.status !== 'PUBLIC') return false;
 
@@ -233,17 +233,16 @@ export class FilesystemGameRepository extends FilesystemGameStoreBase implements
     return this.appendFeedback(id, message);
   }
 
-  async report(id: string, reason: string): Promise<ReportResult | null> {
+  async report(id: string, _reason: string): Promise<ReportResult | null> {
+    void _reason;
     const game = await this.readGame(id);
     if (!game) return null;
 
     game.report_count += 1;
-    game.is_hidden = game.report_count >= 2;
-    game.hidden_reason = game.is_hidden ? `Auto-hidden due to reports: ${reason}` : null;
     game.updated_at = new Date().toISOString();
     await this.writeGame(game);
 
-    return { reportCount: game.report_count, hidden: game.is_hidden };
+    return { reportCount: game.report_count, adminAlert: game.report_count >= 2 };
   }
 
   async hide(id: string, reason: string): Promise<boolean> {

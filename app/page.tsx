@@ -1,4 +1,5 @@
 ﻿import Image from 'next/image';
+import { GoogleAdSlot } from '@/components/ads/google-ad-slot';
 import { GameCard } from '@/components/site/game-card';
 import { listLeaderboardChampions } from '@/lib/games/leaderboard';
 import { createDiscoveryGames, filterDiscoveryGames, sortDiscoveryGames } from '@/lib/games/discovery';
@@ -32,26 +33,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   return (
     <section className="mvp-home">
+      <GoogleAdSlot placement="home" label={locale === 'ko' ? '홈 추천 광고' : 'Home sponsored slot'} />
+
       {firstRowGames.length ? (
         <div className="game-grid" role="list">
           {firstRowGames.map((game) => (
             <div key={game.id} role="listitem">
-              <GameCard
-                id={game.id}
-                title={game.title}
-                description={game.description}
-                href={game.href}
-                imageUrl={game.imageUrl}
-                uploaderName={game.uploaderName}
-                playCount={game.playCount}
-                likeCount={game.likeCount}
-                dislikeCount={game.dislikeCount}
-                isNew={game.isNew}
-                locale={locale}
-                showDescription={false}
-                showPlayButton={false}
-                reactionDisplay="approval"
-              />
+              <GameCard id={game.id} title={game.title} description={game.description} href={game.href} imageUrl={game.imageUrl} uploaderName={game.uploaderName} playCount={game.playCount} likeCount={game.likeCount} dislikeCount={game.dislikeCount} isNew={game.isNew} locale={locale} showDescription={false} showPlayButton={false} reactionDisplay="approval" />
             </div>
           ))}
         </div>
@@ -65,29 +53,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <div className="home-champions-marquee">
             <div className={`home-champions-track${champions.length > 1 ? ' is-animated' : ''}`} role="list" aria-label={championsTitle}>
               {marqueeChampions.map((champion, index) => {
-                const imageUrl = champion.thumbnailPath
-                  ? getGameAssetUrl(champion.gameId, champion.thumbnailPath)
-                  : getPlaceholderThumbnailDataUrl(champion.title);
+                const imageUrl = champion.thumbnailPath ? getGameAssetUrl(champion.gameId, champion.thumbnailPath) : getPlaceholderThumbnailDataUrl(champion.title);
                 const isDuplicate = champions.length > 1 && index >= champions.length;
 
                 return (
-                  <a
-                    key={`${champion.gameId}-${champion.playerName}-${index}`}
-                    href={`/game/${champion.slug}`}
-                    className="home-champion-card"
-                    role="listitem"
-                    aria-hidden={isDuplicate}
-                    tabIndex={isDuplicate ? -1 : undefined}
-                  >
+                  <a key={`${champion.gameId}-${champion.playerName}-${index}`} href={`/game/${champion.slug}`} className="home-champion-card" role="listitem" aria-hidden={isDuplicate} tabIndex={isDuplicate ? -1 : undefined}>
                     <div className="home-champion-media">
                       <Image src={imageUrl} alt={champion.title} fill className="game-card-image" unoptimized />
                     </div>
                     <div className="home-champion-body">
                       <h3>{champion.title}</h3>
                       <p className="home-champion-player">{champion.playerName}</p>
-                      <p className="home-champion-score">
-                        {championScoreLabel} <strong>{champion.score.toLocaleString(locale === 'ko' ? 'ko-KR' : 'en-US')}</strong>
-                      </p>
+                      <p className="home-champion-score">{championScoreLabel} <strong>{champion.score.toLocaleString(locale === 'ko' ? 'ko-KR' : 'en-US')}</strong></p>
                     </div>
                   </a>
                 );
@@ -101,22 +78,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <div className="game-grid" role="list">
           {remainingGames.map((game) => (
             <div key={game.id} role="listitem">
-              <GameCard
-                id={game.id}
-                title={game.title}
-                description={game.description}
-                href={game.href}
-                imageUrl={game.imageUrl}
-                uploaderName={game.uploaderName}
-                playCount={game.playCount}
-                likeCount={game.likeCount}
-                dislikeCount={game.dislikeCount}
-                isNew={game.isNew}
-                locale={locale}
-                showDescription={false}
-                showPlayButton={false}
-                reactionDisplay="approval"
-              />
+              <GameCard id={game.id} title={game.title} description={game.description} href={game.href} imageUrl={game.imageUrl} uploaderName={game.uploaderName} playCount={game.playCount} likeCount={game.likeCount} dislikeCount={game.dislikeCount} isNew={game.isNew} locale={locale} showDescription={false} showPlayButton={false} reactionDisplay="approval" />
             </div>
           ))}
         </div>
@@ -126,9 +88,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <section className="empty-state-card">
           <h2>{t.home.emptyTitle}</h2>
           <p>{t.home.emptyDescription}</p>
-          <a href="/submit" className="button-primary">
-            {t.home.firstUpload}
-          </a>
+          <a href="/submit" className="button-primary">{t.home.firstUpload}</a>
         </section>
       ) : null}
     </section>

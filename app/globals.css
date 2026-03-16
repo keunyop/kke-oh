@@ -2292,3 +2292,98 @@ td {
     font-size: 0.82rem;
   }
 }
+
+.submit-inline-grid,
+.points-package-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.submit-cost-card,
+.points-balance-card,
+.points-package-card,
+.ad-slot-card,
+.rewarded-ad-panel {
+  background: linear-gradient(180deg, rgba(255, 251, 232, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+  border-color: rgba(255, 188, 79, 0.24);
+}
+
+.submit-cost-card strong,
+.points-balance-card h2,
+.points-package-points {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toggle-row input {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+}
+
+.profile-points-pill {
+  font-weight: 800;
+}
+
+.ad-slot-card {
+  gap: 12px;
+}
+
+.ad-slot-copy p,
+.points-ledger-row p {
+  margin: 0;
+}
+
+.ad-slot-surface {
+  min-height: 110px;
+}
+
+.rewarded-ad-actions > * {
+  flex: 0 0 auto;
+}
+
+.points-dashboard,
+.points-ledger-list {
+  display: grid;
+  gap: 16px;
+}
+
+.points-package-card,
+.points-ledger-row {
+  display: grid;
+  gap: 10px;
+}
+
+.points-ledger-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(112, 184, 255, 0.14);
+}
+
+.points-ledger-delta {
+  font-weight: 900;
+  color: #2d6b25;
+}
+
+.points-ledger-delta.is-negative {
+  color: #a63b2a;
+}
+
+@media (max-width: 900px) {
+  .submit-inline-grid,
+  .points-package-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -6,6 +6,7 @@ import sharp from 'sharp';
 import { ALLOWED_EXTENSIONS } from '@/lib/config';
 import { createServiceClient } from '@/lib/db/supabase';
 import { createPlaceholderThumbnail } from '@/lib/games/placeholder';
+import { injectLeaderboardBridge } from '@/lib/games/score-bridge';
 import type { GameRecord } from '@/lib/games/types';
 import { uploadToR2 } from '@/lib/r2/client';
 import { detectAllowlistViolation } from '@/lib/security/contentScan';
@@ -111,11 +112,11 @@ export function detectContentType(assetPath: string): string {
   return 'application/octet-stream';
 }
 
-export function createSingleHtmlInspection(html: string, thumbnail?: UploadedFile | null): ZipInspection {
+export function createSingleHtmlInspection(html: string, thumbnail?: UploadedFile | null, options?: { injectScoreBridge?: boolean }): ZipInspection {
   const files: UploadedFile[] = [
     {
       path: 'index.html',
-      content: Buffer.from(html, 'utf8'),
+      content: Buffer.from(options?.injectScoreBridge ? injectLeaderboardBridge(html) : html, 'utf8'),
       contentType: detectContentType('index.html')
     }
   ];
@@ -132,6 +133,29 @@ export function createSingleHtmlInspection(html: string, thumbnail?: UploadedFil
     allowlistViolation: detectAllowlistViolation([html]),
     entryPath: 'index.html',
     thumbnailCandidates
+  };
+}
+
+export function withLeaderboardBridge(inspection: ZipInspection): ZipInspection {
+  const entryIndex = inspection.files.findIndex((file) => file.path === inspection.entryPath);
+  if (entryIndex < 0) {
+    return inspection;
+  }
+
+  const entryFile = inspection.files[entryIndex];
+  if (!entryFile.contentType.includes('html') && !/\.html?$/i.test(entryFile.path)) {
+    return inspection;
+  }
+
+  const nextFiles = [...inspection.files];
+  nextFiles[entryIndex] = {
+    ...entryFile,
+    content: Buffer.from(injectLeaderboardBridge(entryFile.content.toString('utf8')), 'utf8')
+  };
+
+  return {
+    ...inspection,
+    files: nextFiles
   };
 }
 

@@ -172,7 +172,6 @@ export class SupabaseGameRepository implements GameRepository {
         .select(selectClause)
         .eq('status', 'PUBLIC')
         .eq('is_hidden', false)
-        .lt('report_count', 2)
         .order('created_at', { ascending: false })
     );
 
@@ -232,14 +231,14 @@ export class SupabaseGameRepository implements GameRepository {
     return data ? mapRow(data) : null;
   }
 
-  async incrementPlay(id: string): Promise<boolean> {
+  async incrementPlay(id: string, ipHash?: string | null): Promise<boolean> {
     const game = await this.getById(id);
     if (!game || game.status !== 'PUBLIC') return false;
 
     const supabase = createServiceClient();
     const { error } = await supabase.rpc('increment_play_counters', {
       p_game_id: id,
-      p_ip_hash: ''
+      p_ip_hash: ipHash ?? ''
     });
 
     if (error) {
@@ -321,15 +320,12 @@ export class SupabaseGameRepository implements GameRepository {
     if (!game) return null;
 
     const reportCount = game.report_count + 1;
-    const hidden = reportCount >= 2;
     const supabase = createServiceClient();
 
     const { error } = await supabase
       .from('games')
       .update({
         report_count: reportCount,
-        is_hidden: hidden,
-        hidden_reason: hidden ? `Auto-hidden due to reports: ${reason}` : null,
         updated_at: new Date().toISOString()
       })
       .eq('id', id);
@@ -344,7 +340,7 @@ export class SupabaseGameRepository implements GameRepository {
       reporter_ip_hash: ''
     });
 
-    return { reportCount, hidden };
+    return { reportCount, adminAlert: reportCount >= 2 };
   }
 
   async hide(id: string, reason: string): Promise<boolean> {
