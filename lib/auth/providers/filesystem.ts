@@ -1,6 +1,7 @@
-import crypto from 'node:crypto';
+﻿import crypto from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { AuthError } from '@/lib/auth/errors';
 import { hashPassword } from '@/lib/auth/password';
 import type { AuthRepository } from '@/lib/auth/repository';
 import type { AuthSession, AuthUser } from '@/lib/auth/types';
@@ -60,7 +61,7 @@ export class FilesystemAuthRepository implements AuthRepository {
     const safeLoginId = sanitizeLoginId(loginId);
 
     if (data.users.some((user) => user.normalizedLoginId === normalizedLoginId)) {
-      throw new Error('이미 사용 중인 ID예요.');
+      throw new AuthError('duplicate_login_id');
     }
 
     const { hash, salt } = hashPassword(password);
@@ -121,3 +122,4 @@ export class FilesystemAuthRepository implements AuthRepository {
     });
   }
 }
+

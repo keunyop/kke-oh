@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { listAiModels } from '@/lib/ai/models';
 import { getUserPointBalance } from '@/lib/points/service';
@@ -17,3 +17,4 @@ export async function GET() {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+

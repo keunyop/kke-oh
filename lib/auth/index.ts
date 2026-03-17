@@ -1,5 +1,6 @@
-import { cookies } from 'next/headers';
+﻿import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { AuthError } from '@/lib/auth/errors';
 import { verifyPassword } from '@/lib/auth/password';
 import { getAuthRepository, getFilesystemAuthRepository, type AuthRepository, validateCredentials } from '@/lib/auth/repository';
 import { AUTH_COOKIE_NAME, getAuthCookieOptions, getSessionExpiryDate } from '@/lib/auth/session';
@@ -74,7 +75,7 @@ export async function signIn(loginId: string, password: string) {
   }
 
   if (!user || !verifyPassword(password, user.passwordSalt, user.passwordHash)) {
-    throw new Error('ID 또는 비밀번호를 다시 확인해주세요.');
+    throw new AuthError('invalid_credentials');
   }
 
   return createUserSession(user, repository);
@@ -106,3 +107,4 @@ export async function signOutCurrentUser() {
 }
 
 export { AUTH_COOKIE_NAME, getAuthCookieOptions };
+

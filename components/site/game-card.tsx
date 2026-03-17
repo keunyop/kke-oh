@@ -1,4 +1,4 @@
-import Image from 'next/image';
+﻿import Image from 'next/image';
 import { getDictionary, type Locale } from '@/lib/i18n';
 
 type GameCardProps = {
@@ -79,7 +79,7 @@ export function GameCard({
         ) : null}
       </div>
       <div className="game-card-body">
-        <h3>{title}</h3>
+        <h3 className="game-card-title" title={title}>{title}</h3>
         {showDescription ? <p className="game-card-summary">{description}</p> : null}
         <div className="game-card-stats">
           <span>{t.common.plays} {playCount}</span>
@@ -95,7 +95,7 @@ export function GameCard({
             </>
           )}
         </div>
-        <div className="game-card-uploader">{t.common.creator} {uploaderName}</div>
+        <div className="game-card-uploader" title={uploaderName}>{uploaderName}</div>
       </div>
       <a href={href} className="game-card-link" aria-label={`Open ${title}`} />
       <span className="sr-only">Game id {id}</span>

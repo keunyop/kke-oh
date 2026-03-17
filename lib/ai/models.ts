@@ -1,4 +1,4 @@
-import { createServiceClient } from '@/lib/db/supabase';
+﻿import { createServiceClient } from '@/lib/db/supabase';
 
 export type AiModelCatalogItem = {
   id: string;
@@ -7,6 +7,7 @@ export type AiModelCatalogItem = {
   modelName: string;
   pointCostCreate: number;
   pointCostEdit: number;
+  kidDescription: string;
   active: boolean;
   sortOrder: number;
 };
@@ -19,6 +20,7 @@ const DEFAULT_AI_MODELS: AiModelCatalogItem[] = [
     modelName: 'gpt-4.1-mini',
     pointCostCreate: 12,
     pointCostEdit: 8,
+    kidDescription: 'Quick and light. Good for simple game ideas and small fixes.',
     active: true,
     sortOrder: 1
   },
@@ -29,6 +31,7 @@ const DEFAULT_AI_MODELS: AiModelCatalogItem[] = [
     modelName: 'gpt-4.1',
     pointCostCreate: 24,
     pointCostEdit: 16,
+    kidDescription: 'A smart middle choice. Good when you want better rules, screens, and polish.',
     active: true,
     sortOrder: 2
   },
@@ -39,6 +42,7 @@ const DEFAULT_AI_MODELS: AiModelCatalogItem[] = [
     modelName: 'gpt-5-mini',
     pointCostCreate: 36,
     pointCostEdit: 24,
+    kidDescription: 'Best for bigger ideas that need more detail, style, and careful clean-up.',
     active: true,
     sortOrder: 3
   }
@@ -48,12 +52,17 @@ function isMissingTableError(error: unknown, tableName: string) {
   return error instanceof Error && error.message.includes(tableName);
 }
 
+function getFallbackDescription(modelId: string, modelName: string) {
+  const defaultModel = DEFAULT_AI_MODELS.find((item) => item.id === modelId || item.modelName === modelName);
+  return defaultModel?.kidDescription ?? 'Builds a browser game from your idea and point budget.';
+}
+
 export async function listAiModels(): Promise<AiModelCatalogItem[]> {
   try {
     const supabase = createServiceClient();
     const { data, error } = await supabase
       .from('ai_models')
-      .select('id,label,provider,model_name,point_cost_create,point_cost_edit,active,sort_order')
+      .select('id,label,provider,model_name,point_cost_create,point_cost_edit,kid_description,active,sort_order')
       .eq('active', true)
       .order('sort_order', { ascending: true });
 
@@ -72,11 +81,15 @@ export async function listAiModels(): Promise<AiModelCatalogItem[]> {
       modelName: item.model_name,
       pointCostCreate: item.point_cost_create,
       pointCostEdit: item.point_cost_edit,
+      kidDescription:
+        typeof item.kid_description === 'string' && item.kid_description.trim()
+          ? item.kid_description
+          : getFallbackDescription(item.id, item.model_name),
       active: item.active,
       sortOrder: item.sort_order
     }));
   } catch (error) {
-    if (isMissingTableError(error, 'ai_models')) {
+    if (isMissingTableError(error, 'ai_models') || isMissingTableError(error, 'kid_description')) {
       return DEFAULT_AI_MODELS;
     }
 
@@ -101,3 +114,4 @@ export async function getAiModelById(modelId: string): Promise<AiModelCatalogIte
 export function getAiPointCost(model: AiModelCatalogItem, mode: 'create' | 'edit') {
   return mode === 'create' ? model.pointCostCreate : model.pointCostEdit;
 }
+

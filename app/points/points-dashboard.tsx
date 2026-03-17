@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import type { PointLedgerEntry, PointPackage } from '@/lib/points/service';
@@ -54,13 +54,13 @@ export default function PointsDashboard({ locale, initialBalance, initialLedger,
           setLedger(ledgerData.entries);
         }
 
-        setNotice(locale === 'ko' ? '포인트가 바로 지급되었어요.' : 'Points were added right away.');
+        setNotice(locale === 'ko' ? '포인트가 바로 추가되었어요.' : 'Points were added right away.');
         return;
       }
 
       setNotice(
         locale === 'ko'
-          ? '구매 주문이 생성되었어요. 실제 결제 연동 전까지는 자동 승인되지 않을 수 있어요.'
+          ? '구매 주문을 만들었어요. 실제 결제가 연결되기 전까지는 대기 상태로 남을 수 있어요.'
           : 'The purchase order was created. It may stay pending until a real payment integration is connected.'
       );
     } catch (cause) {
@@ -75,13 +75,13 @@ export default function PointsDashboard({ locale, initialBalance, initialLedger,
       <section className="panel-card points-balance-card">
         <p className="small-copy">{locale === 'ko' ? '현재 포인트' : 'Current points'}</p>
         <h2>{balance}</h2>
-        <p>{locale === 'ko' ? '게임 플레이, 리워드 광고, 포인트 구매로 모을 수 있어요.' : 'Earn points from gameplay, rewarded ads, and point purchases.'}</p>
+        <p>{locale === 'ko' ? '플레이, 리워드 광고, 포인트 구매로 포인트를 모을 수 있어요.' : 'Earn points from gameplay, rewarded ads, and point purchases.'}</p>
       </section>
 
       {notice ? <p className="admin-notice">{notice}</p> : null}
       {error ? <p className="error-text">{error}</p> : null}
 
-      <section className="points-package-grid">
+      <section className="points-package-grid points-package-grid-three">
         {packages.map((pointPackage) => (
           <article key={pointPackage.id} className="panel-card points-package-card">
             <h3>{pointPackage.name}</h3>
@@ -130,3 +130,4 @@ export default function PointsDashboard({ locale, initialBalance, initialLedger,
     </div>
   );
 }
+

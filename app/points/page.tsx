@@ -22,11 +22,12 @@ export default async function PointsPage() {
         <h1>{locale === 'ko' ? '포인트' : 'Points'}</h1>
         <p>
           {locale === 'ko'
-            ? 'AI로 게임을 만들거나 수정할 때 포인트를 사용하고, 플레이와 리워드 광고, 구매로 포인트를 모을 수 있어요.'
-            : 'Spend points on AI creation and editing, and earn them from gameplay, rewarded ads, and purchases.'}
+            ? 'AI로 게임을 만들거나 수정할 때 포인트를 쓰고, 플레이와 리워드 광고, 구매로 다시 모을 수 있어요.'
+            : 'Spend points on AI creation and editing, and earn them back from gameplay, rewarded ads, and purchases.'}
         </p>
       </section>
       <PointsDashboard locale={locale} initialBalance={balance} initialLedger={ledger} packages={packages} />
     </section>
   );
 }
+

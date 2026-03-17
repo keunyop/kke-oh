@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useMemo, useState } from 'react';
 import { getDictionary, type Locale } from '@/lib/i18n';
@@ -46,19 +46,19 @@ export default function LoginForm({ nextPath, locale }: { nextPath: string; loca
 
       const data = (await response.json()) as AuthResponse;
       if (!response.ok || !data.ok) {
-        throw new Error(data.error ?? 'Please try again.');
+        throw new Error(data.error ?? (locale === 'ko' ? '다시 시도해주세요.' : 'Please try again.'));
       }
 
       window.location.href = nextPath || '/';
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Please try again.');
+      setError(cause instanceof Error ? cause.message : locale === 'ko' ? '다시 시도해주세요.' : 'Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="login-card panel-card">
+    <div className="login-card panel-card auth-card-centered">
       <div className="tab-row auth-tabs">
         <button
           type="button"
@@ -76,14 +76,13 @@ export default function LoginForm({ nextPath, locale }: { nextPath: string; loca
         </button>
       </div>
 
-      <div className="panel-card-head">
-        <span className="pill-label">{t.common.login}</span>
+      <div className="panel-card-head auth-card-head">
         <h1>{title}</h1>
         <p>{description}</p>
       </div>
 
       <label className="field-label">
-        ID
+        <span>ID</span>
         <input
           value={loginId}
           onChange={(event) => setLoginId(event.target.value)}
@@ -94,7 +93,7 @@ export default function LoginForm({ nextPath, locale }: { nextPath: string; loca
       </label>
 
       <label className="field-label">
-        {locale === 'ko' ? '비밀번호' : 'Password'}
+        <span>{locale === 'ko' ? '비밀번호' : 'Password'}</span>
         <input
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -105,13 +104,12 @@ export default function LoginForm({ nextPath, locale }: { nextPath: string; loca
         />
       </label>
 
+      {error ? <p className="error-text auth-error-text">{error}</p> : null}
+
       <button type="button" className="button-primary button-fill" onClick={submit} disabled={isSubmitting}>
         {isSubmitting ? t.login.pending : mode === 'login' ? t.login.submitLogin : t.login.submitSignup}
       </button>
-
-      {error ? <p className="error-text">{error}</p> : null}
-
-      <p className="small-copy">{t.login.signupHint}</p>
     </div>
   );
 }
+

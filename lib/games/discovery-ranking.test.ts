@@ -1,6 +1,6 @@
-import test from 'node:test';
+﻿import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createDiscoveryGames, sortDiscoveryGames } from './discovery';
+import { createDiscoveryGames, filterDiscoveryGames, sortDiscoveryGames } from './discovery';
 import type { GameRecord } from './types';
 
 function buildGame(partial: Partial<GameRecord> & Pick<GameRecord, 'id' | 'title' | 'created_at'>): GameRecord {
@@ -53,3 +53,25 @@ test('sortDiscoveryGames prefers strong play and reaction signals over recency a
   const sorted = sortDiscoveryGames(games);
   assert.equal(sorted[0]?.id, 'popular');
 });
+
+test('filterDiscoveryGames only matches title and uploader name', () => {
+  const games = createDiscoveryGames([
+    buildGame({
+      id: 'maker-match',
+      title: 'Sky Runner',
+      uploader_name: 'Mina',
+      description: 'Puzzle practice project',
+      created_at: new Date().toISOString()
+    }),
+    buildGame({
+      id: 'description-only',
+      title: 'Color Lab',
+      uploader_name: 'Joon',
+      description: 'Made by Mina with puzzle ideas',
+      created_at: new Date().toISOString()
+    })
+  ]);
+
+  assert.deepEqual(filterDiscoveryGames(games, 'Mina', 'all').map((game) => game.id), ['maker-match']);
+});
+

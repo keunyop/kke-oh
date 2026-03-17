@@ -1,7 +1,7 @@
 ﻿'use client';
 
-import { useState } from 'react';
 import Image from 'next/image';
+import { useState } from 'react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { getPlaceholderThumbnailDataUrl } from '@/lib/games/placeholder';
 import { getGameAssetUrl } from '@/lib/games/urls';
@@ -19,6 +19,8 @@ type ApiResponse = {
   game?: GameRecord | null;
 };
 
+type OwnerAction = 'publish' | 'hide' | 'unhide' | 'delete';
+
 function getCopy(locale: Locale) {
   return locale === 'ko'
     ? {
@@ -28,7 +30,8 @@ function getCopy(locale: Locale) {
         preview: '미리보기',
         edit: '수정',
         publish: '게시하기',
-        unpublish: '초안으로 이동',
+        hide: '게시 숨기기',
+        unhide: '다시 공개',
         delete: '삭제',
         deleting: '처리 중...',
         public: '게시됨',
@@ -40,7 +43,7 @@ function getCopy(locale: Locale) {
         dislikes: '싫어요',
         plays: '플레이',
         deleteTitle: '게임 삭제',
-        deleteMessage: '이 게임을 삭제할까요?',
+        deleteMessage: '이 게임을 삭제할까요? 삭제 후에는 다시 복구할 수 없어요.',
         cancel: '취소'
       }
     : {
@@ -50,7 +53,8 @@ function getCopy(locale: Locale) {
         preview: 'Preview',
         edit: 'Edit',
         publish: 'Publish',
-        unpublish: 'Move to Drafts',
+        hide: 'Hide from Publish',
+        unhide: 'Show again',
         delete: 'Delete',
         deleting: 'Working...',
         public: 'Published',
@@ -62,7 +66,7 @@ function getCopy(locale: Locale) {
         dislikes: 'Dislikes',
         plays: 'Plays',
         deleteTitle: 'Delete game',
-        deleteMessage: 'Do you want to delete this game?',
+        deleteMessage: 'Delete this game? You cannot restore it later.',
         cancel: 'Cancel'
       };
 }
@@ -78,6 +82,19 @@ function getStatusLabel(game: GameRecord, copy: ReturnType<typeof getCopy>) {
   return copy.public;
 }
 
+function getPrimaryAction(game: GameRecord): Exclude<OwnerAction, 'delete'> {
+  if (game.status === 'DRAFT') return 'publish';
+  if (game.is_hidden) return 'unhide';
+  return 'hide';
+}
+
+function getPrimaryActionLabel(game: GameRecord, copy: ReturnType<typeof getCopy>) {
+  const action = getPrimaryAction(game);
+  if (action === 'publish') return copy.publish;
+  if (action === 'unhide') return copy.unhide;
+  return copy.hide;
+}
+
 export default function MyGamesPanel({ initialGames, locale }: Props) {
   const [games, setGames] = useState(initialGames);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -85,7 +102,7 @@ export default function MyGamesPanel({ initialGames, locale }: Props) {
   const [error, setError] = useState<string | null>(null);
   const copy = getCopy(locale);
 
-  async function runAction(gameId: string, action: 'publish' | 'unpublish' | 'delete') {
+  async function runAction(gameId: string, action: OwnerAction) {
     setPendingId(gameId);
     setError(null);
 
@@ -168,7 +185,7 @@ export default function MyGamesPanel({ initialGames, locale }: Props) {
           const statusLabel = getStatusLabel(game, copy);
           const isPending = pendingId === game.id;
           const isDraft = game.status === 'DRAFT';
-          const showDraftStyle = isDraft && !game.is_hidden;
+          const primaryAction = getPrimaryAction(game);
 
           return (
             <article key={game.id} className="panel-card my-game-card">
@@ -183,43 +200,33 @@ export default function MyGamesPanel({ initialGames, locale }: Props) {
                       {copy.createdAt}: {formatDate(game.created_at)}
                     </p>
                   </div>
-                  <span className={`my-game-status${showDraftStyle ? ' is-draft' : ''}`}>{statusLabel}</span>
+                  <span className={`my-game-status${isDraft && !game.is_hidden ? ' is-draft' : ''}`}>{statusLabel}</span>
                 </div>
                 <p>{game.description}</p>
                 <div className="game-card-stats">
-                  <span>
-                    {copy.likes} {game.like_count}
-                  </span>
-                  <span>
-                    {copy.dislikes} {game.dislike_count}
-                  </span>
-                  <span>
-                    {copy.plays} {Math.max(0, Math.round((game.plays_7d ?? 0) + (game.plays_30d ?? 0) * 0.2))}
-                  </span>
+                  <span>{copy.likes} {game.like_count}</span>
+                  <span>{copy.dislikes} {game.dislike_count}</span>
+                  <span>{copy.plays} {Math.max(0, Math.round((game.plays_7d ?? 0) + (game.plays_30d ?? 0) * 0.2))}</span>
                 </div>
                 <div className="button-row my-game-actions">
                   <a href={`/game/${game.slug}`} className="button-secondary">
                     {isDraft ? copy.preview : copy.open}
                   </a>
-                  {game.status !== 'REMOVED' ? (
-                    <a href={`/my-games/${game.id}/edit`} className="button-secondary">
-                      {copy.edit}
-                    </a>
-                  ) : null}
+                  {game.status !== 'REMOVED' ? <a href={`/my-games/${game.id}/edit`} className="button-secondary">{copy.edit}</a> : null}
                   {game.status !== 'REMOVED' ? (
                     <button
                       type="button"
-                      className="button-ghost"
-                      onClick={() => void runAction(game.id, isDraft ? 'publish' : 'unpublish')}
+                      className={primaryAction === 'hide' ? 'button-secondary' : 'button-ghost'}
+                      onClick={() => void runAction(game.id, primaryAction)}
                       disabled={isPending}
                     >
-                      {isPending ? copy.deleting : isDraft ? copy.publish : copy.unpublish}
+                      {isPending ? copy.deleting : getPrimaryActionLabel(game, copy)}
                     </button>
                   ) : null}
                   {game.status !== 'REMOVED' ? (
                     <button
                       type="button"
-                      className="button-ghost"
+                      className="button-ghost danger-button"
                       onClick={() => setConfirmingGameId(game.id)}
                       disabled={isPending}
                     >
@@ -235,3 +242,4 @@ export default function MyGamesPanel({ initialGames, locale }: Props) {
     </>
   );
 }
+

@@ -1,8 +1,9 @@
-import { getAuthStorageDir, getGameDataDriver } from '@/lib/config';
+﻿import { AuthError } from '@/lib/auth/errors';
 import { FilesystemAuthRepository } from '@/lib/auth/providers/filesystem';
 import { SupabaseAuthRepository } from '@/lib/auth/providers/supabase';
 import type { AuthUser } from '@/lib/auth/types';
 import { normalizeLoginId, sanitizeLoginId } from '@/lib/auth/utils';
+import { getAuthStorageDir, getGameDataDriver } from '@/lib/config';
 
 export interface AuthRepository {
   findUserByLoginId(loginId: string): Promise<AuthUser | null>;
@@ -46,11 +47,11 @@ export function getFilesystemAuthRepository(): AuthRepository {
 export function validateCredentials(loginId: string, password: string) {
   const safeLoginId = sanitizeLoginId(loginId);
   if (safeLoginId.length < 2 || safeLoginId.length > 24) {
-    throw new Error('ID는 2글자 이상 24글자 이하로 적어주세요.');
+    throw new AuthError('login_id_length');
   }
 
   if (password.length < 2 || password.length > 80) {
-    throw new Error('비밀번호는 2글자 이상 80글자 이하로 적어주세요.');
+    throw new AuthError('password_length');
   }
 
   return {
@@ -58,3 +59,4 @@ export function validateCredentials(loginId: string, password: string) {
     normalizedLoginId: normalizeLoginId(safeLoginId)
   };
 }
+

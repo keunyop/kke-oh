@@ -10,7 +10,10 @@ export default async function MyGamesPage({ searchParams }: { searchParams?: { n
   const locale = getRequestLocale();
   const user = await requireUser('/my-games');
   const games = await getGameRepository().listByUser(user.id);
-  const subtitle = locale === 'ko' ? '비공개 초안을 테스트하고, 준비가 되면 직접 게시할 수 있어요.' : 'Manage your private drafts, test them, and publish them when they are ready.';
+  const subtitle =
+    locale === 'ko'
+      ? '초안을 테스트하고, 공개한 게임은 숨기거나 다시 공개할 수 있어요.'
+      : 'Test your drafts, then hide or re-open published games whenever you need.';
 
   return (
     <section className="upload-page">
@@ -21,10 +24,13 @@ export default async function MyGamesPage({ searchParams }: { searchParams?: { n
       </section>
       {searchParams?.notice === 'created' ? (
         <p className="admin-notice">
-          {locale === 'ko' ? '새 게임 초안이 저장되었어요. 여기서 테스트하고 준비가 되면 게시할 수 있어요.' : 'Your new draft was saved. Test it here, then publish it when you are ready.'}
+          {locale === 'ko'
+            ? '새 게임 초안이 저장되었어요. 여기서 테스트하고 준비가 되면 게시해보세요.'
+            : 'Your new draft was saved. Test it here, then publish it when you are ready.'}
         </p>
       ) : null}
       <MyGamesPanel initialGames={games} locale={locale} />
     </section>
   );
 }
+

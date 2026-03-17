@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getDictionary, type Locale } from '@/lib/i18n';
 
 type Reaction = 'LIKE' | 'DISLIKE';
@@ -69,6 +69,34 @@ function ActionIcon({ type }: { type: 'LIKE' | 'DISLIKE' | 'FEEDBACK' | 'REPORT'
   return <svg viewBox="0 0 24 24" aria-hidden="true" className="action-icon-svg"><path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H11l-4 4v-4H7.5A2.5 2.5 0 0 1 5 12.5z" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 
+function ActionButton({
+  label,
+  active = false,
+  disabled = false,
+  onClick,
+  children
+}: {
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className={`button-secondary action-pill icon-action action-tooltip-trigger${active ? ' is-active' : ''}`}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      data-tooltip={label}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function GameActions({ gameId, title, initialLikeCount, initialDislikeCount, initialReaction = null, locale }: GameActionsProps) {
   const [likeCount, setLikeCount] = useState(initialLikeCount);
   const [dislikeCount, setDislikeCount] = useState(initialDislikeCount);
@@ -83,9 +111,9 @@ export function GameActions({ gameId, title, initialLikeCount, initialDislikeCou
   const [status, setStatus] = useState<string | null>(null);
   const canSubmitFeedback = useMemo(() => feedback.trim().length > 0 && !feedbackPending, [feedback, feedbackPending]);
   const t = getDictionary(locale);
-  const feedbackDescription = locale === 'ko' ? `${title} 게임의 개선 아이디어를 알려주세요.` : `Tell us what could be better in ${title}.`;
+  const feedbackDescription = locale === 'ko' ? `${title} 게임을 더 재미있게 만드는 아이디어를 알려주세요.` : `Tell us how to make ${title} even more fun.`;
   const reportTitle = locale === 'ko' ? '신고' : 'Report';
-  const reportDescription = locale === 'ko' ? `${title} 게임에서 검토가 필요한 문제를 알려주세요.` : `Tell us what should be reviewed in ${title}.`;
+  const reportDescription = locale === 'ko' ? `${title} 게임에서 확인이 필요한 점을 알려주세요.` : `Tell us what should be checked in ${title}.`;
   const reportPlaceholder = locale === 'ko' ? '신고 사유를 적어주세요.' : 'Tell us why this game should be reviewed.';
   const reportSent = locale === 'ko' ? '신고가 접수되었어요.' : 'The report was submitted.';
   const reportFailed = locale === 'ko' ? '신고를 보내지 못했어요.' : 'Could not submit the report.';
@@ -186,10 +214,24 @@ export function GameActions({ gameId, title, initialLikeCount, initialDislikeCou
   return (
     <>
       <div className="game-description-controls">
-        <button type="button" className={`button-secondary action-pill icon-action${activeReaction === 'LIKE' ? ' is-active' : ''}`} onClick={() => void submitReaction('LIKE')} disabled={Boolean(pendingReaction)} aria-label={t.common.likes}><ActionIcon type="LIKE" /><span className="sr-only">{t.common.likes}</span><span>{likeCount}</span></button>
-        <button type="button" className={`button-secondary action-pill icon-action${activeReaction === 'DISLIKE' ? ' is-active' : ''}`} onClick={() => void submitReaction('DISLIKE')} disabled={Boolean(pendingReaction)} aria-label={t.common.dislikes}><ActionIcon type="DISLIKE" /><span className="sr-only">{t.common.dislikes}</span><span>{dislikeCount}</span></button>
-        <button type="button" className="button-secondary action-pill icon-action" onClick={() => setFeedbackOpen((value) => !value)} aria-label={t.game.feedbackTitle}><ActionIcon type="FEEDBACK" /><span className="sr-only">{t.game.feedbackTitle}</span></button>
-        <button type="button" className="button-secondary action-pill icon-action" onClick={() => setReportOpen((value) => !value)} aria-label={reportTitle}><ActionIcon type="REPORT" /><span className="sr-only">{reportTitle}</span></button>
+        <ActionButton label={t.common.likes} active={activeReaction === 'LIKE'} disabled={Boolean(pendingReaction)} onClick={() => void submitReaction('LIKE')}>
+          <ActionIcon type="LIKE" />
+          <span className="sr-only">{t.common.likes}</span>
+          <span>{likeCount}</span>
+        </ActionButton>
+        <ActionButton label={t.common.dislikes} active={activeReaction === 'DISLIKE'} disabled={Boolean(pendingReaction)} onClick={() => void submitReaction('DISLIKE')}>
+          <ActionIcon type="DISLIKE" />
+          <span className="sr-only">{t.common.dislikes}</span>
+          <span>{dislikeCount}</span>
+        </ActionButton>
+        <ActionButton label={t.game.feedbackTitle} onClick={() => setFeedbackOpen((value) => !value)}>
+          <ActionIcon type="FEEDBACK" />
+          <span className="sr-only">{t.game.feedbackTitle}</span>
+        </ActionButton>
+        <ActionButton label={reportTitle} onClick={() => setReportOpen((value) => !value)}>
+          <ActionIcon type="REPORT" />
+          <span className="sr-only">{reportTitle}</span>
+        </ActionButton>
       </div>
 
       {feedbackOpen ? <div className="feedback-drawer-layer"><button type="button" className="feedback-drawer-backdrop" aria-label={t.common.close} onClick={() => setFeedbackOpen(false)} /><div className="panel-card game-feedback-card feedback-drawer" role="dialog" aria-labelledby="feedback-title"><h2 id="feedback-title">{t.game.feedbackTitle}</h2><p>{feedbackDescription}</p><textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} placeholder={t.game.feedbackPlaceholder} /><div className="button-row"><button type="button" className="button-primary" onClick={() => void submitFeedback()} disabled={!canSubmitFeedback}>{t.common.send}</button><button type="button" className="button-ghost" onClick={() => setFeedbackOpen(false)} disabled={feedbackPending}>{t.common.close}</button></div></div></div> : null}
@@ -206,6 +248,7 @@ export function GameFullscreenButton({ frameId, iframeId, locale }: GameFullscre
   const [isNativeFullscreen, setIsNativeFullscreen] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const t = getDictionary(locale);
+  const fullscreenLabel = locale === 'ko' ? '전체화면' : 'Fullscreen';
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -305,12 +348,15 @@ export function GameFullscreenButton({ frameId, iframeId, locale }: GameFullscre
     setIsFallbackFullscreen(true);
   };
 
+  const actionLabel = isNativeFullscreen || isFallbackFullscreen ? t.common.close : fullscreenLabel;
+
   return (
     <>
-      <button type="button" className="game-frame-float-button" onClick={() => void (isNativeFullscreen || isFallbackFullscreen ? exitFullscreen() : enterFullscreen())} aria-label={isNativeFullscreen || isFallbackFullscreen ? t.common.close : 'Fullscreen'}>
+      <button type="button" className="game-frame-float-button" onClick={() => void (isNativeFullscreen || isFallbackFullscreen ? exitFullscreen() : enterFullscreen())} aria-label={actionLabel} title={actionLabel}>
         <span aria-hidden="true">{isNativeFullscreen || isFallbackFullscreen ? '\u2715' : '\u26F6'}</span>
       </button>
       {status ? <p className="small-copy game-frame-status">{status}</p> : null}
     </>
   );
 }
+

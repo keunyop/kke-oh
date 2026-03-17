@@ -30,20 +30,15 @@ export const dictionaries = {
       tabLogin: '로그인',
       tabSignup: '회원가입',
       titleLogin: '다시 만나서 반가워요!',
-      titleSignup: '바로 시작해볼까요?',
-      descriptionLogin: 'ID와 비밀번호만 입력하면 바로 들어갈 수 있어요.',
-      descriptionSignup: 'ID와 비밀번호만 만들면 바로 시작할 수 있어요.',
+      titleSignup: '새 계정을 만들어요',
+      descriptionLogin: '로그인해서 게임을 만들고 이어서 플레이해요.',
+      descriptionSignup: 'ID와 비밀번호를 만들면 바로 시작할 수 있어요.',
       signupHint: '회원가입에는 ID와 비밀번호만 필요해요.',
       idPlaceholder: '예시: gamekid',
       passwordPlaceholder: '비밀번호를 입력해주세요',
       submitLogin: '로그인하기',
-      submitSignup: '회원가입하고 시작하기',
-      pending: '잠시만요...',
-      heroTitle: '아이들이 쉽게 쓰는 게임 놀이터',
-      heroDescription: '언어를 고르고 로그인한 뒤 게임을 만들고 함께 플레이해보세요.',
-      heroRule1: '한국어와 영어를 모두 지원해요.',
-      heroRule2: 'ID와 비밀번호만 있으면 바로 시작할 수 있어요.',
-      heroRule3: '로그인하면 게임 만들기가 열려요.'
+      submitSignup: '회원가입하기',
+      pending: '잠시만요...'
     },
     game: {
       unavailableTitle: '이 게임은 지금 볼 수 없어요.',
@@ -90,20 +85,15 @@ export const dictionaries = {
       tabLogin: 'Login',
       tabSignup: 'Sign Up',
       titleLogin: 'Welcome back!',
-      titleSignup: 'Ready to start?',
-      descriptionLogin: 'Just enter your ID and password.',
-      descriptionSignup: 'Create an ID and password to start right away.',
+      titleSignup: 'Create your account',
+      descriptionLogin: 'Log in to make games and keep playing.',
+      descriptionSignup: 'Choose an ID and password to get started right away.',
       signupHint: 'You only need an ID and password.',
       idPlaceholder: 'Example: gamekid',
       passwordPlaceholder: 'Enter a password',
       submitLogin: 'Log In',
-      submitSignup: 'Sign Up and Start',
-      pending: 'One moment...',
-      heroTitle: 'A game playground kids can use easily',
-      heroDescription: 'Pick a language, log in, create games, and start playing together.',
-      heroRule1: 'You can switch between Korean and English.',
-      heroRule2: 'You only need an ID and password.',
-      heroRule3: 'Creating games opens after login.'
+      submitSignup: 'Sign Up',
+      pending: 'One moment...'
     },
     game: {
       unavailableTitle: 'This game is unavailable right now.',
@@ -133,3 +123,4 @@ export function isLocale(value: string): value is Locale {
 export function getDictionary(locale: Locale) {
   return dictionaries[locale];
 }
+

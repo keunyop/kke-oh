@@ -1,4 +1,5 @@
-import crypto from 'node:crypto';
+﻿import crypto from 'node:crypto';
+import { AuthError } from '@/lib/auth/errors';
 import { hashPassword } from '@/lib/auth/password';
 import type { AuthRepository } from '@/lib/auth/repository';
 import type { AuthUser } from '@/lib/auth/types';
@@ -63,7 +64,7 @@ export class SupabaseAuthRepository implements AuthRepository {
 
     if (error) {
       if (error.message.includes('duplicate') || error.message.includes('unique')) {
-        throw new Error('이미 사용 중인 ID예요.');
+        throw new AuthError('duplicate_login_id');
       }
       throw new Error('Supabase auth tables are missing. Apply the latest migration first.');
     }
@@ -116,3 +117,4 @@ export class SupabaseAuthRepository implements AuthRepository {
     await supabase.from('app_sessions').delete().eq('session_token_hash', sha256(token));
   }
 }
+

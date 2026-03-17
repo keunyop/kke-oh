@@ -1,4 +1,4 @@
-import { getGameAssetUrl } from '@/lib/games/urls';
+﻿import { getGameAssetUrl } from '@/lib/games/urls';
 import { getPlaceholderThumbnailDataUrl } from '@/lib/games/placeholder';
 import type { GameRecord } from '@/lib/games/types';
 
@@ -150,9 +150,7 @@ export function filterDiscoveryGames(games: DiscoveryGame[], query: string, cate
   const normalizedCategory = category.trim().toLowerCase();
 
   return games.filter((game) => {
-    const matchesQuery =
-      !normalizedQuery ||
-      `${game.title} ${game.description} ${game.category} ${game.uploaderName}`.toLowerCase().includes(normalizedQuery);
+    const matchesQuery = !normalizedQuery || `${game.title} ${game.uploaderName}`.toLowerCase().includes(normalizedQuery);
     const matchesCategory = !normalizedCategory || normalizedCategory === 'all' || game.categorySlug === normalizedCategory;
     return matchesQuery && matchesCategory;
   });

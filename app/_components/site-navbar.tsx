@@ -1,5 +1,6 @@
 ﻿import { ClosableDetails } from '@/app/_components/closable-details';
 import { CurrentPageLoginLink } from '@/app/_components/current-page-login-link';
+import { SiteSearchForm } from '@/components/site/site-search-form';
 import { getCurrentUser } from '@/lib/auth';
 import { getDictionary, type Locale } from '@/lib/i18n';
 import { getUserPointBalance } from '@/lib/points/service';
@@ -26,8 +27,8 @@ export async function SiteNavbar({ search = '', locale }: NavbarProps) {
   const adminUser = isAdminUser(user);
   const pointBalance = user ? await getUserPointBalance(user.id).catch(() => 0) : null;
   const t = getDictionary(locale);
-  const profileMenuLabel = 'Profile menu';
-  const navigationMenuLabel = 'Open menu';
+  const profileMenuLabel = locale === 'ko' ? '프로필 메뉴' : 'Profile menu';
+  const navigationMenuLabel = locale === 'ko' ? '메뉴 열기' : 'Open menu';
   const mobileMenuText = locale === 'ko' ? '메뉴' : 'Menu';
   const logoutLabel = t.common.logout;
   const myGamesLabel = locale === 'ko' ? '내 게임' : 'My Games';
@@ -48,46 +49,39 @@ export async function SiteNavbar({ search = '', locale }: NavbarProps) {
         </a>
 
         <div className="nav-actions simple-actions nav-actions-desktop">
-          <form action="/" className="nav-search" role="search">
-            <input type="search" name="q" placeholder={t.common.searchPlaceholder} defaultValue={search} aria-label={t.common.searchPlaceholder} />
-          </form>
-          <a href="/submit" className="upload-link">
+          <SiteSearchForm className="nav-search" initialQuery={search} placeholder={t.common.searchPlaceholder} />
+          <a href="/submit" className="upload-link upload-link-cta">
             {t.common.uploadGame}
           </a>
           {user ? (
-            <>
-              <a href="/points" className="profile-pill profile-points-pill">
-                {pointsLabel} {pointBalance ?? 0}
-              </a>
-              <ClosableDetails
-                className="profile-menu"
-                summary={
-                  <summary className="profile-avatar" aria-label={profileMenuLabel}>
-                    <span>{getAvatarText(user.loginId)}</span>
-                  </summary>
-                }
-              >
-                <div className="profile-menu-card">
-                  <p className="profile-menu-name">{user.loginId}</p>
-                  <a href="/points" className="profile-menu-link">
-                    {pointsLabel} {pointBalance ?? 0}
+            <ClosableDetails
+              className="profile-menu"
+              summary={
+                <summary className="profile-avatar" aria-label={profileMenuLabel}>
+                  <span>{getAvatarText(user.loginId)}</span>
+                </summary>
+              }
+            >
+              <div className="profile-menu-card">
+                <p className="profile-menu-name">{user.loginId}</p>
+                <a href="/points" className="profile-menu-link">
+                  {pointsLabel} {pointBalance ?? 0}
+                </a>
+                {adminUser ? (
+                  <a href="/admin" className="profile-menu-link">
+                    {adminLabel}
                   </a>
-                  {adminUser ? (
-                    <a href="/admin" className="profile-menu-link">
-                      {adminLabel}
-                    </a>
-                  ) : null}
-                  <a href="/my-games" className="profile-menu-link">
-                    {myGamesLabel}
-                  </a>
-                  <form action="/api/auth/logout" method="post">
-                    <button type="submit" className="profile-menu-button">
-                      {logoutLabel}
-                    </button>
-                  </form>
-                </div>
-              </ClosableDetails>
-            </>
+                ) : null}
+                <a href="/my-games" className="profile-menu-link">
+                  {myGamesLabel}
+                </a>
+                <form action="/api/auth/logout" method="post">
+                  <button type="submit" className="profile-menu-button">
+                    {logoutLabel}
+                  </button>
+                </form>
+              </div>
+            </ClosableDetails>
           ) : (
             <CurrentPageLoginLink className="profile-pill">{t.common.login}</CurrentPageLoginLink>
           )}
@@ -108,9 +102,7 @@ export async function SiteNavbar({ search = '', locale }: NavbarProps) {
           }
         >
           <div className="mobile-nav-panel">
-            <form action="/" className="nav-search mobile-nav-search" role="search">
-              <input type="search" name="q" placeholder={t.common.searchPlaceholder} defaultValue={search} aria-label={t.common.searchPlaceholder} />
-            </form>
+            <SiteSearchForm className="nav-search mobile-nav-search" initialQuery={search} placeholder={t.common.searchPlaceholder} />
             <a href="/submit" className="upload-link mobile-nav-link">
               {t.common.uploadGame}
             </a>

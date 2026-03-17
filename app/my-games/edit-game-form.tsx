@@ -8,7 +8,7 @@ import { getPlaceholderThumbnailDataUrl } from '@/lib/games/placeholder';
 import type { GameRecord } from '@/lib/games/types';
 import type { Locale } from '@/lib/i18n';
 
-type EditMode = 'html' | 'zip' | 'ai';
+type EditMode = 'ai' | 'html' | 'zip';
 
 type Props = {
   game: GameRecord;
@@ -26,6 +26,7 @@ type AiModel = {
   id: string;
   label: string;
   modelName: string;
+  kidDescription?: string;
   pointCostEdit: number;
 };
 
@@ -105,7 +106,16 @@ function FileDropzone({
           <span>
             {locale === 'ko' ? '선택한 파일' : 'Selected file'}: {file.name}
           </span>
-          <button type="button" className="button-ghost file-dropzone-clear" onClick={() => { onFileChange(null); if (inputRef.current) inputRef.current.value = ''; }}>
+          <button
+            type="button"
+            className="button-ghost file-dropzone-clear"
+            onClick={() => {
+              onFileChange(null);
+              if (inputRef.current) {
+                inputRef.current.value = '';
+              }
+            }}
+          >
             {locale === 'ko' ? '파일 비우기' : 'Remove file'}
           </button>
         </div>
@@ -134,6 +144,7 @@ export function EditGameForm({ game, locale }: Props) {
   const [currentGame, setCurrentGame] = useState(game);
   const [aiProgressStep, setAiProgressStep] = useState(0);
   const [aiProgressDots, setAiProgressDots] = useState(1);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const htmlInputRef = useRef<HTMLInputElement>(null);
   const zipInputRef = useRef<HTMLInputElement>(null);
@@ -145,6 +156,7 @@ export function EditGameForm({ game, locale }: Props) {
 
   useEffect(() => {
     let cancelled = false;
+
     async function loadModels() {
       try {
         const response = await fetch('/api/ai/models', { cache: 'no-store' });
@@ -152,16 +164,26 @@ export function EditGameForm({ game, locale }: Props) {
         if (!response.ok || !data.models?.length) {
           throw new Error(data.error ?? 'Could not load AI models.');
         }
-        if (cancelled) return;
+
+        if (cancelled) {
+          return;
+        }
+
         setModels(data.models);
         setModelId(data.models[0]?.id ?? '');
         setPointBalance(data.balance ?? 0);
       } catch (cause) {
-        if (!cancelled) setError(cause instanceof Error ? cause.message : 'Could not load AI models.');
+        if (!cancelled) {
+          setError(cause instanceof Error ? cause.message : 'Could not load AI models.');
+        }
       }
     }
+
     void loadModels();
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -170,8 +192,10 @@ export function EditGameForm({ game, locale }: Props) {
       setAiProgressDots(1);
       return;
     }
+
     const timers = AI_PROGRESS_STEP_DELAYS.map((delay, index) => window.setTimeout(() => setAiProgressStep(index + 1), delay));
     const dotsTimer = window.setInterval(() => setAiProgressDots((current) => (current % 3) + 1), 420);
+
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
       window.clearInterval(dotsTimer);
@@ -241,9 +265,9 @@ export function EditGameForm({ game, locale }: Props) {
   }
 
   const modeCards: Array<{ key: EditMode; title: string; hint: string }> = [
+    { key: 'ai', title: locale === 'ko' ? 'AI로 수정' : 'Edit with AI', hint: locale === 'ko' ? 'AI에게 바꿀 내용을 적어주세요. 고급 설정에서 모델을 고를 수 있어요.' : 'Describe the changes and open advanced settings to pick a model.' },
     { key: 'html', title: locale === 'ko' ? 'HTML로 수정' : 'Replace with HTML', hint: locale === 'ko' ? '새 HTML 파일로 게임을 바꿔요. 파일 없이 제목, 설명, 썸네일만 바꿔도 돼요.' : 'Replace the game with a new HTML file, or just update the metadata.' },
-    { key: 'zip', title: locale === 'ko' ? 'ZIP으로 수정' : 'Replace with ZIP', hint: locale === 'ko' ? '새 ZIP 파일로 게임 전체를 바꿔요. 파일 없이 메타데이터만 수정해도 돼요.' : 'Replace the full game with a new ZIP, or just update the metadata.' },
-    { key: 'ai', title: locale === 'ko' ? 'AI로 수정' : 'Edit with AI', hint: locale === 'ko' ? 'AI 모델을 고르고 수정 요청을 적어주세요.' : 'Choose an AI model and describe the changes you want.' }
+    { key: 'zip', title: locale === 'ko' ? 'ZIP으로 수정' : 'Replace with ZIP', hint: locale === 'ko' ? '새 ZIP 파일로 게임 전체를 바꿔요. 파일 없이 메타데이터만 수정해도 돼요.' : 'Replace the full game with a new ZIP, or just update the metadata.' }
   ];
 
   return (
@@ -256,18 +280,14 @@ export function EditGameForm({ game, locale }: Props) {
           <p className="small-copy">{locale === 'ko' ? '현재 게임' : 'Current game'}</p>
           <h2>{currentGame.title}</h2>
           <p>{currentGame.description}</p>
-          <p className="small-copy">{locale === 'ko' ? '현재 링크' : 'Current link'}: {gameUrl}</p>
+          <p className="small-copy">
+            {locale === 'ko' ? '현재 링크' : 'Current link'}: {gameUrl}
+          </p>
         </div>
       </div>
 
-      <div className="submit-main-mode-grid edit-mode-grid">
-        {modeCards.map((item) => (
-          <button key={item.key} type="button" className={`submit-choice-card${mode === item.key ? ' is-active' : ''}`} onClick={() => { setMode(item.key); setError(null); setSuccess(null); }}>
-            <strong>{item.title}</strong>
-            <span>{item.hint}</span>
-          </button>
-        ))}
-      </div>
+      {error ? <p className="error-text">{error}</p> : null}
+      {success ? <p className="admin-notice">{success}</p> : null}
 
       <div className="submit-section-stack">
         <label className="field-label">
@@ -282,48 +302,129 @@ export function EditGameForm({ game, locale }: Props) {
 
         <label className="field-label">
           <span>{locale === 'ko' ? 'KKE-OH 리더보드 사용' : 'Use KKE-OH leaderboard'}</span>
-          <span className="toggle-row"><input type="checkbox" checked={leaderboardEnabled} onChange={(event) => setLeaderboardEnabled(event.target.checked)} /><span className="small-copy">{locale === 'ko' ? '수동 업로드 게임도 점수를 저장할 수 있게 연결해요.' : 'Allow this game to submit scores to the shared leaderboard.'}</span></span>
+          <span className="toggle-row">
+            <input type="checkbox" checked={leaderboardEnabled} onChange={(event) => setLeaderboardEnabled(event.target.checked)} />
+            <span className="small-copy">{locale === 'ko' ? '수동 업로드 게임도 점수를 저장할 수 있게 연결해요.' : 'Allow this game to submit scores to the shared leaderboard.'}</span>
+          </span>
         </label>
 
-        <FileDropzone inputId="edit-thumbnail-upload" accept="image/png,image/jpeg,image/webp" label={locale === 'ko' ? '썸네일 이미지' : 'Thumbnail'} hint={locale === 'ko' ? '비워 두면 현재 썸네일을 유지해요.' : 'Leave it empty to keep the current thumbnail.'} file={thumbnailFile} onFileChange={setThumbnailFile} inputRef={thumbnailInputRef} locale={locale} />
+        <FileDropzone
+          inputId="edit-thumbnail-upload"
+          accept="image/png,image/jpeg,image/webp"
+          label={locale === 'ko' ? '썸네일 이미지' : 'Thumbnail image'}
+          hint={locale === 'ko' ? '비워 두면 현재 썸네일을 유지해요.' : 'Leave it empty to keep the current thumbnail.'}
+          file={thumbnailFile}
+          onFileChange={setThumbnailFile}
+          inputRef={thumbnailInputRef}
+          locale={locale}
+        />
 
-        {mode === 'html' ? <FileDropzone inputId="edit-html-upload" accept=".html,.htm,text/html" label={locale === 'ko' ? '새 HTML 파일' : 'New HTML file'} hint={locale === 'ko' ? '파일 없이 저장하면 제목, 설명, 썸네일만 바뀌어요.' : 'If you save without a file, only the metadata will change.'} file={htmlFile} onFileChange={setHtmlFile} inputRef={htmlInputRef} locale={locale} /> : null}
-        {mode === 'zip' ? <FileDropzone inputId="edit-zip-upload" accept=".zip,application/zip" label={locale === 'ko' ? '새 ZIP 파일' : 'New ZIP file'} hint={locale === 'ko' ? '파일 없이 저장하면 제목, 설명, 썸네일만 바뀌어요.' : 'If you save without a file, only the metadata will change.'} file={zipFile} onFileChange={setZipFile} inputRef={zipInputRef} locale={locale} /> : null}
+        <div className="submit-main-mode-grid edit-mode-grid">
+          {modeCards.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={`submit-choice-card${mode === item.key ? ' is-active' : ''}`}
+              onClick={() => {
+                setMode(item.key);
+                setError(null);
+                setSuccess(null);
+              }}
+            >
+              <strong>{item.title}</strong>
+              <span>{item.hint}</span>
+            </button>
+          ))}
+        </div>
 
         {mode === 'ai' ? (
-          <>
-            <div className="submit-inline-grid">
-              <label className="field-label">
-                <span>{locale === 'ko' ? 'AI 모델' : 'AI model'}</span>
-                <select value={modelId} onChange={(event) => setModelId(event.target.value)} disabled={pending}>
-                  {models.map((model) => <option key={model.id} value={model.id}>{model.label} · {model.modelName}</option>)}
-                </select>
-              </label>
-              <div className="status-card submit-cost-card">
-                <p className="small-copy">{locale === 'ko' ? '현재 포인트' : 'Current points'}</p>
-                <strong>{pointBalance}</strong>
-                <p className="small-copy">{locale === 'ko' ? '예상 차감' : 'Expected cost'}</p>
-                <strong>{aiPointCost}</strong>
-              </div>
-            </div>
+          <div className="submit-section-stack">
             <label className="field-label">
               <span>{locale === 'ko' ? 'AI에게 바꿀 내용을 알려주세요' : 'Tell AI what to change'}</span>
-              <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={4} maxLength={1200} placeholder={locale === 'ko' ? '예시: 장애물을 더 쉽게 하고 큰 점수판을 추가해줘.' : 'Example: Make the obstacles easier and add a bigger score board.'} />
+              <textarea
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                rows={4}
+                maxLength={1200}
+                placeholder={locale === 'ko' ? '예시: 장애물을 더 쉽게 하고 큰 점수판을 추가해줘.' : 'Example: Make the obstacles easier and add a bigger score board.'}
+              />
             </label>
+
+            <button type="button" className="button-ghost submit-advanced-toggle" onClick={() => setAdvancedOpen((current) => !current)}>
+              {advancedOpen ? (locale === 'ko' ? '고급 설정 닫기' : 'Hide advanced settings') : (locale === 'ko' ? '고급 설정 열기' : 'Show advanced settings')}
+            </button>
+
+            {advancedOpen ? (
+              <div className="status-card submit-advanced-card">
+                <div className="submit-inline-grid">
+                  <label className="field-label">
+                    <span>{locale === 'ko' ? 'AI 모델' : 'AI model'}</span>
+                    <select value={modelId} onChange={(event) => setModelId(event.target.value)} disabled={pending}>
+                      {models.map((model) => (
+                        <option key={model.id} value={model.id}>
+                          {model.label} · {model.modelName}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="small-copy upload-input-hint">
+                      {selectedModel?.kidDescription ?? (locale === 'ko' ? '모델 설명을 불러오는 중이에요.' : 'Loading model description...')}
+                    </span>
+                  </label>
+
+                  <div className="status-card submit-cost-card">
+                    <p className="small-copy">{locale === 'ko' ? '현재 포인트' : 'Current points'}</p>
+                    <strong>{pointBalance}</strong>
+                    <p className="small-copy">{locale === 'ko' ? '예상 차감' : 'Expected cost'}</p>
+                    <strong>{aiPointCost}</strong>
+                    <p className="small-copy">
+                      {locale === 'ko' ? '이 작업을 바로 진행할 수 있는지 알려줘요.' : 'This shows whether you can run the update now.'}
+                    </p>
+                    {aiPointShortage ? <p className="small-copy error-text">{locale === 'ko' ? '포인트가 부족해요. 포인트를 충전한 뒤 다시 시도해주세요.' : 'You do not have enough points yet. Please top up and try again.'}</p> : null}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             {pending ? <AiProgressCard title={locale === 'ko' ? 'AI가 게임을 수정하고 있어요' : 'AI is updating your game'} detail={locale === 'ko' ? ['요청 내용을 정리하고 있어요.', '현재 게임을 분석하고 있어요.', '새 규칙과 연출을 만들고 있어요.', '저장 전에 최종 점검을 하고 있어요.', '수정 결과를 저장하고 있어요.'] : ['Understanding your change request.', 'Analyzing the current game.', 'Generating updated rules and presentation.', 'Running final checks before saving.', 'Saving the updated result.']} step={aiProgressStep} dots={aiProgressDots} /> : null}
-            {aiPointShortage ? <p className="error-text">{locale === 'ko' ? '포인트가 부족해요. 포인트를 충전한 뒤 다시 시도해주세요.' : 'You do not have enough points. Please top up and try again.'}</p> : null}
-          </>
+          </div>
+        ) : null}
+
+        {mode === 'html' ? (
+          <FileDropzone
+            inputId="edit-html-upload"
+            accept=".html,.htm,text/html"
+            label={locale === 'ko' ? '새 HTML 파일' : 'New HTML file'}
+            hint={locale === 'ko' ? '파일 없이 저장하면 제목, 설명, 썸네일만 바뀌어요.' : 'If you save without a file, only the metadata will change.'}
+            file={htmlFile}
+            onFileChange={setHtmlFile}
+            inputRef={htmlInputRef}
+            locale={locale}
+          />
+        ) : null}
+
+        {mode === 'zip' ? (
+          <FileDropzone
+            inputId="edit-zip-upload"
+            accept=".zip,application/zip"
+            label={locale === 'ko' ? '새 ZIP 파일' : 'New ZIP file'}
+            hint={locale === 'ko' ? '파일 없이 저장하면 제목, 설명, 썸네일만 바뀌어요.' : 'If you save without a file, only the metadata will change.'}
+            file={zipFile}
+            onFileChange={setZipFile}
+            inputRef={zipInputRef}
+            locale={locale}
+          />
         ) : null}
 
         <div className="button-row">
-          <button type="button" className="button-primary button-fill" onClick={() => void submit()} disabled={pending || aiPointShortage}>{pending ? (locale === 'ko' ? '저장 중...' : 'Saving...') : (locale === 'ko' ? '변경 저장' : 'Save changes')}</button>
-          <a href={gameUrl} className="button-secondary">{locale === 'ko' ? '게임 열기' : 'Open game'}</a>
-          <a href="/my-games" className="button-secondary">{locale === 'ko' ? '내 게임으로' : 'Back to My Games'}</a>
+          <button type="button" className="button-primary button-fill" onClick={() => void submit()} disabled={pending || aiPointShortage}>
+            {pending ? (locale === 'ko' ? '저장 중...' : 'Saving...') : (locale === 'ko' ? '변경 저장' : 'Save changes')}
+          </button>
+          <a href="/my-games" className="button-secondary">
+            {locale === 'ko' ? '취소' : 'Cancel'}
+          </a>
         </div>
       </div>
-
-      {error ? <p className="error-text">{error}</p> : null}
-      {success ? <p className="admin-notice">{success}</p> : null}
     </section>
   );
 }
+

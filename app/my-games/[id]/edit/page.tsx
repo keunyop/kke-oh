@@ -18,14 +18,15 @@ export default async function EditGamePage({ params }: { params: { id: string } 
   return (
     <section className="upload-page">
       <section className="panel-card">
-        <h1>{locale === 'ko' ? '게임 수정하기' : 'Edit Game'}</h1>
+        <h1>{locale === 'ko' ? '게임 수정' : 'Edit game'}</h1>
         <p>
           {locale === 'ko'
-            ? '제목, 설명, 썸네일을 바꾸거나 새 파일 또는 AI로 게임 내용을 다시 만들 수 있어요.'
-            : 'Change the title, description, thumbnail, or rebuild the game with new files or AI.'}
+            ? '게임 이름, 설명, 썸네일을 바꾸고 필요하면 AI나 새 파일로 게임 내용을 다시 만들 수 있어요.'
+            : 'Update the game name, description, or thumbnail, and rebuild the game with AI or new files when needed.'}
         </p>
       </section>
       <EditGameForm game={game} locale={locale} />
     </section>
   );
 }
+

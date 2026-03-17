@@ -5,7 +5,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { getGameRepository } from '@/lib/games/repository';
 
 const bodySchema = z.object({
-  action: z.enum(['publish', 'unpublish', 'delete'])
+  action: z.enum(['publish', 'hide', 'unhide', 'delete'])
 });
 
 export async function POST(request: Request, context: { params: { id: string } }) {
@@ -30,8 +30,10 @@ export async function POST(request: Request, context: { params: { id: string } }
     let ok = false;
     if (body.action === 'publish') {
       ok = await repository.publish(game.id);
-    } else if (body.action === 'unpublish') {
-      ok = await repository.unpublish(game.id);
+    } else if (body.action === 'hide') {
+      ok = await repository.hide(game.id, 'Hidden by owner');
+    } else if (body.action === 'unhide') {
+      ok = await repository.unhide(game.id);
     } else {
       ok = await repository.remove(game.id, 'Removed by owner');
     }

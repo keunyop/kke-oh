@@ -1,7 +1,9 @@
-'use client';
+﻿'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { getPlaceholderThumbnailDataUrl } from '@/lib/games/placeholder';
 import { getGameAssetUrl } from '@/lib/games/urls';
 import type { GameRecord } from '@/lib/games/types';
 import type { Locale } from '@/lib/i18n';
@@ -26,52 +28,52 @@ type AdminActionResponse = {
 function getCopy(locale: Locale) {
   return locale === 'ko'
     ? {
-        summaryTotal: '\uC804\uCCB4 \uAC8C\uC784',
-        summaryVisible: '\uACF5\uAC1C \uC911',
-        summaryHidden: '\uC228\uAE40',
-        summaryReported: '\uC2E0\uACE0 \uBC1B\uC74C',
-        summaryRemoved: '\uC0AD\uC81C\uB428',
-        toolbarTitle: '\uBE60\uB978 \uD544\uD130',
-        searchPlaceholder: '\uC81C\uBAA9, \uC791\uC131\uC790, ID\uB85C \uCC3E\uAE30',
-        refresh: '\uC0C8\uB85C\uACE0\uCE68',
-        refreshing: '\uBD88\uB7EC\uC624\uB294 \uC911...',
-        empty: '\uC870\uAC74\uC5D0 \uB9DE\uB294 \uAC8C\uC784\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
-        uploader: '\uC791\uC131\uC790',
+        summaryTotal: '전체 게임',
+        summaryVisible: '공개 중',
+        summaryHidden: '숨김',
+        summaryReported: '신고 받음',
+        summaryRemoved: '삭제됨',
+        searchPlaceholder: '제목, 작성자, 게임 ID로 찾기',
+        refresh: '새로고침',
+        refreshing: '불러오는 중...',
+        empty: '조건에 맞는 게임이 없어요.',
+        uploader: '작성자',
         gameId: 'Game ID',
-        createdAt: '\uB4F1\uB85D',
-        updatedAt: '\uC218\uC815',
-        reports: '\uC2E0\uACE0',
-        likes: '\uC88B\uC544\uC694',
-        dislikes: '\uC2EB\uC5B4\uC694',
-        plays: '\uD50C\uB808\uC774',
-        hiddenReason: '\uC228\uAE40 \uC0AC\uC720',
-        preview: '\uBBF8\uB9AC\uBCF4\uAE30',
-        page: '\uAC8C\uC784 \uD398\uC774\uC9C0',
-        hide: '\uC228\uAE30\uAE30',
-        unhide: '\uB2E4\uC2DC \uACF5\uAC1C',
-        remove: '\uC0AD\uC81C',
-        removed: '\uC0AD\uC81C\uB428',
-        pending: '\uCC98\uB9AC \uC911...',
-        confirmDelete: '\uC774 \uAC8C\uC784\uC744 \uC0AD\uC81C \uCC98\uB9AC\uD560\uAE4C\uC694?',
-        successHide: '\uAC8C\uC784\uC744 \uC228\uAE40 \uCC98\uB9AC\uD588\uC2B5\uB2C8\uB2E4.',
-        successUnhide: '\uAC8C\uC784\uC744 \uB2E4\uC2DC \uACF5\uAC1C\uD588\uC2B5\uB2C8\uB2E4.',
-        successDelete: '\uAC8C\uC784\uC744 \uC0AD\uC81C \uCC98\uB9AC\uD588\uC2B5\uB2C8\uB2E4.',
-        visible: '\uACF5\uAC1C',
-        hidden: '\uC228\uAE40',
-        reported: '\uC2E0\uACE0 \uC788\uC74C',
-        flagged: 'CDN Flag',
-        all: '\uC804\uCCB4',
-        filterVisible: '\uACF5\uAC1C',
-        filterHidden: '\uC228\uAE40',
-        filterReported: '\uC2E0\uACE0',
-        filterFlagged: '\uD50C\uB798\uADF8',
-        filterRemoved: '\uC0AD\uC81C\uB428',
-        removedStatus: '\uC0AD\uC81C\uB428',
-        draftStatus: '\uCD08\uC548',
-        publicStatus: '\uACF5\uAC1C',
-        hiddenStatus: '\uBE44\uACF5\uAC1C',
-        reviewHint: '\uC2E0\uACE0 \uB610\uB294 CDN \uD50C\uB798\uADF8 \uC0C1\uD0DC\uB97C \uC6B0\uC120 \uD655\uC778\uD574 \uC8FC\uC138\uC694.',
-        signedIn: '\uAD00\uB9AC \uACC4\uC815'
+        createdAt: '등록',
+        updatedAt: '수정',
+        reports: '신고',
+        likes: '좋아요',
+        dislikes: '싫어요',
+        plays: '플레이',
+        hiddenReason: '숨김 사유',
+        preview: '미리보기',
+        page: '게임 페이지',
+        hide: '숨기기',
+        unhide: '다시 공개',
+        remove: '삭제',
+        removed: '삭제됨',
+        pending: '처리 중...',
+        confirmDelete: '이 게임을 삭제 처리할까요?',
+        successHide: '게임을 숨겼어요.',
+        successUnhide: '게임을 다시 공개했어요.',
+        successDelete: '게임을 삭제 처리했어요.',
+        reported: '신고 있음',
+        flagged: '플래그',
+        all: '전체',
+        filterVisible: '공개',
+        filterHidden: '숨김',
+        filterReported: '신고',
+        filterFlagged: '플래그',
+        filterRemoved: '삭제됨',
+        removedStatus: '삭제됨',
+        draftStatus: '초안',
+        publicStatus: '공개',
+        hiddenStatus: '숨김',
+        reviewHint: '신고나 플래그가 있는 항목부터 먼저 확인해 주세요.',
+        leaderboard: '리더보드',
+        leaderboardOn: '켜짐',
+        leaderboardOff: '꺼짐',
+        signedIn: '관리 계정'
       }
     : {
         summaryTotal: 'Total games',
@@ -79,7 +81,6 @@ function getCopy(locale: Locale) {
         summaryHidden: 'Hidden',
         summaryReported: 'Reported',
         summaryRemoved: 'Removed',
-        toolbarTitle: 'Quick filters',
         searchPlaceholder: 'Search by title, creator, or game ID',
         refresh: 'Refresh',
         refreshing: 'Refreshing...',
@@ -93,21 +94,19 @@ function getCopy(locale: Locale) {
         dislikes: 'Dislikes',
         plays: 'Plays',
         hiddenReason: 'Hidden reason',
-        preview: 'Preview build',
-        page: 'Open game page',
+        preview: 'Preview',
+        page: 'Game page',
         hide: 'Hide',
-        unhide: 'Unhide',
+        unhide: 'Show again',
         remove: 'Delete',
         removed: 'Removed',
         pending: 'Working...',
-        confirmDelete: 'Delete this game from the public catalog?',
-        successHide: 'The game is now hidden.',
-        successUnhide: 'The game is visible again.',
+        confirmDelete: 'Delete this game?',
+        successHide: 'The game is hidden.',
+        successUnhide: 'The game is public again.',
         successDelete: 'The game has been removed.',
-        visible: 'Visible',
-        hidden: 'Hidden',
         reported: 'Reported',
-        flagged: 'CDN Flag',
+        flagged: 'Flagged',
         all: 'All',
         filterVisible: 'Visible',
         filterHidden: 'Hidden',
@@ -118,8 +117,11 @@ function getCopy(locale: Locale) {
         draftStatus: 'Draft',
         publicStatus: 'Public',
         hiddenStatus: 'Hidden',
-        reviewHint: 'Prioritize items that have reports or CDN flags.',
-        signedIn: 'Signed in as admin'
+        reviewHint: 'Prioritize items with reports or flags.',
+        leaderboard: 'Leaderboard',
+        leaderboardOn: 'On',
+        leaderboardOff: 'Off',
+        signedIn: 'Admin account'
       };
 }
 
@@ -132,26 +134,11 @@ function getPlayScore(game: GameRecord) {
 }
 
 function matchesFilter(game: GameRecord, filter: FilterKey) {
-  if (filter === 'visible') {
-    return game.status === 'PUBLIC' && !game.is_hidden;
-  }
-
-  if (filter === 'hidden') {
-    return game.is_hidden && game.status !== 'REMOVED';
-  }
-
-  if (filter === 'reported') {
-    return game.report_count > 0;
-  }
-
-  if (filter === 'flagged') {
-    return game.allowlist_violation;
-  }
-
-  if (filter === 'removed') {
-    return game.status === 'REMOVED';
-  }
-
+  if (filter === 'visible') return game.status === 'PUBLIC' && !game.is_hidden;
+  if (filter === 'hidden') return game.is_hidden && game.status !== 'REMOVED';
+  if (filter === 'reported') return game.report_count > 0;
+  if (filter === 'flagged') return game.allowlist_violation;
+  if (filter === 'removed') return game.status === 'REMOVED';
   return true;
 }
 
@@ -189,16 +176,7 @@ export default function AdminDashboard({ initialGames, locale, adminLoginId }: P
       return true;
     }
 
-    const haystack = [
-      game.id,
-      game.title,
-      game.description,
-      game.uploader_name,
-      game.hidden_reason ?? ''
-    ]
-      .join(' ')
-      .toLowerCase();
-
+    const haystack = [game.id, game.title, game.description, game.uploader_name, game.hidden_reason ?? ''].join(' ').toLowerCase();
     return haystack.includes(normalizedQuery);
   });
 
@@ -295,20 +273,12 @@ export default function AdminDashboard({ initialGames, locale, adminLoginId }: P
       }
 
       patchGame(game.id, action);
-      setNotice(
-        action === 'hide' ? copy.successHide : action === 'unhide' ? copy.successUnhide : copy.successDelete
-      );
+      setNotice(action === 'hide' ? copy.successHide : action === 'unhide' ? copy.successUnhide : copy.successDelete);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Admin action failed.');
     } finally {
       setPendingId(null);
     }
-  }
-
-  function requestDelete(game: GameRecord) {
-    setConfirmingGame(game);
-    setError(null);
-    setNotice(null);
   }
 
   return (
@@ -324,28 +294,14 @@ export default function AdminDashboard({ initialGames, locale, adminLoginId }: P
 
       <section className="panel-card admin-toolbar">
         <div className="admin-toolbar-copy">
-          <span className="pill-label">{copy.toolbarTitle}</span>
           <h2>{copy.reviewHint}</h2>
-          <p>
-            {copy.signedIn}: {adminLoginId}
-          </p>
+          <p>{copy.signedIn}: {adminLoginId}</p>
         </div>
         <div className="admin-toolbar-controls">
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={copy.searchPlaceholder}
-            aria-label={copy.searchPlaceholder}
-          />
+          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={copy.searchPlaceholder} aria-label={copy.searchPlaceholder} />
           <div className="admin-filter-row">
             {filters.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={`button-ghost admin-filter${filter === item.key ? ' is-active' : ''}`}
-                onClick={() => setFilter(item.key)}
-              >
+              <button key={item.key} type="button" className={`button-ghost admin-filter${filter === item.key ? ' is-active' : ''}`} onClick={() => setFilter(item.key)}>
                 {item.label}
               </button>
             ))}
@@ -384,52 +340,34 @@ export default function AdminDashboard({ initialGames, locale, adminLoginId }: P
             const isPending = pendingId === game.id;
             const showPreview = game.entry_path !== '';
             const showGamePageLink = game.status === 'PUBLIC' && !game.is_hidden;
+            const imageUrl = game.thumbnail_path ? getGameAssetUrl(game.id, game.thumbnail_path) : getPlaceholderThumbnailDataUrl(game.title);
 
             return (
               <article key={game.id} className="panel-card admin-game-card">
                 <div className="admin-game-head">
-                  <div>
+                  <div className="admin-game-media">
+                    <Image src={imageUrl} alt={game.title} fill className="game-card-image" unoptimized />
+                  </div>
+                  <div className="admin-game-copy">
                     <div className="admin-chip-row">
                       <span className="admin-chip admin-chip-status">{statusLabel}</span>
                       {game.report_count > 0 ? <span className="admin-chip">{copy.reported}</span> : null}
                       {game.allowlist_violation ? <span className="admin-chip admin-chip-warning">{copy.flagged}</span> : null}
+                      <span className="admin-chip">{copy.leaderboard} {game.leaderboard_enabled ? copy.leaderboardOn : copy.leaderboardOff}</span>
                     </div>
                     <h2>{game.title}</h2>
                     <p>{game.description || game.id}</p>
                   </div>
                   <div className="admin-card-actions">
-                    {showPreview ? (
-                      <a
-                        href={getGameAssetUrl(game.id, game.entry_path)}
-                        className="button-secondary"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {copy.preview}
-                      </a>
-                    ) : null}
-                    {showGamePageLink ? (
-                      <a href={`/game/${game.slug}`} className="button-secondary" target="_blank" rel="noreferrer">
-                        {copy.page}
-                      </a>
-                    ) : null}
+                    {showPreview ? <a href={getGameAssetUrl(game.id, game.entry_path)} className="button-secondary" target="_blank" rel="noreferrer">{copy.preview}</a> : null}
+                    {showGamePageLink ? <a href={`/game/${game.slug}`} className="button-secondary" target="_blank" rel="noreferrer">{copy.page}</a> : null}
                     {game.status !== 'REMOVED' ? (
-                      <button
-                        type="button"
-                        className="button-ghost"
-                        onClick={() => void runAction(game, game.is_hidden ? 'unhide' : 'hide')}
-                        disabled={isPending}
-                      >
+                      <button type="button" className="button-ghost" onClick={() => void runAction(game, game.is_hidden ? 'unhide' : 'hide')} disabled={isPending}>
                         {isPending ? copy.pending : game.is_hidden ? copy.unhide : copy.hide}
                       </button>
                     ) : null}
                     {game.status !== 'REMOVED' ? (
-                      <button
-                        type="button"
-                        className="button-ghost admin-danger-button"
-                        onClick={() => requestDelete(game)}
-                        disabled={isPending}
-                      >
+                      <button type="button" className="button-ghost danger-button" onClick={() => setConfirmingGame(game)} disabled={isPending}>
                         {isPending ? copy.pending : copy.remove}
                       </button>
                     ) : (
