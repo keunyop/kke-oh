@@ -14,8 +14,10 @@ import {
   writeUploadedGameToSupabase
 } from '@/lib/games/upload';
 import { generateGameFromPrompt } from '@/lib/games/ai-game-generator';
-import { getUserPointBalance, grantUserPoints, spendUserPoints } from '@/lib/points/service';
+import { getUserPointBalance } from '@/lib/points/service';
 import { sha256 } from '@/lib/security/hash';
+
+const BYPASS_AI_CREATE_POINT_CHECK_DURING_TEST = true;
 import { getRequestIp } from '@/lib/security/ip';
 
 export async function POST(request: Request) {
@@ -60,7 +62,7 @@ export async function POST(request: Request) {
     const model = await getAiModelById(modelId);
     const pointCost = getAiPointCost(model, 'create');
     const balance = await getUserPointBalance(user.id);
-    if (balance < pointCost) {
+    if (!BYPASS_AI_CREATE_POINT_CHECK_DURING_TEST && balance < pointCost) {
       return NextResponse.json({ error: 'Not enough points for the selected AI model.', requiredPoints: pointCost, balance }, { status: 400 });
     }
 
@@ -78,63 +80,32 @@ export async function POST(request: Request) {
       finalTitle
     );
     const gameId = createGameId();
-    const pointSpendSourceId = `ai-create:${gameId}`;
-    let spent = false;
 
-    try {
-      await spendUserPoints({
-        userId: user.id,
-        delta: pointCost,
-        sourceType: 'ai_create',
-        sourceId: pointSpendSourceId,
-        metadata: {
-          modelId: model.id,
-          gameId
-        }
+    if (driver === 'supabase') {
+      await writeUploadedGameToSupabase({
+        id: gameId,
+        slug: finalSlug,
+        title: finalTitle,
+        description: finalDescription,
+        leaderboardEnabled: true,
+        uploaderUserId: user.id,
+        uploaderName: user.loginId,
+        inspection,
+        uploaderEmailHash: sha256(''),
+        uploaderIpHash: sha256(getRequestIp())
       });
-      spent = true;
-
-      if (driver === 'supabase') {
-        await writeUploadedGameToSupabase({
-          id: gameId,
-          slug: finalSlug,
-          title: finalTitle,
-          description: finalDescription,
-          leaderboardEnabled: true,
-          uploaderUserId: user.id,
-          uploaderName: user.loginId,
-          inspection,
-          uploaderEmailHash: sha256(''),
-          uploaderIpHash: sha256(getRequestIp())
-        });
-      } else {
-        await writeUploadedGame({
-          storageDir: storageDir as string,
-          id: gameId,
-          slug: finalSlug,
-          title: finalTitle,
-          description: finalDescription,
-          leaderboardEnabled: true,
-          uploaderUserId: user.id,
-          uploaderName: user.loginId,
-          inspection
-        });
-      }
-    } catch (error) {
-      if (spent) {
-        await grantUserPoints({
-          userId: user.id,
-          delta: pointCost,
-          type: 'refund',
-          sourceType: 'ai_create_refund',
-          sourceId: pointSpendSourceId,
-          metadata: {
-            modelId: model.id,
-            gameId
-          }
-        }).catch(() => {});
-      }
-      throw error;
+    } else {
+      await writeUploadedGame({
+        storageDir: storageDir as string,
+        id: gameId,
+        slug: finalSlug,
+        title: finalTitle,
+        description: finalDescription,
+        leaderboardEnabled: true,
+        uploaderUserId: user.id,
+        uploaderName: user.loginId,
+        inspection
+      });
     }
 
     revalidatePath('/');
@@ -147,10 +118,11 @@ export async function POST(request: Request) {
       gameId,
       gameUrl: `/game/${finalSlug}`,
       flagged: inspection.allowlistViolation,
-      pointsSpent: pointCost
+      pointsSpent: BYPASS_AI_CREATE_POINT_CHECK_DURING_TEST ? 0 : pointCost
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not generate the game.';
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type RefObject } from 'react';
 import { useRouter } from 'next/navigation';
@@ -450,11 +450,6 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
       return false;
     }
 
-    if (aiPointShortage) {
-      setError(tx(locale, '포인트가 부족해요. 포인트 페이지에서 충전해주세요.', 'You do not have enough points yet. Open the points page to top up.'));
-      return false;
-    }
-
     return true;
   }
 
@@ -755,7 +750,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
                   <p className="small-copy">{tx(locale, '예상 차감', 'Expected cost')}</p>
                   <strong>{aiPointCost}</strong>
                   <p className="small-copy">{tx(locale, '이 버튼을 누르면 얼마나 쓰는지 미리 알려줘요.', 'This shows how many points this run will use.')}</p>
-                  {aiPointShortage ? <p className="small-copy error-text">{tx(locale, '포인트가 부족해요. 충전 후 다시 시도해주세요.', 'You do not have enough points yet. Please top up and try again.')}</p> : null}
+                  {aiPointShortage ? <p className="small-copy">{tx(locale, '테스트 기간이라 포인트가 부족해도 AI 게임 만들기를 계속 진행할 수 있어요.', 'During the test period, you can still create an AI game even if your points are low.')}</p> : null}
                 </div>
               </div>
             </div>
@@ -797,7 +792,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
 
           {isAiPublishing ? <AiProgressCard title={tx(locale, 'AI가 게임을 만들고 있어요', 'AI is building your game')} detail={aiProgressCopy} step={aiProgressStep} dots={aiProgressDots} /> : null}
 
-          <button type="button" className="button-primary button-fill" onClick={() => void publishAiGame()} disabled={isPublishing || isCheckingSlug || isLoadingModels || aiPointShortage}>
+          <button type="button" className="button-primary button-fill" onClick={() => void publishAiGame()} disabled={isPublishing || isCheckingSlug || isLoadingModels}>
             {isPublishing ? tx(locale, '만드는 중...', 'Creating...') : tx(locale, 'AI로 게임 만들기', 'Create with AI')}
           </button>
         </div>
@@ -907,4 +902,5 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
     </section>
   );
 }
+
 

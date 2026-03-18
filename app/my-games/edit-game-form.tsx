@@ -379,7 +379,7 @@ export function EditGameForm({ game, locale }: Props) {
                     <p className="small-copy">
                       {locale === 'ko' ? '이 작업을 바로 진행할 수 있는지 알려줘요.' : 'This shows whether you can run the update now.'}
                     </p>
-                    {aiPointShortage ? <p className="small-copy error-text">{locale === 'ko' ? '포인트가 부족해요. 포인트를 충전한 뒤 다시 시도해주세요.' : 'You do not have enough points yet. Please top up and try again.'}</p> : null}
+                    {aiPointShortage ? <p className="small-copy">{locale === 'ko' ? '테스트 기간이라 포인트가 부족해도 AI 수정을 계속 진행할 수 있어요.' : 'During the test period, you can still update the game with AI even if your points are low.'}</p> : null}
                   </div>
                 </div>
               </div>
@@ -416,7 +416,7 @@ export function EditGameForm({ game, locale }: Props) {
         ) : null}
 
         <div className="button-row">
-          <button type="button" className="button-primary button-fill" onClick={() => void submit()} disabled={pending || aiPointShortage}>
+          <button type="button" className="button-primary button-fill" onClick={() => void submit()} disabled={pending}>
             {pending ? (locale === 'ko' ? '저장 중...' : 'Saving...') : (locale === 'ko' ? '변경 저장' : 'Save changes')}
           </button>
           <a href="/my-games" className="button-secondary">
@@ -427,4 +427,5 @@ export function EditGameForm({ game, locale }: Props) {
     </section>
   );
 }
+
 

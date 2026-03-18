@@ -94,7 +94,7 @@
 - `components/ads/`
   - 배너/피드 광고 슬롯, 리워드 광고 진입 UI
 - `lib/ai/`
-  - AI 모델 카탈로그, 비용 계산, 초등학생 눈높이 설명 metadata
+  - AI 모델 카탈로그, 비용 계산, 초등학생 눈높이 설명 metadata, 표준 system/user prompt builder
 - `lib/points/`
   - 잔액 조회, 거래 원장, 차감/적립 서비스
 - `lib/ads/`
@@ -471,13 +471,15 @@
 4. 부족 시 차단 또는 포인트 구매 유도
 5. 프롬프트 검증
 6. 필요 시 접힌 고급 설정을 열어 메타데이터 입력
-7. OpenAI Responses API 호출
-8. HTML에 KKE-OH 리더보드 브리지 삽입
-9. 썸네일 SVG 정규화 또는 기본 썸네일 결정
-10. 포인트 차감 원장 기록
-11. 초안 저장
-12. 리더보드 활성화
-13. 진행상황 UI와 완료 상태 노출
+7. 표준 시스템 프롬프트와 표준 사용자 프롬프트를 조립
+8. OpenAI Responses API 호출
+9. 생성된 HTML이 종료 시점 점수 제출 규약을 충족하는지 검증하고 필요 시 보강
+10. HTML에 KKE-OH 리더보드 브리지 삽입
+11. 썸네일 SVG 정규화 또는 기본 썸네일 결정
+12. 포인트 차감 원장 기록
+13. 초안 저장
+14. 리더보드 활성화
+15. 진행상황 UI와 완료 상태 노출
 
 ### 10.3 AI 수정 흐름
 
@@ -488,11 +490,12 @@
 5. 부족 시 차단 또는 포인트 구매 유도
 6. 상단 메타데이터 입력 확인
 7. 필요 시 접힌 고급 설정 입력 확인
-8. 현재 게임 정보/HTML 일부를 문맥으로 구성
+8. 현재 게임 정보/HTML 일부와 표준 사용자 프롬프트를 함께 구성
 9. OpenAI 호출
-10. 포인트 차감 원장 기록
-11. 수정 결과 저장
-12. AI 생성과 동일한 수준의 진행상황 UI 표시
+10. 수정 결과가 종료 시점 점수 제출 규약을 유지하는지 검증하고 필요 시 보강
+11. 포인트 차감 원장 기록
+12. 수정 결과 저장
+13. AI 생성과 동일한 수준의 진행상황 UI 표시
 
 ### 10.4 공개 게임 플레이와 리워드 광고 흐름
 
@@ -519,6 +522,181 @@
 4. 승인 완료 후 포인트 적립
 5. 원장 기록 생성
 6. 잔액 즉시 반영
+
+### 10.7 AI 게임 생성 프롬프트 구성
+
+프롬프트는 생성과 수정에서 같은 기준 계약을 공유해야 한다.  
+응답을 JSON schema로 감싸는 구현을 쓰더라도 실제 게임 산출물 계약은 `html` 필드 안의 단일 raw HTML 파일 기준으로 유지한다.
+
+시스템 프롬프트 기준안:
+
+```text
+You are an expert HTML5 game developer specializing in small, highly engaging browser games.
+
+Your job is to generate COMPLETE, PLAYABLE, and BUG-FREE games.
+
+━━━━━━━━━━━━━━━━━━━
+# CORE RULES
+━━━━━━━━━━━━━━━━━━━
+- Always generate a FULLY WORKING game (never partial or placeholder code)
+- The game must run immediately when opened in a browser
+- Do NOT omit any required logic (game loop, collision, restart, etc.)
+- Do NOT include explanations, comments, or markdown outside the code
+- Output ONLY a single HTML file
+
+━━━━━━━━━━━━━━━━━━━
+# TECHNICAL CONSTRAINTS
+━━━━━━━━━━━━━━━━━━━
+- Single file only (HTML + CSS + JS combined)
+- Use vanilla JavaScript only (no frameworks, no external libraries)
+- No external assets (no CDN, no external images, no fonts)
+- All assets must be generated in code (canvas, shapes, etc.)
+- Must run offline
+
+━━━━━━━━━━━━━━━━━━━
+# REQUIRED GAME STRUCTURE
+━━━━━━━━━━━━━━━━━━━
+Every game MUST include:
+
+1. Start Screen
+   - Title
+   - Start button
+
+2. Game Loop
+   - update()
+   - render()
+   - requestAnimationFrame
+
+3. Player Controls
+   - Keyboard input (or clearly defined alternative)
+
+4. Core Mechanics
+   - Movement
+   - Collision detection
+   - Score tracking
+
+5. Difficulty Scaling
+   - Game becomes harder over time
+
+6. Game Over State
+   - Clear fail condition
+   - Final score display
+
+7. Restart System
+   - Restart button
+   - Fully reset game state
+
+━━━━━━━━━━━━━━━━━━━
+# LEADERBOARD INTEGRATION (MANDATORY)
+━━━━━━━━━━━━━━━━━━━
+- If window.kkeohSubmitScore exists, call window.kkeohSubmitScore(finalScore) whenever a run ends
+- A run ending includes game over, defeat, victory, stage clear, timeout, or any other terminal resolution
+- Call window.kkeohSubmitScore(finalScore) immediately before any restart, reset, or new-game action that clears the final score
+- The submitted score must exactly match the final score shown to the player
+- Never submit blank, placeholder, negative, or non-numeric scores
+
+━━━━━━━━━━━━━━━━━━━
+# GAME DESIGN PRINCIPLES
+━━━━━━━━━━━━━━━━━━━
+- Simple to learn within 5 seconds
+- Clear objective and feedback
+- Immediate response to user input
+- Increasing challenge over time
+- Avoid unnecessary complexity
+- Prioritize smooth gameplay over visual polish
+
+━━━━━━━━━━━━━━━━━━━
+# QUALITY CONTROL (MANDATORY)
+━━━━━━━━━━━━━━━━━━━
+Before finalizing output, internally verify:
+- No syntax errors
+- Game runs without crashing
+- Restart works correctly
+- Score updates correctly
+- Difficulty actually increases
+- Player can lose (fail condition exists)
+- Leaderboard submission happens on every terminal state and before score-clearing restart/reset
+
+If any of the above is not satisfied, FIX IT before returning.
+
+━━━━━━━━━━━━━━━━━━━
+# OUTPUT FORMAT (STRICT)
+━━━━━━━━━━━━━━━━━━━
+- Return ONLY raw HTML code
+- No markdown (no ```), no explanations, no extra text
+```
+
+사용자 프롬프트 기준안:
+
+```text
+Create a complete playable HTML5 game based on the following specifications.
+
+━━━━━━━━━━━━━━━━━━━
+# GAME SPEC
+━━━━━━━━━━━━━━━━━━━
+Genre: {genre}
+Theme: {theme}
+
+Core Mechanic:
+{core_mechanic}
+
+Objective:
+{objective}
+
+Player Actions:
+{player_actions}
+
+Difficulty Level:
+{difficulty}
+
+Session Length:
+{session_length}
+
+━━━━━━━━━━━━━━━━━━━
+# GAME RULES
+━━━━━━━━━━━━━━━━━━━
+Win Condition:
+{win_condition}
+
+Lose Condition:
+{lose_condition}
+
+Difficulty Scaling:
+{difficulty_scaling}
+
+━━━━━━━━━━━━━━━━━━━
+# LEADERBOARD
+━━━━━━━━━━━━━━━━━━━
+- This game runs inside KKE-OH and may expose window.kkeohSubmitScore(score)
+- When the player loses, wins, clears the stage, times out, or otherwise finishes a run, call window.kkeohSubmitScore(finalScore) if available
+- Immediately before any restart, reset, or new-game action that would clear the final score, call window.kkeohSubmitScore(finalScore) if available
+- The submitted score must be the same numeric final score shown on screen
+
+━━━━━━━━━━━━━━━━━━━
+# UI REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━
+- Show score on screen
+- Display clear start screen
+- Display game over screen
+- Include restart button
+
+━━━━━━━━━━━━━━━━━━━
+# EXTRA (OPTIONAL)
+━━━━━━━━━━━━━━━━━━━
+{extra_features}
+
+━━━━━━━━━━━━━━━━━━━
+# OUTPUT
+━━━━━━━━━━━━━━━━━━━
+Return ONLY a single HTML file.
+```
+
+치환 규칙:
+
+- 빈 선택값은 프롬프트에서 필드를 삭제하지 말고 자연어 기본값으로 보정한다.
+- `extra_features`가 비어 있으면 `None`으로 전달한다.
+- AI 수정에서는 기존 게임 정보, 유지해야 할 장점, 고쳐야 할 문제를 사용자 프롬프트 뒤에 추가 부연 문맥으로 붙인다.
+- 생성/수정 모두 리더보드 문구는 옵션이 아니라 기본 포함 항목으로 취급한다.
 
 ## 11. 주요 도메인 로직
 
@@ -559,6 +737,10 @@
 리더보드 공용 연동 규약:
 
 - 공식 점수 제출 함수: `window.kkeohSubmitScore(score)`
+- 생성/수정 프롬프트는 게임 오버, 승리, 패배, 클리어, 타임아웃, 기타 종료 상태마다 이 함수를 호출하도록 요구해야 한다.
+- 생성/수정 프롬프트는 재시작, 리셋, 새 게임 시작 직전처럼 점수가 지워지는 시점에도 마지막 최종 점수를 먼저 제출하도록 요구해야 한다.
+- 생성 게임 내부에서는 가능한 한 `submitFinalScoreOnce(finalScore)`와 같은 단일 종료 처리 함수를 두고 모든 종료 분기가 그 함수를 통과하도록 유도한다.
+- 클라이언트 브리지는 2초 이내 동일 점수 중복 전송을 막고, 서버 저장은 15초 이내 동일 이름·동일 점수 중복 저장을 막는다.
 - AI 생성 게임은 해당 브리지를 자동 포함
 - 수동 업로드 게임도 동일 브리지를 사용할 수 있어야 함
 - iframe DOM 스캔 기반 점수 추출은 보조 수단으로 유지 가능하나, 공식 연동 방식은 브리지 함수로 통일
@@ -649,8 +831,17 @@
   - 외부 썸네일 입력 제거 회귀
 - 수동 업로드 리더보드 on/off
 - AI 생성/수정 모델 선택, 설명, 비용 카드 일관성
+- AI 생성/수정 프롬프트 템플릿
+  - 시스템 프롬프트 필수 규칙 포함
+  - 사용자 프롬프트 placeholder 매핑
+  - 리더보드 종료/재시작 직전 제출 문구 포함
 - AI 생성/수정 진행상황 UI
 - 생성/수정 고급 설정 기본 접힘 상태
+- 생성 게임 리더보드 동작
+  - 패배 시 제출
+  - 승리 시 제출
+  - 클리어/타임아웃 시 제출
+  - 점수 초기화 직전 재시작 시 제출
 - 게임 상세 액션 tooltip
 - 작성자 공개/숨김 흐름
 - 관리자 리스트 썸네일 표시 및 단순화 레이아웃
@@ -671,6 +862,8 @@
 - 인증 오류 locale 처리와 깨진 한국어 문구가 정리되지 않음
 - 회원가입 중복 ID 오류가 선택 언어와 무관하게 일관되지 않음
 - 생성 화면의 `How it works`, AI 모델 설명, cost card, 고급 설정 접힘 UX가 목표 수준에 미치지 않음
+- AI 게임 생성/수정 프롬프트가 문서 기준의 표준 system/user 템플릿으로 고정되어 있지 않고, 구현별 문구 드리프트 가능성이 남아 있음
+- 종료 상태 전부와 점수 초기화 직전 재시작까지 포함하는 리더보드 제출 규약이 단일 문서와 단일 빌더 기준으로 완전히 고정되어 있지 않음
 - ZIP 업로드에서 외부 썸네일 입력 제거 정책이 반영되지 않음
 - 수정 화면의 입력 순서, AI 모드 우선순위, 하단 버튼 구성이 목표와 다름
 - 게임 상세 액션 버튼의 명시적 tooltip이 없음
@@ -679,3 +872,4 @@
 - 포인트 구매 카드가 3열 정렬 기준을 만족하지 않음
 
 이 갭을 메우는 작업 목록은 별도 문서에서 관리한다.
+

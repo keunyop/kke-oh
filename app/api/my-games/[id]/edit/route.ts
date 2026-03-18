@@ -16,9 +16,11 @@ import {
   updateUploadedGameInSupabase
 } from '@/lib/games/upload';
 import { generateGameFromPrompt } from '@/lib/games/ai-game-generator';
-import { getUserPointBalance, grantUserPoints, spendUserPoints } from '@/lib/points/service';
+import { getUserPointBalance } from '@/lib/points/service';
 
 type EditMode = 'html' | 'zip' | 'ai';
+
+const BYPASS_AI_EDIT_POINT_CHECK_DURING_TEST = true;
 
 function getText(formData: FormData, key: string) {
   return String(formData.get(key) ?? '').trim();
@@ -139,21 +141,20 @@ export async function POST(request: Request, context: { params: { id: string } }
       const model = await getAiModelById(modelId);
       pointCost = getAiPointCost(model, 'edit');
       const balance = await getUserPointBalance(user.id);
-      if (balance < pointCost) {
+      if (!BYPASS_AI_EDIT_POINT_CHECK_DURING_TEST && balance < pointCost) {
         return NextResponse.json({ error: 'Not enough points for the selected AI model.', requiredPoints: pointCost, balance }, { status: 400 });
       }
 
       const currentHtml = await loadCurrentEntryHtml(game);
-      const aiPrompt = [
-        `Current game title: ${game.title}`,
-        `Current game description: ${game.description}`,
-        currentHtml ? `Current game HTML:\n${currentHtml}` : null,
-        `Update request: ${prompt}`
-      ]
-        .filter(Boolean)
-        .join('\n\n');
-
-      const generated = await generateGameFromPrompt(aiPrompt, model.modelName);
+      const generated = await generateGameFromPrompt(
+        {
+          request: prompt,
+          existingGameTitle: game.title,
+          existingGameDescription: game.description,
+          existingGameHtml: currentHtml
+        },
+        model.modelName
+      );
       nextDescription = description || generated.description || game.description;
       inspection = await prepareInspectionForPublishing(
         createSingleHtmlInspection(generated.html, thumbnail ?? generated.thumbnail, { injectScoreBridge: leaderboardEnabled }),
@@ -165,57 +166,25 @@ export async function POST(request: Request, context: { params: { id: string } }
     const driver = getGameDataDriver();
     const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
 
-    try {
-      if (mode === 'ai' && pointSpendSourceId) {
-        await spendUserPoints({
-          userId: user.id,
-          delta: pointCost,
-          sourceType: 'ai_edit',
-          sourceId: pointSpendSourceId,
-          metadata: {
-            modelId,
-            gameId: game.id
-          }
-        });
-        pointSpent = true;
-      }
-
-      if (driver === 'supabase') {
-        await updateUploadedGameInSupabase({
-          game,
-          title,
-          description: nextDescription,
-          inspection,
-          leaderboardEnabled,
-          thumbnail
-        });
-      } else {
-        await updateUploadedGame({
-          storageDir: storageDir as string,
-          game,
-          title,
-          description: nextDescription,
-          inspection,
-          leaderboardEnabled,
-          thumbnail
-        });
-      }
-    } catch (error) {
-      if (pointSpent && pointSpendSourceId) {
-        await grantUserPoints({
-          userId: user.id,
-          delta: pointCost,
-          type: 'refund',
-          sourceType: 'ai_edit_refund',
-          sourceId: pointSpendSourceId,
-          metadata: {
-            modelId,
-            gameId: game.id
-          }
-        }).catch(() => {});
-      }
-
-      throw error;
+    if (driver === 'supabase') {
+      await updateUploadedGameInSupabase({
+        game,
+        title,
+        description: nextDescription,
+        inspection,
+        leaderboardEnabled,
+        thumbnail
+      });
+    } else {
+      await updateUploadedGame({
+        storageDir: storageDir as string,
+        game,
+        title,
+        description: nextDescription,
+        inspection,
+        leaderboardEnabled,
+        thumbnail
+      });
     }
 
     const updatedGame = await repository.getById(game.id);
@@ -229,10 +198,12 @@ export async function POST(request: Request, context: { params: { id: string } }
       ok: true,
       game: updatedGame,
       gameUrl: `/game/${updatedGame?.slug ?? game.slug}`,
-      pointsSpent: pointCost
+      pointsSpent: mode === 'ai' && BYPASS_AI_EDIT_POINT_CHECK_DURING_TEST ? 0 : pointCost
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not update the game.';
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+
