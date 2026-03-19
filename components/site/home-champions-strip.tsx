@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -155,12 +155,13 @@ export function HomeChampionsStrip({ champions, locale }: Props) {
                 key={`${champion.gameId}-${champion.playerName}-${index}`}
                 href={`/game/${champion.slug}`}
                 className="home-champion-card"
+                draggable={false}
                 role="listitem"
                 aria-hidden={isDuplicate}
                 tabIndex={isDuplicate ? -1 : undefined}
               >
                 <div className="home-champion-media">
-                  <Image src={imageUrl} alt={champion.title} fill className="game-card-image" unoptimized />
+                  <Image src={imageUrl} alt={champion.title} fill className="game-card-image" unoptimized draggable={false} />
                 </div>
                 <div className="home-champion-body">
                   <h3 title={champion.title}>{champion.title}</h3>
@@ -178,3 +179,5 @@ export function HomeChampionsStrip({ champions, locale }: Props) {
     </section>
   );
 }
+
+

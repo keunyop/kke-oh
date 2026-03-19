@@ -1,4 +1,4 @@
-﻿import { revalidatePath } from 'next/cache';
+import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import path from 'node:path';
 import { getCurrentUser } from '@/lib/auth';
@@ -15,7 +15,7 @@ import {
   updateUploadedGame,
   updateUploadedGameInSupabase
 } from '@/lib/games/upload';
-import { generateGameFromPrompt } from '@/lib/games/ai-game-generator';
+import { generateGameFromEditPrompt } from '@/lib/games/ai-game-generator';
 import { getUserPointBalance } from '@/lib/points/service';
 
 type EditMode = 'html' | 'zip' | 'ai';
@@ -88,9 +88,7 @@ export async function POST(request: Request, context: { params: { id: string } }
     const thumbnail = await createThumbnailUpload(thumbnailFile instanceof File ? thumbnailFile : null);
     let inspection = null;
     let nextDescription = description || game.description;
-    let pointSpendSourceId: string | null = null;
     let pointCost = 0;
-    let pointSpent = false;
 
     if (mode === 'html') {
       if (htmlFile instanceof File) {
@@ -146,7 +144,7 @@ export async function POST(request: Request, context: { params: { id: string } }
       }
 
       const currentHtml = await loadCurrentEntryHtml(game);
-      const generated = await generateGameFromPrompt(
+      const generated = await generateGameFromEditPrompt(
         {
           request: prompt,
           existingGameTitle: game.title,
@@ -160,7 +158,6 @@ export async function POST(request: Request, context: { params: { id: string } }
         createSingleHtmlInspection(generated.html, thumbnail ?? generated.thumbnail, { injectScoreBridge: leaderboardEnabled }),
         title
       );
-      pointSpendSourceId = `ai-edit:${game.id}:${Date.now()}`;
     }
 
     const driver = getGameDataDriver();
@@ -205,5 +202,7 @@ export async function POST(request: Request, context: { params: { id: string } }
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+
 
 

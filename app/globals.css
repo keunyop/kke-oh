@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   color-scheme: light;
   --bg: #f5fbff;
   --bg-soft: #eef8ff;
@@ -2121,10 +2121,6 @@ td {
   will-change: transform;
 }
 
-.home-champions:hover .home-champions-track.is-animated {
-  animation-play-state: paused;
-}
-
 .home-champion-card {
   position: relative;
   flex: 0 0 320px;
@@ -2421,13 +2417,20 @@ td {
 }
 
 .nav-search {
-  flex: 1 1 260px;
-  min-width: 0;
-  width: auto;
+  flex: 0 1 340px;
+  min-width: 180px;
+  width: min(340px, 100%);
+  max-width: 340px;
 }
 
 .nav-search input {
   min-width: 0;
+}
+
+.mobile-nav-search {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
 }
 
 .upload-link-cta {
@@ -2478,16 +2481,29 @@ td {
   border-color: rgba(255, 255, 255, 0.06);
 }
 
-.home-champions-board .home-champions-copy p,
-.home-champions-board .home-champions-score,
-.home-champions-board .home-champion-maker {
+.home-champions-board .home-champions-copy p {
   color: rgba(243, 233, 212, 0.78);
 }
 
-.home-champions-board .home-champions-copy h2,
-.home-champions-board .home-champion-body h3,
-.home-champions-board .home-champion-player {
+.home-champions-board .home-champions-copy h2 {
   color: #fff5de;
+}
+
+.home-champions-board .home-champion-body h3 {
+  color: #2f2316;
+}
+
+.home-champions-board .home-champion-player {
+  color: #8b5606;
+}
+
+.home-champions-board .home-champion-score,
+.home-champions-board .home-champion-maker {
+  color: #6d5538;
+}
+
+.home-champions-board .home-champion-score strong {
+  color: #3a2818;
 }
 
 .home-champions-scroller {
@@ -2681,4 +2697,6 @@ td {
     flex-direction: column;
   }
 }
+
+
 

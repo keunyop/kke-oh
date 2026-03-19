@@ -16,29 +16,24 @@ type GeneratedGame = {
   thumbnail: UploadedFile;
 };
 
-export type GameGeneratorPromptInput = {
+export type CreateGamePromptInput = {
+  gameDescription: string;
+};
+
+export type EditGamePromptInput = {
   request: string;
-  genre?: string | null;
-  theme?: string | null;
-  coreMechanic?: string | null;
-  objective?: string | null;
-  playerActions?: string | null;
-  difficulty?: string | null;
-  sessionLength?: string | null;
-  winCondition?: string | null;
-  loseCondition?: string | null;
-  difficultyScaling?: string | null;
-  extraFeatures?: string | null;
   existingGameTitle?: string | null;
   existingGameDescription?: string | null;
   existingGameHtml?: string | null;
 };
 
+export type GameGeneratorPromptInput = CreateGamePromptInput;
+
 const OPENAI_API_URL = 'https://api.openai.com/v1/responses';
 const OPENAI_MODEL = process.env.OPENAI_GAME_MODEL?.trim() || 'gpt-4.1-mini';
 const SECTION_BAR = '\u2501'.repeat(19);
 
-const GAME_GENERATOR_SYSTEM_PROMPT = [
+const CREATE_GAME_SYSTEM_PROMPT = [
   'You are an expert HTML5 game developer specializing in small, highly engaging browser games.',
   '',
   'Your job is to generate COMPLETE, PLAYABLE, and BUG-FREE games.',
@@ -124,6 +119,58 @@ const GAME_GENERATOR_SYSTEM_PROMPT = [
   '- No markdown (no ```), no explanations, no extra text'
 ].join('\n');
 
+const EDIT_GAME_SYSTEM_PROMPT = [
+  'You are an expert HTML5 game developer specializing in updating existing browser games.',
+  '',
+  'Your job is to read the current game, apply the requested changes, and return a COMPLETE, PLAYABLE, and BUG-FREE updated game.',
+  '',
+  SECTION_BAR,
+  '# CORE RULES',
+  SECTION_BAR,
+  '- Always return a FULLY WORKING updated game (never partial code, diffs, or placeholders)',
+  '- Read the current game details carefully before changing anything',
+  '- Keep existing behavior that still fits unless the user asked to change it',
+  '- Do NOT omit required logic such as the game loop, restart flow, collision, or scoring',
+  '- Do NOT include explanations, comments, or markdown outside the code',
+  '- Return the full replacement HTML for the game',
+  '',
+  SECTION_BAR,
+  '# TECHNICAL CONSTRAINTS',
+  SECTION_BAR,
+  '- Single file only (HTML + CSS + JS combined)',
+  '- Use vanilla JavaScript only (no frameworks, no external libraries)',
+  '- No external assets (no CDN, no external images, no fonts)',
+  '- All assets must be generated in code (canvas, shapes, etc.)',
+  '- Must run offline',
+  '',
+  SECTION_BAR,
+  '# EDITING PRINCIPLES',
+  SECTION_BAR,
+  '- Preserve the game concept unless the request changes it',
+  '- Make the requested changes feel integrated, not bolted on',
+  '- Keep controls, UI, score flow, and restart behavior clear and reliable',
+  '- If a requested change conflicts with the current implementation, resolve it in the simplest playable way',
+  '',
+  SECTION_BAR,
+  '# QUALITY CONTROL (MANDATORY)',
+  SECTION_BAR,
+  'Before finalizing output, internally verify:',
+  '- No syntax errors',
+  '- Updated game runs without crashing',
+  '- Requested changes are actually present',
+  '- Restart works correctly',
+  '- Score updates correctly if the game uses scoring',
+  '- The player can still understand how to play',
+  '',
+  'If any of the above is not satisfied, FIX IT before returning.',
+  '',
+  SECTION_BAR,
+  '# OUTPUT FORMAT (STRICT)',
+  SECTION_BAR,
+  '- Return ONLY raw HTML code',
+  '- No markdown (no ```), no explanations, no extra text'
+].join('\n');
+
 function extractTextOutput(payload: unknown): string | null {
   if (!payload || typeof payload !== 'object') {
     return null;
@@ -163,105 +210,37 @@ function normalizePromptValue(value: string | null | undefined) {
   return normalized ? normalized : null;
 }
 
-function buildFallbackValue(request: string, fallback: string) {
-  return request ? `${fallback} Base it on this request: ${request}` : fallback;
-}
-
-function buildExtraFeaturesValue(input: GameGeneratorPromptInput) {
-  const sections: string[] = [];
-  const extraFeatures = normalizePromptValue(input.extraFeatures);
-
-  if (extraFeatures) {
-    sections.push(extraFeatures);
+function normalizeCreatePromptInput(input: string | CreateGamePromptInput): CreateGamePromptInput {
+  if (typeof input === 'string') {
+    return { gameDescription: input };
   }
 
-  sections.push(
-    input.request
-      ? `Original request:\n${input.request}`
-      : 'No extra features were explicitly provided. If needed, infer sensible details that fit the game concept.'
-  );
-
-  const title = normalizePromptValue(input.existingGameTitle);
-  const description = normalizePromptValue(input.existingGameDescription);
-  const html = normalizePromptValue(input.existingGameHtml);
-  const editContext = [
-    title ? `Current game title: ${title}` : null,
-    description ? `Current game description: ${description}` : null,
-    html ? `Current game HTML excerpt:\n${html}` : null
-  ]
-    .filter(Boolean)
-    .join('\n\n');
-
-  if (editContext) {
-    sections.push(`Edit context:\n${editContext}`);
-  }
-
-  return sections.join('\n\n');
+  return input;
 }
 
-export function buildGameGeneratorSystemPrompt(): string {
-  return GAME_GENERATOR_SYSTEM_PROMPT;
+function normalizeEditPromptInput(input: EditGamePromptInput): EditGamePromptInput {
+  return input;
 }
 
-export function buildGameGeneratorUserPrompt(input: string | GameGeneratorPromptInput): string {
-  const options: GameGeneratorPromptInput = typeof input === 'string' ? { request: input } : input;
-  const request = normalizePromptValue(options.request) ?? '';
-  const genre = normalizePromptValue(options.genre) ?? buildFallbackValue(request, 'Not specified. Infer the most suitable genre.');
-  const theme = normalizePromptValue(options.theme) ?? buildFallbackValue(request, 'Not specified. Infer the most suitable theme.');
-  const coreMechanic =
-    normalizePromptValue(options.coreMechanic) ?? buildFallbackValue(request, 'Not specified. Infer the core mechanic from the request.');
-  const objective =
-    normalizePromptValue(options.objective) ?? buildFallbackValue(request, 'Not specified. Define a clear objective that fits the requested idea.');
-  const playerActions =
-    normalizePromptValue(options.playerActions) ?? buildFallbackValue(request, 'Not specified. Infer clear player actions and controls.');
-  const difficulty =
-    normalizePromptValue(options.difficulty) ?? buildFallbackValue(request, 'Not specified. Choose a suitable difficulty for a short browser game.');
-  const sessionLength =
-    normalizePromptValue(options.sessionLength) ?? buildFallbackValue(request, 'Not specified. Target a short, replayable browser session.');
-  const winCondition =
-    normalizePromptValue(options.winCondition) ?? buildFallbackValue(request, 'Not specified. Define a clear win condition.');
-  const loseCondition =
-    normalizePromptValue(options.loseCondition) ?? buildFallbackValue(request, 'Not specified. Define a clear lose condition.');
-  const difficultyScaling =
-    normalizePromptValue(options.difficultyScaling) ??
-    buildFallbackValue(request, 'Not specified. Define how the challenge should increase over time.');
-  const extraFeatures = buildExtraFeaturesValue(options);
+export function buildCreateGameSystemPrompt(): string {
+  return CREATE_GAME_SYSTEM_PROMPT;
+}
+
+export function buildEditGameSystemPrompt(): string {
+  return EDIT_GAME_SYSTEM_PROMPT;
+}
+
+export function buildCreateGameUserPrompt(input: string | CreateGamePromptInput): string {
+  const options = normalizeCreatePromptInput(input);
+  const gameDescription = normalizePromptValue(options.gameDescription) ?? 'Create a playful, replayable browser game.';
 
   return [
-    'Create a complete playable HTML5 game based on the following specifications.',
+    'Create a complete playable HTML5 game based on the following game description.',
     '',
     SECTION_BAR,
-    '# GAME SPEC',
+    '# GAME DESCRIPTION',
     SECTION_BAR,
-    `Genre: ${genre}`,
-    `Theme: ${theme}`,
-    '',
-    'Core Mechanic:',
-    coreMechanic,
-    '',
-    'Objective:',
-    objective,
-    '',
-    'Player Actions:',
-    playerActions,
-    '',
-    'Difficulty Level:',
-    difficulty,
-    '',
-    'Session Length:',
-    sessionLength,
-    '',
-    SECTION_BAR,
-    '# GAME RULES',
-    SECTION_BAR,
-    'Win Condition:',
-    winCondition,
-    '',
-    'Lose Condition:',
-    loseCondition,
-    '',
-    'Difficulty Scaling:',
-    difficultyScaling,
+    gameDescription,
     '',
     SECTION_BAR,
     '# UI REQUIREMENTS',
@@ -272,9 +251,48 @@ export function buildGameGeneratorUserPrompt(input: string | GameGeneratorPrompt
     '- Include restart button',
     '',
     SECTION_BAR,
-    '# EXTRA (OPTIONAL)',
+    '# OUTPUT',
     SECTION_BAR,
-    extraFeatures,
+    'Return ONLY a single HTML file.'
+  ].join('\n');
+}
+
+export function buildEditGameUserPrompt(input: EditGamePromptInput): string {
+  const options = normalizeEditPromptInput(input);
+  const request = normalizePromptValue(options.request) ?? 'Improve the game while keeping it fully playable.';
+  const currentTitle = normalizePromptValue(options.existingGameTitle) ?? 'Not provided';
+  const currentDescription = normalizePromptValue(options.existingGameDescription) ?? 'Not provided';
+  const currentHtml = normalizePromptValue(options.existingGameHtml) ?? 'Current game HTML was not available.';
+
+  return [
+    'Update the existing HTML5 game below and apply the requested changes.',
+    '',
+    SECTION_BAR,
+    '# CURRENT GAME',
+    SECTION_BAR,
+    'Title:',
+    currentTitle,
+    '',
+    'Description:',
+    currentDescription,
+    '',
+    SECTION_BAR,
+    '# CURRENT GAME FILE',
+    SECTION_BAR,
+    currentHtml,
+    '',
+    SECTION_BAR,
+    '# REQUESTED CHANGES',
+    SECTION_BAR,
+    request,
+    '',
+    SECTION_BAR,
+    '# EDITING RULES',
+    SECTION_BAR,
+    '- Keep the game fully playable after the update',
+    '- Preserve parts of the current game that still fit the request',
+    '- Return the FULL updated HTML, not a diff or partial snippet',
+    '- Keep the UI readable and the controls understandable',
     '',
     SECTION_BAR,
     '# OUTPUT',
@@ -283,15 +301,20 @@ export function buildGameGeneratorUserPrompt(input: string | GameGeneratorPrompt
   ].join('\n');
 }
 
-export async function generateGameFromPrompt(prompt: string | GameGeneratorPromptInput, modelName?: string): Promise<GeneratedGame> {
+async function generateGame({
+  systemPrompt,
+  userPrompt,
+  modelName
+}: {
+  systemPrompt: string;
+  userPrompt: string;
+  modelName?: string;
+}): Promise<GeneratedGame> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
 
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not configured.');
   }
-
-  const systemPrompt = buildGameGeneratorSystemPrompt();
-  const userPrompt = buildGameGeneratorUserPrompt(prompt);
 
   const response = await fetch(OPENAI_API_URL, {
     method: 'POST',
@@ -368,4 +391,24 @@ export async function generateGameFromPrompt(prompt: string | GameGeneratorPromp
       contentType: 'image/svg+xml'
     }
   };
+}
+
+export async function generateGameFromCreatePrompt(prompt: string | CreateGamePromptInput, modelName?: string): Promise<GeneratedGame> {
+  return generateGame({
+    systemPrompt: buildCreateGameSystemPrompt(),
+    userPrompt: buildCreateGameUserPrompt(prompt),
+    modelName
+  });
+}
+
+export async function generateGameFromEditPrompt(prompt: EditGamePromptInput, modelName?: string): Promise<GeneratedGame> {
+  return generateGame({
+    systemPrompt: buildEditGameSystemPrompt(),
+    userPrompt: buildEditGameUserPrompt(prompt),
+    modelName
+  });
+}
+
+export async function generateGameFromPrompt(prompt: string | CreateGamePromptInput, modelName?: string): Promise<GeneratedGame> {
+  return generateGameFromCreatePrompt(prompt, modelName);
 }

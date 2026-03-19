@@ -14,10 +14,10 @@ export type AiModelCatalogItem = {
 
 const DEFAULT_AI_MODELS: AiModelCatalogItem[] = [
   {
-    id: 'gpt-4.1-mini',
+    id: 'gpt-4o-mini',
     label: 'Fast',
     provider: 'openai',
-    modelName: 'gpt-4.1-mini',
+    modelName: 'gpt-4o-mini',
     pointCostCreate: 12,
     pointCostEdit: 8,
     kidDescription: 'Quick and light. Good for simple game ideas and small fixes.',
@@ -25,21 +25,21 @@ const DEFAULT_AI_MODELS: AiModelCatalogItem[] = [
     sortOrder: 1
   },
   {
-    id: 'gpt-4.1',
+    id: 'gpt-5-mini',
     label: 'Balanced',
     provider: 'openai',
-    modelName: 'gpt-4.1',
+    modelName: 'gpt-5-mini',
     pointCostCreate: 24,
     pointCostEdit: 16,
-    kidDescription: 'A smart middle choice. Good when you want better rules, screens, and polish.',
+    kidDescription: 'A stronger all-around choice for better rules, screens, and polish.',
     active: true,
     sortOrder: 2
   },
   {
-    id: 'gpt-5-mini',
+    id: 'gpt-5.4-mini',
     label: 'Polished',
     provider: 'openai',
-    modelName: 'gpt-5-mini',
+    modelName: 'gpt-5.4-mini',
     pointCostCreate: 36,
     pointCostEdit: 24,
     kidDescription: 'Best for bigger ideas that need more detail, style, and careful clean-up.',

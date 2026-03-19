@@ -13,7 +13,7 @@ import {
   writeUploadedGame,
   writeUploadedGameToSupabase
 } from '@/lib/games/upload';
-import { generateGameFromPrompt } from '@/lib/games/ai-game-generator';
+import { generateGameFromCreatePrompt } from '@/lib/games/ai-game-generator';
 import { getUserPointBalance } from '@/lib/points/service';
 import { sha256 } from '@/lib/security/hash';
 
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
 
     const driver = getGameDataDriver();
     const storageDir = driver === 'filesystem' ? getGameStorageDir() : null;
-    const generated = await generateGameFromPrompt(prompt, model.modelName);
+    const generated = await generateGameFromCreatePrompt({ gameDescription: prompt }, model.modelName);
     const uploadThumbnail = await createThumbnailUpload(thumbnail instanceof File ? thumbnail : null);
     const finalTitle = title || generated.title;
     const finalSlug = slug

@@ -11,7 +11,7 @@ import {
   writeUploadedGame,
   writeUploadedGameToSupabase
 } from '@/lib/games/upload';
-import { generateGameFromPrompt } from '@/lib/games/ai-game-generator';
+import { generateGameFromCreatePrompt } from '@/lib/games/ai-game-generator';
 import { sha256 } from '@/lib/security/hash';
 import { getRequestIp } from '@/lib/security/ip';
 
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     }
 
     const body = bodySchema.parse(await request.json());
-    const generated = await generateGameFromPrompt(body.prompt);
+    const generated = await generateGameFromCreatePrompt({ gameDescription: body.prompt });
     const inspection = await prepareInspectionForPublishing(
       createSingleHtmlInspection(generated.html, generated.thumbnail),
       generated.title
@@ -85,3 +85,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+

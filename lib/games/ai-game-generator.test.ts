@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildGameGeneratorSystemPrompt, buildGameGeneratorUserPrompt } from './ai-game-generator';
+import {
+  buildCreateGameSystemPrompt,
+  buildCreateGameUserPrompt,
+  buildEditGameSystemPrompt,
+  buildEditGameUserPrompt
+} from './ai-game-generator';
 
 const SECTION_BAR = '\u2501'.repeat(19);
-const EXPECTED_SYSTEM_PROMPT = [
+const EXPECTED_CREATE_SYSTEM_PROMPT = [
   'You are an expert HTML5 game developer specializing in small, highly engaging browser games.',
   '',
   'Your job is to generate COMPLETE, PLAYABLE, and BUG-FREE games.',
@@ -89,50 +94,55 @@ const EXPECTED_SYSTEM_PROMPT = [
   '- No markdown (no ```), no explanations, no extra text'
 ].join('\n');
 
-test('buildGameGeneratorSystemPrompt matches the documented final prompt exactly', () => {
-  assert.equal(buildGameGeneratorSystemPrompt(), EXPECTED_SYSTEM_PROMPT);
+test('buildCreateGameSystemPrompt matches the documented final prompt exactly', () => {
+  assert.equal(buildCreateGameSystemPrompt(), EXPECTED_CREATE_SYSTEM_PROMPT);
 });
 
-test('buildGameGeneratorUserPrompt keeps the documented structure without leaderboard copy', () => {
-  const prompt = buildGameGeneratorUserPrompt('Make a snowboarding game with big jumps and coins.');
+test('buildCreateGameUserPrompt uses game description instead of spec and rules sections', () => {
+  const prompt = buildCreateGameUserPrompt({
+    gameDescription: 'Make a snowboarding game with big jumps and coins.'
+  });
 
-  assert.match(prompt, /^Create a complete playable HTML5 game based on the following specifications\./);
-  assert.match(prompt, /# GAME SPEC/);
-  assert.match(prompt, /# GAME RULES/);
+  assert.match(prompt, /^Create a complete playable HTML5 game based on the following game description\./);
+  assert.match(prompt, /# GAME DESCRIPTION/);
+  assert.match(prompt, /Make a snowboarding game with big jumps and coins\./);
   assert.match(prompt, /# UI REQUIREMENTS/);
-  assert.match(prompt, /# EXTRA \(OPTIONAL\)/);
   assert.match(prompt, /# OUTPUT/);
-  assert.match(prompt, /Original request:\nMake a snowboarding game with big jumps and coins\./);
+  assert.doesNotMatch(prompt, /# GAME SPEC/);
+  assert.doesNotMatch(prompt, /# GAME RULES/);
+  assert.doesNotMatch(prompt, /# EXTRA \(OPTIONAL\)/);
   assert.doesNotMatch(prompt, /LEADERBOARD/);
   assert.doesNotMatch(prompt, /window\.kkeohSubmitScore/);
 });
 
-test('buildGameGeneratorUserPrompt preserves explicit values and appends edit context when provided', () => {
-  const prompt = buildGameGeneratorUserPrompt({
+test('buildEditGameSystemPrompt is separate from create prompt and focuses on updating existing games', () => {
+  const prompt = buildEditGameSystemPrompt();
+
+  assert.match(prompt, /updating existing browser games/);
+  assert.match(prompt, /apply the requested changes/);
+  assert.match(prompt, /Return the full replacement HTML for the game/);
+  assert.notEqual(prompt, buildCreateGameSystemPrompt());
+});
+
+test('buildEditGameUserPrompt includes existing game context and requested changes', () => {
+  const prompt = buildEditGameUserPrompt({
     request: 'Make the obstacles easier and add a bigger score board.',
-    genre: 'Arcade',
-    theme: 'Space bakery',
-    coreMechanic: 'Dodge meteors and collect bread stars.',
-    objective: 'Survive as long as possible while scoring points.',
-    playerActions: 'Move left and right with arrow keys.',
-    difficulty: 'Easy to medium',
-    sessionLength: '2 to 4 minutes',
-    winCondition: 'Reach 5,000 points.',
-    loseCondition: 'Crash into three meteors.',
-    difficultyScaling: 'Spawn more meteors every 20 seconds.',
-    extraFeatures: 'Add juicy hit flashes and a combo meter.',
     existingGameTitle: 'Star Baker',
     existingGameDescription: 'An arcade dodging game.',
     existingGameHtml: '<canvas></canvas>'
   });
 
-  assert.match(prompt, /Genre: Arcade/);
-  assert.match(prompt, /Theme: Space bakery/);
-  assert.match(prompt, /Dodge meteors and collect bread stars\./);
-  assert.match(prompt, /Add juicy hit flashes and a combo meter\./);
-  assert.match(prompt, /Original request:\nMake the obstacles easier and add a bigger score board\./);
-  assert.match(prompt, /Edit context:/);
-  assert.match(prompt, /Current game title: Star Baker/);
-  assert.match(prompt, /Current game description: An arcade dodging game\./);
-  assert.match(prompt, /Current game HTML excerpt:\n<canvas><\/canvas>/);
+  assert.match(prompt, /^Update the existing HTML5 game below and apply the requested changes\./);
+  assert.match(prompt, /# CURRENT GAME/);
+  assert.match(prompt, /Title:\nStar Baker/);
+  assert.match(prompt, /Description:\nAn arcade dodging game\./);
+  assert.match(prompt, /# CURRENT GAME FILE/);
+  assert.match(prompt, /<canvas><\/canvas>/);
+  assert.match(prompt, /# REQUESTED CHANGES/);
+  assert.match(prompt, /Make the obstacles easier and add a bigger score board\./);
+  assert.match(prompt, /# EDITING RULES/);
+  assert.match(prompt, /Return the FULL updated HTML, not a diff or partial snippet/);
+  assert.match(prompt, /# OUTPUT/);
+  assert.doesNotMatch(prompt, /# GAME SPEC/);
+  assert.doesNotMatch(prompt, /# GAME RULES/);
 });
