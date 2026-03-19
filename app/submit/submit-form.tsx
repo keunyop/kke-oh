@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type RefObject } from 'react';
 import { useRouter } from 'next/navigation';
+import { AiModelCompactPanel } from '@/app/ai-model-compact-panel';
 import { AiProgressCard } from '@/components/ai/ai-progress-card';
 import type { Locale } from '@/lib/i18n';
 
@@ -723,7 +724,20 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
             <span className="small-copy upload-input-hint">{tx(locale, 'Short is okay. A character, a goal, and simple controls are enough to start.', 'Short is okay. A character, a goal, and simple controls are enough to start.')}</span>
           </label>
 
-          <div className="submit-inline-grid">
+          <AiModelCompactPanel
+            locale={locale}
+            modelId={aiModelId}
+            models={aiModels}
+            pointBalance={pointBalance}
+            pointCost={aiPointCost}
+            pending={isPublishing}
+            isLoading={isLoadingModels}
+            isShortage={aiPointShortage}
+            onChange={setAiModelId}
+            shortageCopy={tx(locale, 'During the test period, you can still create an AI game even if your points are low.', 'During the test period, you can still create an AI game even if your points are low.')}
+          />
+
+          <div className="submit-inline-grid submit-inline-grid-legacy" aria-hidden="true">
             <label className="field-label">
               <span>{tx(locale, 'AI model', 'AI model')}</span>
               <select value={aiModelId} onChange={(event) => setAiModelId(event.target.value)} disabled={isLoadingModels || isPublishing}>

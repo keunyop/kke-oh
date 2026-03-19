@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { SiteNavbar } from '@/app/_components/site-navbar';
+import { SiteNavbar } from '@/app/site-navbar';
 import { GoogleAdsBootstrap } from '@/components/ads/google-ads-bootstrap';
 import { Footer } from '@/components/site/footer';
 import { getRequestLocale } from '@/lib/i18n/server';

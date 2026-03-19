@@ -1,6 +1,6 @@
 ﻿import { cookies } from 'next/headers';
 import { GoogleAdSlot } from '@/components/ads/google-ad-slot';
-import { GameActions, GameFullscreenButton } from '@/components/game/game-actions';
+import { GameActionsClient, GameFullscreenButtonClient } from '@/app/game-actions-client';
 import { GameFullscreenShell } from '@/components/game/game-fullscreen-shell';
 import { GameLeaderboard } from '@/components/game/game-leaderboard';
 import { RewardedAdPanel } from '@/components/game/rewarded-ad-panel';
@@ -54,7 +54,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
       <div id={frameId} className="game-frame-wrap">
         <GameFullscreenShell frameId={frameId} />
         <iframe id={iframeId} src={src} sandbox="allow-scripts allow-same-origin allow-pointer-lock" referrerPolicy="no-referrer" allow="fullscreen" allowFullScreen title={game.title} tabIndex={0} />
-        <GameFullscreenButton frameId={frameId} iframeId={iframeId} locale={locale} />
+        <GameFullscreenButtonClient frameId={frameId} iframeId={iframeId} locale={locale} />
       </div>
 
       {game.leaderboard_enabled || leaderboardEntries.length ? (
@@ -68,7 +68,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
             <p className="small-copy">{creatorLabel} {game.uploader_name}</p>
             {isDraftPreview ? <p className="small-copy game-preview-note">{game.status === 'DRAFT' ? draftNotice : hiddenNotice}</p> : null}
           </div>
-          {canUsePublicActions ? <GameActions gameId={game.id} title={game.title} initialLikeCount={game.like_count} initialDislikeCount={game.dislike_count} initialReaction={initialReaction} locale={locale} /> : <p className="small-copy game-status-inline">{previewActionsNotice}</p>}
+          {canUsePublicActions ? <GameActionsClient gameId={game.id} title={game.title} initialLikeCount={game.like_count} initialDislikeCount={game.dislike_count} initialReaction={initialReaction} locale={locale} /> : <p className="small-copy game-status-inline">{previewActionsNotice}</p>}
         </div>
         <p>{game.description}</p>
       </section>
