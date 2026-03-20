@@ -1,5 +1,6 @@
 import { ClosableDetails } from '@/app/_components/closable-details';
 import { CurrentPageLoginLink } from '@/app/_components/current-page-login-link';
+import { SiteSearchForm } from '@/components/site/site-search-form';
 import { getCurrentUser } from '@/lib/auth';
 import { getDictionary, type Locale } from '@/lib/i18n';
 import { getUserPointBalance } from '@/lib/points/service';
@@ -47,6 +48,7 @@ export async function SiteNavbar({ locale }: NavbarProps) {
         </a>
 
         <div className="nav-actions simple-actions nav-actions-desktop">
+          <SiteSearchForm className="nav-search" placeholder={t.common.searchPlaceholder} />
           <a href="/submit" className="upload-link upload-link-cta">
             {t.common.uploadGame}
           </a>
@@ -99,6 +101,7 @@ export async function SiteNavbar({ locale }: NavbarProps) {
           }
         >
           <div className="mobile-nav-panel">
+            <SiteSearchForm className="nav-search mobile-nav-search" placeholder={t.common.searchPlaceholder} />
             <a href="/submit" className="upload-link mobile-nav-link">
               {t.common.uploadGame}
             </a>

@@ -1,13 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { SiteSearchForm } from '@/components/site/site-search-form';
-import { GameCard } from '@/components/site/game-card';
 import { HomeChampionBoard } from '@/app/home-champion-board';
+import { GameCard } from '@/components/site/game-card';
 import { HOME_SEARCH_EVENT } from '@/components/site/site-search-form';
-import type { LeaderboardChampion } from '@/lib/games/leaderboard';
 import { filterDiscoveryGames, type DiscoveryGame } from '@/lib/games/discovery';
 import { getDictionary, type Locale } from '@/lib/i18n';
+import type { LeaderboardChampion } from '@/lib/games/leaderboard';
 
 type Props = {
   initialQuery: string;
@@ -27,8 +26,6 @@ function readQueryFromLocation() {
 export function HomeDiscoveryClient({ initialQuery, games, champions, locale }: Props) {
   const [query, setQuery] = useState(initialQuery);
   const t = getDictionary(locale);
-  const searchHint =
-    locale === 'ko' ? '메인 화면에서만 바로 게임을 찾을 수 있어요.' : 'Search is available right here on the home screen.';
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -53,14 +50,6 @@ export function HomeDiscoveryClient({ initialQuery, games, champions, locale }: 
 
   return (
     <>
-      <section className="panel-card home-search-panel">
-        <div className="home-search-copy">
-          <h2>{locale === 'ko' ? '게임 찾기' : 'Find a Game'}</h2>
-          <p className="small-copy">{searchHint}</p>
-        </div>
-        <SiteSearchForm className="home-search-form" initialQuery={initialQuery} placeholder={t.common.searchPlaceholder} />
-      </section>
-
       <HomeChampionBoard champions={champions} locale={locale} />
 
       {visibleGames.length ? (
