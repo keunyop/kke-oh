@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent,
 import { useRouter } from 'next/navigation';
 import { AiModelCompactPanel } from '@/app/ai-model-compact-panel';
 import { AiProgressCard } from '@/components/ai/ai-progress-card';
+import { PointShortageDialog } from '@/components/points/point-shortage-dialog';
 import type { Locale } from '@/lib/i18n';
 
 type CreationMode = 'ai' | 'manual';
@@ -34,6 +35,8 @@ type SlugCheckResponse = {
 
 type ErrorResponse = {
   error?: string;
+  requiredPoints?: number;
+  balance?: number;
 };
 
 type AiModel = {
@@ -197,6 +200,8 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   const [isLoadingModels, setIsLoadingModels] = useState(true);
   const [aiProgressStep, setAiProgressStep] = useState(0);
   const [aiProgressDots, setAiProgressDots] = useState(1);
+  const [shortageDialogOpen, setShortageDialogOpen] = useState(false);
+  const [shortageRequiredPoints, setShortageRequiredPoints] = useState(0);
   const [slugState, setSlugState] = useState<SlugState>({ checkedValue: '', slug: '', available: null, issue: null, message: null });
 
   const htmlInputRef = useRef<HTMLInputElement>(null);
@@ -423,10 +428,31 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
       const data = (await response.json().catch(() => null)) as { balance?: number } | null;
       if (response.ok && typeof data?.balance === 'number') {
         setPointBalance(data.balance);
+        return data.balance;
       }
     } catch {
       // Ignore refresh failures after a successful create flow.
     }
+
+    return null;
+  }
+
+  function openPointShortageDialog(requiredPoints: number, balance = pointBalance) {
+    setPointBalance(balance);
+    setShortageRequiredPoints(requiredPoints);
+    setShortageDialogOpen(true);
+  }
+
+  async function ensureEnoughAiPoints(requiredPoints: number) {
+    const latestBalance = await refreshPointBalance();
+    const nextBalance = latestBalance ?? pointBalance;
+
+    if (requiredPoints > nextBalance) {
+      openPointShortageDialog(requiredPoints, nextBalance);
+      return false;
+    }
+
+    return true;
   }
 
   function validateAiForm() {
@@ -529,6 +555,10 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
       return;
     }
 
+    if (!(await ensureEnoughAiPoints(aiPointCost))) {
+      return;
+    }
+
     clearMessages();
     setIsPublishing(true);
 
@@ -556,7 +586,18 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
 
       const data = (await response.json()) as PublishResponse | ErrorResponse;
       if (!response.ok || !('ok' in data)) {
-        throw new Error(('error' in data ? data.error : undefined) ?? tx(locale, 'Could not create the game.', 'Could not create the game.'));
+        const errorData = data as ErrorResponse;
+
+        if (typeof errorData.balance === 'number') {
+          setPointBalance(errorData.balance);
+        }
+
+        if (typeof errorData.requiredPoints === 'number') {
+          openPointShortageDialog(errorData.requiredPoints, typeof errorData.balance === 'number' ? errorData.balance : pointBalance);
+          return;
+        }
+
+        throw new Error(errorData.error ?? tx(locale, 'Could not create the game.', 'Could not create the game.'));
       }
 
       const nextGameName = aiTitle.trim() || data.gameId;
@@ -734,7 +775,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
             isLoading={isLoadingModels}
             isShortage={aiPointShortage}
             onChange={setAiModelId}
-            shortageCopy={tx(locale, 'During the test period, you can still create an AI game even if your points are low.', 'During the test period, you can still create an AI game even if your points are low.')}
+            shortageCopy={tx(locale, '포인트가 부족해요. 만들기 버튼을 누르면 바로 충전할 수 있어요.', 'Not enough points. Press create to open the point shop.')}
           />
 
           <div className="submit-inline-grid submit-inline-grid-legacy" aria-hidden="true">
@@ -743,7 +784,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
               <select value={aiModelId} onChange={(event) => setAiModelId(event.target.value)} disabled={isLoadingModels || isPublishing}>
                 {aiModels.map((model) => (
                   <option key={model.id} value={model.id}>
-                    {model.label} · {model.modelName}
+                    {model.label}
                   </option>
                 ))}
               </select>
@@ -758,7 +799,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
               <p className="small-copy">{tx(locale, 'Expected cost', 'Expected cost')}</p>
               <strong>{aiPointCost}</strong>
               <p className="small-copy">{tx(locale, 'This shows how many points this run will use.', 'This shows how many points this run will use.')}</p>
-              {aiPointShortage ? <p className="small-copy">{tx(locale, 'During the test period, you can still create an AI game even if your points are low.', 'During the test period, you can still create an AI game even if your points are low.')}</p> : null}
+              {aiPointShortage ? <p className="small-copy">{tx(locale, '포인트가 부족하면 만들기 버튼에서 바로 충전할 수 있어요.', 'If you are low on points, the create button opens the point shop right away.')}</p> : null}
             </div>
           </div>
 
@@ -912,6 +953,14 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
       )}
 
       {error ? <p className="error-text">{error}</p> : null}
+      <PointShortageDialog
+        open={shortageDialogOpen}
+        locale={locale}
+        pointBalance={pointBalance}
+        requiredPoints={shortageRequiredPoints}
+        onClose={() => setShortageDialogOpen(false)}
+        onPurchased={(balance) => setPointBalance(balance)}
+      />
     </section>
   );
 }

@@ -14,18 +14,23 @@ import {
   writeUploadedGameToSupabase
 } from '@/lib/games/upload';
 import { generateGameFromCreatePrompt } from '@/lib/games/ai-game-generator';
-import { getUserPointBalance } from '@/lib/points/service';
+import { getUserPointBalance, grantUserPoints, spendUserPoints } from '@/lib/points/service';
 import { sha256 } from '@/lib/security/hash';
-
-const BYPASS_AI_CREATE_POINT_CHECK_DURING_TEST = true;
 import { getRequestIp } from '@/lib/security/ip';
 
 export async function POST(request: Request) {
+  let pointCost = 0;
+  let chargedPoints = false;
+  let gameId = '';
+  let chargedSlug = '';
+  let userId = '';
+
   try {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Login is required.' }, { status: 401 });
     }
+    userId = user.id;
 
     const formData = await request.formData();
     const title = String(formData.get('title') ?? '').trim();
@@ -60,9 +65,9 @@ export async function POST(request: Request) {
     }
 
     const model = await getAiModelById(modelId);
-    const pointCost = getAiPointCost(model, 'create');
+    pointCost = getAiPointCost(model, 'create');
     const balance = await getUserPointBalance(user.id);
-    if (!BYPASS_AI_CREATE_POINT_CHECK_DURING_TEST && balance < pointCost) {
+    if (balance < pointCost) {
       return NextResponse.json({ error: 'Not enough points for the selected AI model.', requiredPoints: pointCost, balance }, { status: 400 });
     }
 
@@ -79,7 +84,25 @@ export async function POST(request: Request) {
       createSingleHtmlInspection(generated.html, uploadThumbnail ?? generated.thumbnail, { injectScoreBridge: true }),
       finalTitle
     );
-    const gameId = createGameId();
+    gameId = createGameId();
+    chargedSlug = finalSlug;
+
+    if (pointCost > 0) {
+      const pointCharge = await spendUserPoints({
+        userId,
+        delta: pointCost,
+        sourceType: 'ai_create',
+        sourceId: gameId,
+        metadata: {
+          modelId: model.id,
+          slug: finalSlug
+        }
+      });
+      if (!pointCharge.applied) {
+        return NextResponse.json({ error: 'Not enough points for the selected AI model.', requiredPoints: pointCost, balance: pointCharge.balance }, { status: 400 });
+      }
+      chargedPoints = true;
+    }
 
     if (driver === 'supabase') {
       await writeUploadedGameToSupabase({
@@ -118,9 +141,26 @@ export async function POST(request: Request) {
       gameId,
       gameUrl: `/game/${finalSlug}`,
       flagged: inspection.allowlistViolation,
-      pointsSpent: BYPASS_AI_CREATE_POINT_CHECK_DURING_TEST ? 0 : pointCost
+      pointsSpent: pointCost
     });
   } catch (error) {
+    if (chargedPoints && gameId && userId) {
+      try {
+        await grantUserPoints({
+          userId,
+          delta: pointCost,
+          type: 'refund',
+          sourceType: 'ai_create_refund',
+          sourceId: `${gameId}:refund`,
+          metadata: {
+            slug: chargedSlug
+          }
+        });
+      } catch {
+        // Ignore refund failures and return the main error below.
+      }
+    }
+
     const message = error instanceof Error ? error.message : 'Could not generate the game.';
     return NextResponse.json({ error: message }, { status: 400 });
   }

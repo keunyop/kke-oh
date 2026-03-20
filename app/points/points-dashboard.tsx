@@ -1,14 +1,22 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import type { PointLedgerEntry, PointPackage } from '@/lib/points/service';
 import type { Locale } from '@/lib/i18n';
+import { dispatchPointBalanceUpdated } from '@/point-balance-events';
 
 type Props = {
   locale: Locale;
   initialBalance: number;
   initialLedger: PointLedgerEntry[];
   packages: PointPackage[];
+};
+
+type PurchaseResponse = {
+  order?: { id: string };
+  autoApproved?: boolean;
+  balance?: number;
+  error?: string;
 };
 
 export default function PointsDashboard({ locale, initialBalance, initialLedger, packages }: Props) {
@@ -31,22 +39,26 @@ export default function PointsDashboard({ locale, initialBalance, initialLedger,
         },
         body: JSON.stringify({ packageId })
       });
-      const data = (await response.json()) as {
-        order?: { id: string };
-        autoApproved?: boolean;
-        error?: string;
-      };
+      const data = (await response.json()) as PurchaseResponse;
 
       if (!response.ok || !data.order) {
         throw new Error(data.error ?? 'Could not create the point purchase order.');
       }
 
       if (data.autoApproved) {
-        const balanceResponse = await fetch('/api/points/balance', { cache: 'no-store' });
-        const balanceData = (await balanceResponse.json()) as { balance?: number };
-        if (balanceResponse.ok && typeof balanceData.balance === 'number') {
-          setBalance(balanceData.balance);
+        let nextBalance = balance;
+        if (typeof data.balance === 'number') {
+          nextBalance = data.balance;
+          setBalance(data.balance);
+        } else {
+          const balanceResponse = await fetch('/api/points/balance', { cache: 'no-store' });
+          const balanceData = (await balanceResponse.json()) as { balance?: number };
+          if (balanceResponse.ok && typeof balanceData.balance === 'number') {
+            nextBalance = balanceData.balance;
+            setBalance(balanceData.balance);
+          }
         }
+        dispatchPointBalanceUpdated(nextBalance);
 
         const ledgerResponse = await fetch('/api/points/ledger?limit=30', { cache: 'no-store' });
         const ledgerData = (await ledgerResponse.json()) as { entries?: PointLedgerEntry[] };
@@ -72,11 +84,22 @@ export default function PointsDashboard({ locale, initialBalance, initialLedger,
 
   return (
     <div className="points-dashboard">
-      <section className="panel-card points-balance-card">
-        <p className="small-copy">{locale === 'ko' ? '현재 포인트' : 'Current points'}</p>
-        <h2>{balance}</h2>
-        <p>{locale === 'ko' ? '플레이, 리워드 광고, 포인트 구매로 포인트를 모을 수 있어요.' : 'Earn points from gameplay, rewarded ads, and point purchases.'}</p>
-      </section>
+      <div className="points-summary-row">
+        <section className="panel-card points-intro-card">
+          <h1>{locale === 'ko' ? '포인트' : 'Points'}</h1>
+          <p>
+            {locale === 'ko'
+              ? 'AI로 게임을 만들거나 수정할 때 포인트를 쓰고, 플레이와 리워드 광고, 구매로 다시 모을 수 있어요.'
+              : 'Spend points on AI creation and editing, and earn them back from gameplay, rewarded ads, and purchases.'}
+          </p>
+        </section>
+
+        <section className="panel-card points-balance-card">
+          <p className="small-copy">{locale === 'ko' ? '현재 포인트' : 'Current points'}</p>
+          <h2>{balance}</h2>
+          <p>{locale === 'ko' ? '테스트 단계라서 구매하면 바로 포인트가 들어와요.' : 'During testing, purchased points are added immediately.'}</p>
+        </section>
+      </div>
 
       {notice ? <p className="admin-notice">{notice}</p> : null}
       {error ? <p className="error-text">{error}</p> : null}
@@ -86,7 +109,6 @@ export default function PointsDashboard({ locale, initialBalance, initialLedger,
           <article key={pointPackage.id} className="panel-card points-package-card">
             <h3>{pointPackage.name}</h3>
             <p className="points-package-points">{pointPackage.points} pt</p>
-            <p className="small-copy">${(pointPackage.priceCents / 100).toFixed(2)}</p>
             <button
               type="button"
               className="button-primary"
@@ -98,8 +120,8 @@ export default function PointsDashboard({ locale, initialBalance, initialLedger,
                   ? '처리 중...'
                   : 'Working...'
                 : locale === 'ko'
-                  ? '포인트 구매'
-                  : 'Buy points'}
+                  ? '포인트 구매 (무료)'
+                  : 'Buy points (Free)'}
             </button>
           </article>
         ))}
@@ -119,7 +141,9 @@ export default function PointsDashboard({ locale, initialBalance, initialLedger,
                   {entry.delta > 0 ? '+' : ''}
                   {entry.delta}
                 </div>
-                <div className="small-copy">{locale === 'ko' ? '잔액' : 'Balance'} {entry.balanceAfter}</div>
+                <div className="small-copy">
+                  {locale === 'ko' ? '잔액' : 'Balance'} {entry.balanceAfter}
+                </div>
               </div>
             ))}
           </div>
@@ -130,4 +154,3 @@ export default function PointsDashboard({ locale, initialBalance, initialLedger,
     </div>
   );
 }
-

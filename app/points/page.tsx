@@ -18,14 +18,6 @@ export default async function PointsPage() {
   return (
     <section className="upload-page">
       <GoogleAdSlot placement="points" label={locale === 'ko' ? '포인트 페이지 광고' : 'Points sponsored slot'} />
-      <section className="panel-card">
-        <h1>{locale === 'ko' ? '포인트' : 'Points'}</h1>
-        <p>
-          {locale === 'ko'
-            ? 'AI로 게임을 만들거나 수정할 때 포인트를 쓰고, 플레이와 리워드 광고, 구매로 다시 모을 수 있어요.'
-            : 'Spend points on AI creation and editing, and earn them back from gameplay, rewarded ads, and purchases.'}
-        </p>
-      </section>
       <PointsDashboard locale={locale} initialBalance={balance} initialLedger={ledger} packages={packages} />
     </section>
   );

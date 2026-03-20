@@ -1,6 +1,7 @@
-import { revalidatePath } from 'next/cache';
+﻿import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { getCurrentUser } from '@/lib/auth';
 import { getAiModelById, getAiPointCost } from '@/lib/ai/models';
 import { getGameDataDriver, getGameStorageDir } from '@/lib/config';
@@ -16,11 +17,9 @@ import {
   updateUploadedGameInSupabase
 } from '@/lib/games/upload';
 import { generateGameFromEditPrompt } from '@/lib/games/ai-game-generator';
-import { getUserPointBalance } from '@/lib/points/service';
+import { getUserPointBalance, grantUserPoints, spendUserPoints } from '@/lib/points/service';
 
 type EditMode = 'html' | 'zip' | 'ai';
-
-const BYPASS_AI_EDIT_POINT_CHECK_DURING_TEST = true;
 
 function getText(formData: FormData, key: string) {
   return String(formData.get(key) ?? '').trim();
@@ -45,11 +44,17 @@ async function loadCurrentEntryHtml(game: GameRecord): Promise<string | null> {
 }
 
 export async function POST(request: Request, context: { params: { id: string } }) {
+  let pointCost = 0;
+  let chargedPoints = false;
+  let userId = '';
+  const chargeSourceId = randomUUID();
+
   try {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Login is required.' }, { status: 401 });
     }
+    userId = user.id;
 
     const repository = getGameRepository();
     const game = await repository.getById(context.params.id);
@@ -88,7 +93,6 @@ export async function POST(request: Request, context: { params: { id: string } }
     const thumbnail = await createThumbnailUpload(thumbnailFile instanceof File ? thumbnailFile : null);
     let inspection = null;
     let nextDescription = description || game.description;
-    let pointCost = 0;
 
     if (mode === 'html') {
       if (htmlFile instanceof File) {
@@ -139,7 +143,7 @@ export async function POST(request: Request, context: { params: { id: string } }
       const model = await getAiModelById(modelId);
       pointCost = getAiPointCost(model, 'edit');
       const balance = await getUserPointBalance(user.id);
-      if (!BYPASS_AI_EDIT_POINT_CHECK_DURING_TEST && balance < pointCost) {
+      if (balance < pointCost) {
         return NextResponse.json({ error: 'Not enough points for the selected AI model.', requiredPoints: pointCost, balance }, { status: 400 });
       }
 
@@ -158,6 +162,25 @@ export async function POST(request: Request, context: { params: { id: string } }
         createSingleHtmlInspection(generated.html, thumbnail ?? generated.thumbnail, { injectScoreBridge: leaderboardEnabled }),
         title
       );
+    }
+
+    if (mode === 'ai' && pointCost > 0) {
+      const charge = await spendUserPoints({
+        userId,
+        delta: pointCost,
+        sourceType: 'ai_edit',
+        sourceId: chargeSourceId,
+        metadata: {
+          gameId: game.id,
+          modelId
+        }
+      });
+
+      if (!charge.applied) {
+        return NextResponse.json({ error: 'Not enough points for the selected AI model.', requiredPoints: pointCost, balance: charge.balance }, { status: 400 });
+      }
+
+      chargedPoints = true;
     }
 
     const driver = getGameDataDriver();
@@ -195,14 +218,28 @@ export async function POST(request: Request, context: { params: { id: string } }
       ok: true,
       game: updatedGame,
       gameUrl: `/game/${updatedGame?.slug ?? game.slug}`,
-      pointsSpent: mode === 'ai' && BYPASS_AI_EDIT_POINT_CHECK_DURING_TEST ? 0 : pointCost
+      pointsSpent: mode === 'ai' ? pointCost : 0
     });
   } catch (error) {
+    if (chargedPoints && userId) {
+      try {
+        await grantUserPoints({
+          userId,
+          delta: pointCost,
+          type: 'refund',
+          sourceType: 'ai_edit_refund',
+          sourceId: `${chargeSourceId}:refund`,
+          metadata: {
+            gameId: context.params.id
+          }
+        });
+      } catch {
+        // Ignore refund failures and return the main error below.
+      }
+    }
+
     const message = error instanceof Error ? error.message : 'Could not update the game.';
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
-
-
-
 

@@ -229,20 +229,26 @@ export function GameActionsClient({ gameId, title, initialLikeCount, initialDisl
 
     try {
       const shareUrl = window.location.href;
-      if (navigator.share) {
-        await navigator.share({ title, url: shareUrl });
-      } else if (navigator.clipboard?.writeText) {
+      if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
       } else {
-        throw new Error('Share unavailable');
+        const input = document.createElement('input');
+        input.value = shareUrl;
+        input.setAttribute('readonly', '');
+        input.style.position = 'absolute';
+        input.style.left = '-9999px';
+        document.body.appendChild(input);
+        input.select();
+        const copied = document.execCommand('copy');
+        document.body.removeChild(input);
+
+        if (!copied) {
+          throw new Error('Share unavailable');
+        }
       }
 
       setStatus(shareDone);
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        return;
-      }
-
+    } catch {
       setStatus(shareFailed);
     } finally {
       setSharePending(false);

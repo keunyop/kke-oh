@@ -625,7 +625,7 @@ img {
   align-content: start;
   grid-template-rows: minmax(2.6em, auto) minmax(3em, auto) auto auto;
   gap: 10px;
-  padding: 14px 14px 16px;
+  padding: 14px 14px 12px;
 }
 
 .game-card.game-card-no-summary .game-card-body {
@@ -1812,6 +1812,27 @@ td {
   gap: 14px;
 }
 
+.point-shortage-dialog {
+  width: min(920px, 100%);
+  margin: auto;
+}
+
+.point-shortage-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.point-shortage-backdrop {
+  place-items: start center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block: 24px;
+}
+
+.point-shortage-package-card {
+  align-content: start;
+}
+
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -2409,10 +2430,32 @@ td {
   gap: 16px;
 }
 
+.points-summary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+  gap: 16px;
+}
+
+.points-intro-card {
+  display: grid;
+  align-content: center;
+}
+
+.points-balance-card {
+  display: grid;
+  align-content: center;
+  justify-items: end;
+  text-align: right;
+}
+
 .points-package-card,
 .points-ledger-row {
   display: grid;
   gap: 10px;
+}
+
+.points-package-grid-shortage {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .points-ledger-row {
@@ -2444,11 +2487,18 @@ td {
   min-height: min(72vh, 760px);
   display: grid;
   place-items: center;
+  width: 100%;
+  align-content: center;
+}
+
+.auth-page.auth-page-centered {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .auth-card-centered {
   width: min(460px, 100%);
   gap: 18px;
+  margin-inline: auto;
 }
 
 .auth-card-head {
@@ -2811,6 +2861,8 @@ td {
     grid-template-columns: 1fr;
   }
 
+  .points-summary-row,
+  .points-package-grid-shortage,
   .ai-compact-card,
   .home-search-panel {
     grid-template-columns: 1fr;
@@ -2818,6 +2870,11 @@ td {
 
   .ai-compact-stats {
     justify-content: flex-start;
+  }
+
+  .points-balance-card {
+    justify-items: start;
+    text-align: left;
   }
 }
 

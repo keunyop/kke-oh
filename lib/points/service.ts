@@ -63,7 +63,7 @@ export function getRewardedAdPointReward() {
 }
 
 export function isPointPurchaseAutoApproveEnabled() {
-  return getOptionalEnv('POINT_PURCHASE_AUTO_APPROVE') === 'true';
+  return getOptionalEnv('POINT_PURCHASE_AUTO_APPROVE') !== 'false';
 }
 
 export async function getUserPointBalance(userId: string): Promise<number> {
@@ -277,13 +277,14 @@ export async function createPointPurchaseOrder(userId: string, packageId: string
     return { order, autoApproved: false };
   }
 
-  await confirmPointPurchaseOrder(userId, orderId);
+  const balance = await confirmPointPurchaseOrder(userId, orderId);
   return {
     order: {
       ...order,
       status: 'APPROVED'
     },
-    autoApproved: true
+    autoApproved: true,
+    balance
   };
 }
 

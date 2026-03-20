@@ -1,9 +1,10 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type RefObject } from 'react';
 import Image from 'next/image';
 import { AiModelCompactPanel } from '@/app/ai-model-compact-panel';
 import { AiProgressCard } from '@/components/ai/ai-progress-card';
+import { PointShortageDialog } from '@/components/points/point-shortage-dialog';
 import { getGameAssetUrl } from '@/lib/games/urls';
 import { getPlaceholderThumbnailDataUrl } from '@/lib/games/placeholder';
 import type { GameRecord } from '@/lib/games/types';
@@ -19,6 +20,8 @@ type Props = {
 type ApiResponse = {
   ok?: boolean;
   error?: string;
+  requiredPoints?: number;
+  balance?: number;
   game?: GameRecord | null;
   gameUrl?: string;
 };
@@ -40,7 +43,7 @@ type AiModelsResponse = {
 const AI_PROGRESS_STEP_DELAYS = [7000, 20000, 42000, 64000] as const;
 
 function text(locale: Locale, ko: string, en: string) {
-  return locale === 'ko' ? en : en;
+  return locale === 'ko' ? ko : en;
 }
 
 function FileDropzone({
@@ -127,7 +130,7 @@ function FileDropzone({
 }
 
 export function EditGameForm({ game, locale }: Props) {
-  const [mode, setMode] = useState<EditMode>('html');
+  const [mode, setMode] = useState<EditMode>('ai');
   const [title, setTitle] = useState(game.title);
   const [description, setDescription] = useState(game.description);
   const [leaderboardEnabled, setLeaderboardEnabled] = useState(game.leaderboard_enabled);
@@ -145,6 +148,8 @@ export function EditGameForm({ game, locale }: Props) {
   const [currentGame, setCurrentGame] = useState(game);
   const [aiProgressStep, setAiProgressStep] = useState(0);
   const [aiProgressDots, setAiProgressDots] = useState(1);
+  const [shortageDialogOpen, setShortageDialogOpen] = useState(false);
+  const [shortageRequiredPoints, setShortageRequiredPoints] = useState(0);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const htmlInputRef = useRef<HTMLInputElement>(null);
   const zipInputRef = useRef<HTMLInputElement>(null);
@@ -208,13 +213,50 @@ export function EditGameForm({ game, locale }: Props) {
       const data = (await response.json()) as { balance?: number };
       if (response.ok && typeof data.balance === 'number') {
         setPointBalance(data.balance);
+        return data.balance;
       }
     } catch {
       // Ignore balance refresh failures.
     }
+
+    return null;
+  }
+
+  function openPointShortageDialog(requiredPoints: number, balance = pointBalance) {
+    setPointBalance(balance);
+    setShortageRequiredPoints(requiredPoints);
+    setShortageDialogOpen(true);
+  }
+
+  async function ensureEnoughAiPoints(requiredPoints: number) {
+    const latestBalance = await refreshBalance();
+    const nextBalance = latestBalance ?? pointBalance;
+
+    if (requiredPoints > nextBalance) {
+      openPointShortageDialog(requiredPoints, nextBalance);
+      return false;
+    }
+
+    return true;
   }
 
   async function submit() {
+    if (mode === 'ai') {
+      if (prompt.trim().length < 8) {
+        setError(text(locale, 'AI 수정 요청은 8글자 이상 적어주세요.', 'Please write at least 8 characters for the AI update.'));
+        return;
+      }
+
+      if (!selectedModel) {
+        setError(text(locale, 'AI 도우미를 선택해주세요.', 'Please choose an AI helper.'));
+        return;
+      }
+
+      if (!(await ensureEnoughAiPoints(aiPointCost))) {
+        return;
+      }
+    }
+
     setPending(true);
     setError(null);
     setSuccess(null);
@@ -240,6 +282,15 @@ export function EditGameForm({ game, locale }: Props) {
 
       const data = (await response.json()) as ApiResponse;
       if (!response.ok || !data.ok || !data.game) {
+        if (typeof data.balance === 'number') {
+          setPointBalance(data.balance);
+        }
+
+        if (typeof data.requiredPoints === 'number') {
+          openPointShortageDialog(data.requiredPoints, typeof data.balance === 'number' ? data.balance : pointBalance);
+          return;
+        }
+
         throw new Error(data.error ?? 'Could not update the game.');
       }
 
@@ -256,7 +307,7 @@ export function EditGameForm({ game, locale }: Props) {
       if (htmlInputRef.current) htmlInputRef.current.value = '';
       if (zipInputRef.current) zipInputRef.current.value = '';
       await refreshBalance();
-      setSuccess(text(locale, 'Game updated.', 'Your game was updated.'));
+      setSuccess(text(locale, '게임이 수정되었어요.', 'Your game was updated.'));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not update the game.');
     } finally {
@@ -265,9 +316,21 @@ export function EditGameForm({ game, locale }: Props) {
   }
 
   const modeCards: Array<{ key: EditMode; title: string; hint: string }> = [
-    { key: 'ai', title: 'Edit with AI', hint: 'Describe the changes and pick the model right below.' },
-    { key: 'html', title: 'Replace with HTML', hint: 'Replace the game with a new HTML file, or just update the metadata.' },
-    { key: 'zip', title: 'Replace with ZIP', hint: 'Replace the full game with a new ZIP, or just update the metadata.' }
+    {
+      key: 'ai',
+      title: text(locale, 'AI로 다시 만들기', 'Edit with AI'),
+      hint: text(locale, '바꾸고 싶은 점을 적고 바로 아래에서 AI 도우미를 골라주세요.', 'Describe the changes and pick the helper right below.')
+    },
+    {
+      key: 'html',
+      title: text(locale, 'HTML로 바꾸기', 'Replace with HTML'),
+      hint: text(locale, '새 HTML 파일로 게임을 바꾸거나, 파일 없이 제목과 설명만 수정할 수 있어요.', 'Replace the game with a new HTML file, or just update the metadata.')
+    },
+    {
+      key: 'zip',
+      title: text(locale, 'ZIP으로 바꾸기', 'Replace with ZIP'),
+      hint: text(locale, '새 ZIP 파일로 전체 게임을 바꾸거나, 파일 없이 정보만 수정할 수 있어요.', 'Replace the full game with a new ZIP, or just update the metadata.')
+    }
   ];
 
   return (
@@ -277,10 +340,10 @@ export function EditGameForm({ game, locale }: Props) {
           <Image src={currentImageUrl} alt={currentGame.title} fill className="game-card-image" unoptimized />
         </div>
         <div className="edit-game-preview-copy">
-          <p className="small-copy">Current game</p>
+          <p className="small-copy">{text(locale, '현재 게임', 'Current game')}</p>
           <h2>{currentGame.title}</h2>
           <p>{currentGame.description}</p>
-          <p className="small-copy">Current link: {gameUrl}</p>
+          <p className="small-copy">{text(locale, '현재 링크', 'Current link')}: {gameUrl}</p>
         </div>
       </div>
 
@@ -289,28 +352,28 @@ export function EditGameForm({ game, locale }: Props) {
 
       <div className="submit-section-stack">
         <label className="field-label">
-          <span>Game name</span>
+          <span>{text(locale, '게임 이름', 'Game name')}</span>
           <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={80} />
         </label>
 
         <label className="field-label">
-          <span>Game description</span>
+          <span>{text(locale, '게임 설명', 'Game description')}</span>
           <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={4} maxLength={400} />
         </label>
 
         <label className="field-label">
-          <span>Use KKE-OH leaderboard</span>
+          <span>{text(locale, 'KKE-OH 리더보드 사용', 'Use KKE-OH leaderboard')}</span>
           <span className="toggle-row">
             <input type="checkbox" checked={leaderboardEnabled} onChange={(event) => setLeaderboardEnabled(event.target.checked)} />
-            <span className="small-copy">Allow this game to submit scores to the shared leaderboard.</span>
+            <span className="small-copy">{text(locale, '이 게임의 점수를 공용 리더보드로 보낼 수 있게 해요.', 'Allow this game to submit scores to the shared leaderboard.')}</span>
           </span>
         </label>
 
         <FileDropzone
           inputId="edit-thumbnail-upload"
           accept="image/png,image/jpeg,image/webp"
-          label="Thumbnail image"
-          hint="Leave it empty to keep the current thumbnail."
+          label={text(locale, '썸네일 이미지', 'Thumbnail image')}
+          hint={text(locale, '비워두면 지금 썸네일을 그대로 사용해요.', 'Leave it empty to keep the current thumbnail.')}
           file={thumbnailFile}
           onFileChange={setThumbnailFile}
           inputRef={thumbnailInputRef}
@@ -337,13 +400,13 @@ export function EditGameForm({ game, locale }: Props) {
         {mode === 'ai' ? (
           <div className="submit-section-stack">
             <label className="field-label">
-              <span>Tell AI what to change</span>
+              <span>{text(locale, 'AI에게 바꾸고 싶은 점', 'Tell AI what to change')}</span>
               <textarea
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
                 rows={4}
                 maxLength={1200}
-                placeholder="Example: Make the obstacles easier and add a bigger score board."
+                placeholder={text(locale, '예시: 장애물을 더 쉽게 하고 점수판을 더 크게 보여줘.', 'Example: Make the obstacles easier and add a bigger score board.')}
               />
             </label>
 
@@ -356,10 +419,10 @@ export function EditGameForm({ game, locale }: Props) {
               pending={pending}
               isShortage={aiPointShortage}
               onChange={setModelId}
-              shortageCopy="During the test period, you can still update the game with AI even if your points are low."
+              shortageCopy={text(locale, '포인트가 부족해요. 저장 버튼을 누르면 바로 충전할 수 있어요.', 'Not enough points. Press save to open the point shop.')}
             />
 
-            {pending ? <AiProgressCard title="AI is updating your game" detail={['Understanding your change request.', 'Analyzing the current game.', 'Generating updated rules and presentation.', 'Running final checks before saving.', 'Saving the updated result.']} step={aiProgressStep} dots={aiProgressDots} /> : null}
+            {pending ? <AiProgressCard title={text(locale, 'AI가 게임을 고치는 중이에요', 'AI is updating your game')} detail={['Understanding your change request.', 'Analyzing the current game.', 'Generating updated rules and presentation.', 'Running final checks before saving.', 'Saving the updated result.']} step={aiProgressStep} dots={aiProgressDots} /> : null}
           </div>
         ) : null}
 
@@ -367,8 +430,8 @@ export function EditGameForm({ game, locale }: Props) {
           <FileDropzone
             inputId="edit-html-upload"
             accept=".html,.htm,text/html"
-            label="New HTML file"
-            hint="If you save without a file, only the metadata will change."
+            label={text(locale, '새 HTML 파일', 'New HTML file')}
+            hint={text(locale, '파일 없이 저장하면 제목, 설명, 썸네일만 바뀌어요.', 'If you save without a file, only the metadata will change.')}
             file={htmlFile}
             onFileChange={setHtmlFile}
             inputRef={htmlInputRef}
@@ -379,8 +442,8 @@ export function EditGameForm({ game, locale }: Props) {
           <FileDropzone
             inputId="edit-zip-upload"
             accept=".zip,application/zip"
-            label="New ZIP file"
-            hint="If you save without a file, only the metadata will change."
+            label={text(locale, '새 ZIP 파일', 'New ZIP file')}
+            hint={text(locale, '파일 없이 저장하면 제목, 설명, 썸네일만 바뀌어요.', 'If you save without a file, only the metadata will change.')}
             file={zipFile}
             onFileChange={setZipFile}
             inputRef={zipInputRef}
@@ -389,13 +452,23 @@ export function EditGameForm({ game, locale }: Props) {
 
         <div className="button-row">
           <button type="button" className="button-primary button-fill" onClick={() => void submit()} disabled={pending}>
-            {pending ? 'Saving...' : 'Save changes'}
+            {pending ? text(locale, '저장 중...', 'Saving...') : text(locale, '변경사항 저장', 'Save changes')}
           </button>
           <a href="/my-games" className="button-secondary">
-            Cancel
+            {text(locale, '취소', 'Cancel')}
           </a>
         </div>
       </div>
+
+      <PointShortageDialog
+        open={shortageDialogOpen}
+        locale={locale}
+        pointBalance={pointBalance}
+        requiredPoints={shortageRequiredPoints}
+        onClose={() => setShortageDialogOpen(false)}
+        onPurchased={(balance) => setPointBalance(balance)}
+      />
     </section>
   );
 }
+

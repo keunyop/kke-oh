@@ -1,7 +1,7 @@
 ﻿import { redirect } from 'next/navigation';
-import LoginForm from './login-form';
 import { getCurrentUser } from '@/lib/auth';
 import { getRequestLocale } from '@/lib/i18n/server';
+import LoginFormClient from '@/login-form-client';
 
 export default async function LoginPage({
   searchParams
@@ -20,7 +20,7 @@ export default async function LoginPage({
 
   return (
     <section className="auth-page auth-page-centered">
-      <LoginForm nextPath={nextPath} locale={locale} />
+      <LoginFormClient nextPath={nextPath} locale={locale} />
     </section>
   );
 }

@@ -1,6 +1,7 @@
 import { ClosableDetails } from '@/app/_components/closable-details';
 import { CurrentPageLoginLink } from '@/app/_components/current-page-login-link';
-import { SiteSearchForm } from '@/components/site/site-search-form';
+import { HomeOnlySiteSearch } from '@/home-only-site-search';
+import PointBalanceLink from '@/point-balance-link';
 import { getCurrentUser } from '@/lib/auth';
 import { getDictionary, type Locale } from '@/lib/i18n';
 import { getUserPointBalance } from '@/lib/points/service';
@@ -48,7 +49,7 @@ export async function SiteNavbar({ locale }: NavbarProps) {
         </a>
 
         <div className="nav-actions simple-actions nav-actions-desktop">
-          <SiteSearchForm className="nav-search" placeholder={t.common.searchPlaceholder} />
+          <HomeOnlySiteSearch className="nav-search" placeholder={t.common.searchPlaceholder} />
           <a href="/submit" className="upload-link upload-link-cta">
             {t.common.uploadGame}
           </a>
@@ -63,9 +64,7 @@ export async function SiteNavbar({ locale }: NavbarProps) {
             >
               <div className="profile-menu-card">
                 <p className="profile-menu-name">{user.loginId}</p>
-                <a href="/points" className="profile-menu-link">
-                  {pointsLabel} {pointBalance ?? 0}
-                </a>
+                <PointBalanceLink href="/points" className="profile-menu-link" label={pointsLabel} initialBalance={pointBalance ?? 0} />
                 {adminUser ? (
                   <a href="/admin" className="profile-menu-link">
                     {adminLabel}
@@ -101,7 +100,7 @@ export async function SiteNavbar({ locale }: NavbarProps) {
           }
         >
           <div className="mobile-nav-panel">
-            <SiteSearchForm className="nav-search mobile-nav-search" placeholder={t.common.searchPlaceholder} />
+            <HomeOnlySiteSearch className="nav-search mobile-nav-search" placeholder={t.common.searchPlaceholder} />
             <a href="/submit" className="upload-link mobile-nav-link">
               {t.common.uploadGame}
             </a>
@@ -116,9 +115,7 @@ export async function SiteNavbar({ locale }: NavbarProps) {
                     <p className="mobile-profile-name">{user.loginId}</p>
                   </div>
                 </div>
-                <a href="/points" className="profile-menu-link mobile-nav-link">
-                  {pointsLabel} {pointBalance ?? 0}
-                </a>
+                <PointBalanceLink href="/points" className="profile-menu-link mobile-nav-link" label={pointsLabel} initialBalance={pointBalance ?? 0} />
                 {adminUser ? (
                   <a href="/admin" className="profile-menu-link mobile-nav-link">
                     {adminLabel}

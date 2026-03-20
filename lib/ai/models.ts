@@ -1,4 +1,4 @@
-﻿import { createServiceClient } from '@/lib/db/supabase';
+import { createServiceClient } from '@/lib/db/supabase';
 
 export type AiModelCatalogItem = {
   id: string;
@@ -12,37 +12,42 @@ export type AiModelCatalogItem = {
   sortOrder: number;
 };
 
+type FriendlyAiModelCopy = {
+  label: string;
+  kidDescription: string;
+};
+
 const DEFAULT_AI_MODELS: AiModelCatalogItem[] = [
   {
     id: 'gpt-4o-mini',
-    label: 'Fast',
+    label: 'Quick Buddy',
     provider: 'openai',
     modelName: 'gpt-4o-mini',
     pointCostCreate: 12,
     pointCostEdit: 8,
-    kidDescription: 'Quick and light. Good for simple game ideas and small fixes.',
+    kidDescription: 'Fast helper for small game ideas and tiny fixes.',
     active: true,
     sortOrder: 1
   },
   {
     id: 'gpt-5-mini',
-    label: 'Balanced',
+    label: 'Smart Buddy',
     provider: 'openai',
     modelName: 'gpt-5-mini',
     pointCostCreate: 24,
     pointCostEdit: 16,
-    kidDescription: 'A stronger all-around choice for better rules, screens, and polish.',
+    kidDescription: 'A steady helper for most games, with stronger rules and clearer screens.',
     active: true,
     sortOrder: 2
   },
   {
     id: 'gpt-5.4-mini',
-    label: 'Polished',
+    label: 'Super Buddy',
     provider: 'openai',
     modelName: 'gpt-5.4-mini',
     pointCostCreate: 36,
     pointCostEdit: 24,
-    kidDescription: 'Best for bigger ideas that need more detail, style, and careful clean-up.',
+    kidDescription: 'Best for bigger ideas that need extra detail, polish, and careful cleanup.',
     active: true,
     sortOrder: 3
   }
@@ -52,9 +57,15 @@ function isMissingTableError(error: unknown, tableName: string) {
   return error instanceof Error && error.message.includes(tableName);
 }
 
-function getFallbackDescription(modelId: string, modelName: string) {
+export function getFriendlyAiModelCopy(modelId: string, modelName?: string): FriendlyAiModelCopy {
   const defaultModel = DEFAULT_AI_MODELS.find((item) => item.id === modelId || item.modelName === modelName);
-  return defaultModel?.kidDescription ?? 'Builds a browser game from your idea and point budget.';
+
+  return (
+    defaultModel ?? {
+      label: 'Game Buddy',
+      kidDescription: 'Turns your idea into a browser game while using the points shown here.'
+    }
+  );
 }
 
 export async function listAiModels(): Promise<AiModelCatalogItem[]> {
@@ -74,20 +85,22 @@ export async function listAiModels(): Promise<AiModelCatalogItem[]> {
       return DEFAULT_AI_MODELS;
     }
 
-    return data.map((item) => ({
-      id: item.id,
-      label: item.label,
-      provider: item.provider,
-      modelName: item.model_name,
-      pointCostCreate: item.point_cost_create,
-      pointCostEdit: item.point_cost_edit,
-      kidDescription:
-        typeof item.kid_description === 'string' && item.kid_description.trim()
-          ? item.kid_description
-          : getFallbackDescription(item.id, item.model_name),
-      active: item.active,
-      sortOrder: item.sort_order
-    }));
+    return data.map((item) => {
+      const friendlyCopy = getFriendlyAiModelCopy(item.id, item.model_name);
+      const rawDescription = typeof item.kid_description === 'string' ? item.kid_description.trim() : '';
+
+      return {
+        id: item.id,
+        label: friendlyCopy.label,
+        provider: item.provider,
+        modelName: item.model_name,
+        pointCostCreate: item.point_cost_create,
+        pointCostEdit: item.point_cost_edit,
+        kidDescription: rawDescription && !/gpt/i.test(rawDescription) ? rawDescription : friendlyCopy.kidDescription,
+        active: item.active,
+        sortOrder: item.sort_order
+      };
+    });
   } catch (error) {
     if (isMissingTableError(error, 'ai_models') || isMissingTableError(error, 'kid_description')) {
       return DEFAULT_AI_MODELS;
@@ -114,4 +127,3 @@ export async function getAiModelById(modelId: string): Promise<AiModelCatalogIte
 export function getAiPointCost(model: AiModelCatalogItem, mode: 'create' | 'edit') {
   return mode === 'create' ? model.pointCostCreate : model.pointCostEdit;
 }
-
