@@ -2606,6 +2606,100 @@ td {
   color: #b09a80;
 }
 
+.home-ai-starter {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+  gap: 20px;
+  padding: 22px;
+  border-color: rgba(255, 188, 79, 0.3);
+  background:
+    radial-gradient(circle at top left, rgba(255, 223, 128, 0.28), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(126, 217, 255, 0.18), transparent 22%),
+    linear-gradient(140deg, rgba(255, 251, 237, 0.98) 0%, rgba(247, 252, 255, 0.96) 100%);
+}
+
+.home-ai-starter-copy,
+.home-ai-starter-form {
+  display: grid;
+  gap: 14px;
+}
+
+.home-ai-starter-copy {
+  align-content: center;
+}
+
+.home-ai-starter-copy h1 {
+  margin: 0;
+  font-size: clamp(1.9rem, 4vw, 2.8rem);
+  line-height: 1.08;
+}
+
+.home-ai-starter-copy p,
+.home-ai-starter-helper {
+  margin: 0;
+}
+
+.home-ai-starter-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.home-ai-starter-highlights span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 196, 110, 0.24);
+  color: #8b5606;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.home-ai-starter-form textarea {
+  min-height: 126px;
+}
+
+.home-ai-starter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 14px;
+  align-items: start;
+}
+
+.home-ai-starter-model-card {
+  display: grid;
+  gap: 6px;
+  min-height: 100%;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(255, 196, 110, 0.24);
+}
+
+.home-ai-starter-model-card strong {
+  font-size: 1.8rem;
+  line-height: 1;
+  color: #8b5606;
+}
+
+.home-ai-starter-model-label,
+.home-ai-starter-balance {
+  margin: 0;
+}
+
+.home-ai-starter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.home-ai-starter-actions > * {
+  flex: 0 0 auto;
+}
+
 .home-champions-board {
   gap: 14px;
   padding: 18px 20px;
@@ -2864,7 +2958,9 @@ td {
   .points-summary-row,
   .points-package-grid-shortage,
   .ai-compact-card,
-  .home-search-panel {
+  .home-search-panel,
+  .home-ai-starter,
+  .home-ai-starter-row {
     grid-template-columns: 1fr;
   }
 
@@ -2881,6 +2977,18 @@ td {
 @media (max-width: 760px) {
   .admin-hero-simple {
     flex-direction: column;
+  }
+
+  .home-ai-starter {
+    padding: 18px;
+  }
+
+  .home-ai-starter-copy h1 {
+    font-size: 1.75rem;
+  }
+
+  .home-ai-starter-actions > * {
+    width: 100%;
   }
 
   .home-champions-copy-inline {

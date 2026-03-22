@@ -1,4 +1,5 @@
-﻿import { requireUser } from '@/lib/auth';
+import { buildAiDraftLaunchPath, normalizeAiPrefillPrompt } from '@/lib/ai/home-entry';
+import { requireUser } from '@/lib/auth';
 import { getRequestLocale } from '@/lib/i18n/server';
 import SubmitForm from './submit-form';
 
@@ -16,9 +17,23 @@ function getHowItWorksCopy(locale: ReturnType<typeof getRequestLocale>) {
   };
 }
 
-export default async function SubmitPage() {
+type SubmitPageProps = {
+  searchParams?: {
+    aiPrompt?: string;
+    aiModel?: string;
+  };
+};
+
+export default async function SubmitPage({ searchParams }: SubmitPageProps) {
+  const initialAiPrompt = normalizeAiPrefillPrompt(searchParams?.aiPrompt);
+  const initialAiModelId = searchParams?.aiModel?.trim() ?? '';
+  const nextPath = buildAiDraftLaunchPath({
+    prompt: initialAiPrompt,
+    modelId: initialAiModelId
+  });
+
   const locale = getRequestLocale();
-  await requireUser('/submit');
+  await requireUser(nextPath);
   const howItWorks = getHowItWorksCopy(locale);
 
   return (
@@ -41,8 +56,7 @@ export default async function SubmitPage() {
           </div>
         </div>
       </section>
-      <SubmitForm locale={locale} />
+      <SubmitForm locale={locale} initialAiPrompt={initialAiPrompt} initialAiModelId={initialAiModelId} />
     </div>
   );
 }
-

@@ -61,11 +61,11 @@ export function AiModelCompactPanel({
 
       <div className="ai-compact-stats">
         <div className="ai-compact-stat">
-          <span className="small-copy">{tx(locale, '지금 포인트', 'Current points')}</span>
+          <span className="small-copy">{tx(locale, '현재 포인트', 'Current points')}</span>
           <strong>{pointBalance}</strong>
         </div>
         <div className="ai-compact-stat">
-          <span className="small-copy">{tx(locale, '이번에 쓰는 포인트', 'Points for this run')}</span>
+          <span className="small-copy">{tx(locale, '이번에 드는 포인트', 'Points for this run')}</span>
           <strong>{pointCost}</strong>
         </div>
       </div>

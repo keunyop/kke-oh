@@ -167,7 +167,15 @@ function FileDropzone({
   );
 }
 
-export default function SubmitForm({ locale }: { locale: Locale }) {
+export default function SubmitForm({
+  locale,
+  initialAiPrompt = '',
+  initialAiModelId = ''
+}: {
+  locale: Locale;
+  initialAiPrompt?: string;
+  initialAiModelId?: string;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<CreationMode>('ai');
   const [manualMode, setManualMode] = useState<ManualMode>('html');
@@ -176,11 +184,11 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
   const [aiTitle, setAiTitle] = useState('');
   const [aiSlug, setAiSlug] = useState('');
   const [aiSlugEdited, setAiSlugEdited] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiPrompt, setAiPrompt] = useState(initialAiPrompt);
   const [aiDescription, setAiDescription] = useState('');
   const [aiThumbnail, setAiThumbnail] = useState<File | null>(null);
   const [aiModels, setAiModels] = useState<AiModel[]>([]);
-  const [aiModelId, setAiModelId] = useState('');
+  const [aiModelId, setAiModelId] = useState(initialAiModelId);
 
   const [manualTitle, setManualTitle] = useState('');
   const [manualSlug, setManualSlug] = useState('');
@@ -233,9 +241,17 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
           return;
         }
 
-        setAiModels(data.models);
+        const models = data.models;
+        setAiModels(models);
         setPointBalance(data.balance ?? 0);
-        setAiModelId((current) => current || data.models?.[0]?.id || '');
+        setAiModelId((current) => {
+          if (current && models.some((model) => model.id === current)) {
+            return current;
+          }
+
+          const requestedModel = models.find((model) => model.id === initialAiModelId);
+          return requestedModel?.id ?? models[0]?.id ?? '';
+        });
       } catch (cause) {
         if (!cancelled) {
           setError(cause instanceof Error ? cause.message : 'Could not load AI models.');
@@ -252,7 +268,7 @@ export default function SubmitForm({ locale }: { locale: Locale }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initialAiModelId]);
 
   useEffect(() => {
     if (!isAiPublishing) {
