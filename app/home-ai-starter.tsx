@@ -31,6 +31,7 @@ export function HomeAiStarter({ locale, models, isLoggedIn, pointBalance }: Prop
   const selectedModel = useMemo(() => models.find((model) => model.id === modelId) ?? models[0] ?? null, [modelId, models]);
   const trimmedPrompt = prompt.trim();
   const canContinue = trimmedPrompt.length >= 8 && Boolean(selectedModel) && !isPending;
+  const balanceValue = typeof pointBalance === 'number' ? `${pointBalance}P` : tx(locale, '로그인 후', 'After login');
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,7 +53,6 @@ export function HomeAiStarter({ locale, models, isLoggedIn, pointBalance }: Prop
   return (
     <section className="panel-card home-ai-starter" aria-labelledby="home-ai-starter-title">
       <div className="home-ai-starter-copy">
-        <span className="pill-label">{tx(locale, 'AI 게임 만들기', 'Make a game with AI')}</span>
         <h1 id="home-ai-starter-title">{tx(locale, '원하는 게임 아이디어를 적어보세요', 'Write the game idea you want')}</h1>
         <p>
           {tx(
@@ -61,11 +61,6 @@ export function HomeAiStarter({ locale, models, isLoggedIn, pointBalance }: Prop
             'A character, a goal, and simple controls are enough. We will carry this into the full draft builder on the next screen.'
           )}
         </p>
-        <div className="home-ai-starter-highlights" aria-label={tx(locale, 'AI 만들기 안내', 'AI creation notes')}>
-          <span>{tx(locale, '초안으로 저장', 'Saved as a draft')}</span>
-          <span>{tx(locale, '모델은 나중에 다시 바꿀 수 있어요', 'You can change models again later')}</span>
-          <span>{tx(locale, '리더보드 게임 만들기 지원', 'Works with leaderboard games')}</span>
-        </div>
       </div>
 
       <form className="home-ai-starter-form" onSubmit={handleSubmit}>
@@ -74,7 +69,7 @@ export function HomeAiStarter({ locale, models, isLoggedIn, pointBalance }: Prop
           <textarea
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
-            rows={4}
+            rows={5}
             maxLength={1200}
             placeholder={tx(
               locale,
@@ -85,8 +80,8 @@ export function HomeAiStarter({ locale, models, isLoggedIn, pointBalance }: Prop
         </label>
 
         <div className="home-ai-starter-row">
-          <label className="field-label">
-            <span>{tx(locale, '모델 선택', 'Choose a model')}</span>
+          <label className="field-label home-ai-starter-model-field">
+            <span>{tx(locale, 'AI 도우미 고르기', 'Pick an AI helper')}</span>
             <select value={modelId} onChange={(event) => setModelId(event.target.value)}>
               {models.map((model) => (
                 <option key={model.id} value={model.id}>
@@ -97,23 +92,23 @@ export function HomeAiStarter({ locale, models, isLoggedIn, pointBalance }: Prop
           </label>
 
           <div className="home-ai-starter-model-card" aria-live="polite">
-            <p className="small-copy home-ai-starter-model-label">{selectedModel?.label}</p>
-            <strong>{selectedModel ? `${selectedModel.pointCostCreate}P` : '-'}</strong>
-            <p className="small-copy">{selectedModel?.kidDescription}</p>
-            <p className="small-copy home-ai-starter-balance">
-              {typeof pointBalance === 'number'
-                ? tx(locale, `현재 포인트 ${pointBalance}`, `Current points ${pointBalance}`)
-                : tx(locale, '다음 단계에서 로그인 후 포인트를 확인할 수 있어요.', 'You can sign in on the next step and then check your points.')}
-            </p>
+            <div className="home-ai-starter-model-stat">
+              <span className="small-copy">{tx(locale, '필요', 'Cost')}</span>
+              <strong>{selectedModel ? `${selectedModel.pointCostCreate}P` : '-'}</strong>
+            </div>
+            <div className="home-ai-starter-model-stat">
+              <span className="small-copy">{tx(locale, '남은 포인트', 'Points')}</span>
+              <strong className={typeof pointBalance === 'number' ? '' : 'home-ai-starter-stat-text'}>{balanceValue}</strong>
+            </div>
           </div>
         </div>
 
         <div className="home-ai-starter-actions">
           <button type="submit" className="button-primary" disabled={!canContinue}>
-            {isLoggedIn ? tx(locale, 'AI로 이어서 만들기', 'Continue with AI') : tx(locale, '로그인하고 이어서 만들기', 'Log in to continue')}
+            {isLoggedIn ? tx(locale, 'AI로 만들기', 'Create with AI') : tx(locale, '로그인하고 AI로 만들기', 'Log in to create with AI')}
           </button>
           <a href="/submit" className="button-secondary">
-            {tx(locale, '전체 만들기 화면 열기', 'Open full builder')}
+            {tx(locale, '내 파일 올리기', 'Upload my files')}
           </a>
         </div>
 

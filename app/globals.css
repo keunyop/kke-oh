@@ -2608,9 +2608,9 @@ td {
 
 .home-ai-starter {
   display: grid;
-  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
-  gap: 20px;
-  padding: 22px;
+  grid-template-columns: minmax(240px, 0.82fr) minmax(0, 1.18fr);
+  gap: 18px;
+  padding: 20px;
   border-color: rgba(255, 188, 79, 0.3);
   background:
     radial-gradient(circle at top left, rgba(255, 223, 128, 0.28), transparent 24%),
@@ -2621,7 +2621,7 @@ td {
 .home-ai-starter-copy,
 .home-ai-starter-form {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .home-ai-starter-copy {
@@ -2630,8 +2630,8 @@ td {
 
 .home-ai-starter-copy h1 {
   margin: 0;
-  font-size: clamp(1.9rem, 4vw, 2.8rem);
-  line-height: 1.08;
+  font-size: clamp(1.65rem, 3.6vw, 2.45rem);
+  line-height: 1.04;
 }
 
 .home-ai-starter-copy p,
@@ -2639,55 +2639,58 @@ td {
   margin: 0;
 }
 
-.home-ai-starter-highlights {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.home-ai-starter-highlights span {
-  display: inline-flex;
-  align-items: center;
-  min-height: 34px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(255, 196, 110, 0.24);
-  color: #8b5606;
-  font-size: 0.84rem;
-  font-weight: 800;
+.home-ai-starter-form .field-label > span {
+  font-size: 0.95rem;
 }
 
 .home-ai-starter-form textarea {
-  min-height: 126px;
+  min-height: 160px;
 }
 
 .home-ai-starter-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
-  gap: 14px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.78fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.home-ai-starter-model-field {
+  gap: 6px;
+  height: 100%;
 }
 
 .home-ai-starter-model-card {
   display: grid;
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
   min-height: 100%;
-  padding: 16px;
-  border-radius: 20px;
+  padding: 10px 12px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.84);
   border: 1px solid rgba(255, 196, 110, 0.24);
+  align-items: stretch;
+}
+
+.home-ai-starter-model-stat {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 4px;
 }
 
 .home-ai-starter-model-card strong {
-  font-size: 1.8rem;
-  line-height: 1;
+  display: block;
+  font-size: 1.22rem;
+  line-height: 1.05;
   color: #8b5606;
+  white-space: nowrap;
 }
 
-.home-ai-starter-model-label,
-.home-ai-starter-balance {
-  margin: 0;
+.home-ai-starter-stat-text {
+  font-size: 0.9rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
 
 .home-ai-starter-actions {
@@ -2959,8 +2962,7 @@ td {
   .points-package-grid-shortage,
   .ai-compact-card,
   .home-search-panel,
-  .home-ai-starter,
-  .home-ai-starter-row {
+  .home-ai-starter {
     grid-template-columns: 1fr;
   }
 
@@ -2980,11 +2982,41 @@ td {
   }
 
   .home-ai-starter {
-    padding: 18px;
+    gap: 14px;
+    padding: 16px;
   }
 
   .home-ai-starter-copy h1 {
-    font-size: 1.75rem;
+    font-size: 1.4rem;
+    line-height: 1.1;
+  }
+
+  .home-ai-starter-copy p,
+  .home-ai-starter-helper,
+  .home-ai-starter-form .field-label > span {
+    font-size: 0.88rem;
+  }
+
+  .home-ai-starter-form textarea {
+    min-height: 148px;
+  }
+
+  .home-ai-starter-row {
+    grid-template-columns: minmax(0, 1fr) minmax(144px, 0.86fr);
+    gap: 8px;
+  }
+
+  .home-ai-starter-model-card {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .home-ai-starter-model-card strong {
+    font-size: 1.02rem;
+  }
+
+  .home-ai-starter-stat-text {
+    font-size: 0.76rem;
   }
 
   .home-ai-starter-actions > * {
