@@ -263,7 +263,8 @@ class ElementStub extends EventTargetStub {
     return this.ownerDocument.querySelectorAllWithin(this, selector);
   }
 
-  getContext(_contextId: string) {
+  getContext(contextId: string) {
+    void contextId;
     if (this.tagName !== 'CANVAS') {
       return null;
     }

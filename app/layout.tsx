@@ -47,8 +47,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const locale = getRequestLocale();
 
   return (
-    <html lang={locale}>
-      <body>
+    <html lang={locale} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <div className="site-shell">
           <GoogleAdsBootstrap />
           <div className="site-backdrop" aria-hidden="true" />
