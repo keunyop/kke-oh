@@ -2703,6 +2703,27 @@ td {
   flex: 0 0 auto;
 }
 
+.home-ai-starter-complete {
+  gap: 14px;
+  border: 1px solid rgba(255, 196, 110, 0.28);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.home-ai-starter-complete-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.home-ai-starter-complete-copy p {
+  margin: 0;
+}
+
+.home-ai-starter-complete-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .home-champions-board {
   gap: 14px;
   padding: 18px 20px;
@@ -2779,7 +2800,9 @@ td {
   margin-inline: -4px;
   padding: 2px 4px 2px;
   scrollbar-width: none;
-  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: auto;
   cursor: grab;
 }
 

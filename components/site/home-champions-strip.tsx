@@ -11,14 +11,22 @@ type Props = {
   locale: 'ko' | 'en';
 };
 
-type DragState = {
+type PointerDragState = {
   pointerId: number;
   startX: number;
   startScrollLeft: number;
+  didDrag: boolean;
+};
+
+type TouchDragState = {
+  startX: number;
+  startScrollLeft: number;
+  didDrag: boolean;
 };
 
 const AUTO_SCROLL_PX_PER_SECOND = 28;
 const AUTO_SCROLL_RESUME_DELAY_MS = 1400;
+const DRAG_THRESHOLD_PX = 6;
 
 function getCopy(locale: 'ko' | 'en') {
   return locale === 'ko'
@@ -42,7 +50,9 @@ export function HomeChampionsStrip({ champions, locale }: Props) {
   const animationFrameRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
   const pauseUntilRef = useRef(0);
-  const dragStateRef = useRef<DragState | null>(null);
+  const pointerDragRef = useRef<PointerDragState | null>(null);
+  const touchDragRef = useRef<TouchDragState | null>(null);
+  const suppressClickRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
   const cards = useMemo(() => (champions.length > 1 ? [...champions, ...champions] : champions), [champions]);
 
@@ -86,6 +96,106 @@ export function HomeChampionsStrip({ champions, locale }: Props) {
     return null;
   }
 
+  function pauseAutoScroll() {
+    pauseUntilRef.current = Date.now() + AUTO_SCROLL_RESUME_DELAY_MS;
+  }
+
+  function beginPointerDrag(pointerId: number, clientX: number) {
+    const scroller = scrollerRef.current;
+    if (!scroller) {
+      return;
+    }
+
+    suppressClickRef.current = false;
+    pointerDragRef.current = {
+      pointerId,
+      startX: clientX,
+      startScrollLeft: scroller.scrollLeft,
+      didDrag: false
+    };
+    touchDragRef.current = null;
+    pauseAutoScroll();
+    setIsDragging(true);
+  }
+
+  function beginTouchDrag(clientX: number) {
+    const scroller = scrollerRef.current;
+    if (!scroller) {
+      return;
+    }
+
+    suppressClickRef.current = false;
+    touchDragRef.current = {
+      startX: clientX,
+      startScrollLeft: scroller.scrollLeft,
+      didDrag: false
+    };
+    pointerDragRef.current = null;
+    pauseAutoScroll();
+    setIsDragging(true);
+  }
+
+  function movePointerDrag(pointerId: number, clientX: number) {
+    const scroller = scrollerRef.current;
+    const dragState = pointerDragRef.current;
+    if (!scroller || !dragState || dragState.pointerId !== pointerId) {
+      return false;
+    }
+
+    const deltaX = clientX - dragState.startX;
+    scroller.scrollLeft = dragState.startScrollLeft - deltaX;
+    if (Math.abs(deltaX) > DRAG_THRESHOLD_PX) {
+      dragState.didDrag = true;
+      suppressClickRef.current = true;
+    }
+    pauseAutoScroll();
+    return dragState.didDrag;
+  }
+
+  function moveTouchDrag(clientX: number) {
+    const scroller = scrollerRef.current;
+    const dragState = touchDragRef.current;
+    if (!scroller || !dragState) {
+      return false;
+    }
+
+    const deltaX = clientX - dragState.startX;
+    scroller.scrollLeft = dragState.startScrollLeft - deltaX;
+    if (Math.abs(deltaX) > DRAG_THRESHOLD_PX) {
+      dragState.didDrag = true;
+      suppressClickRef.current = true;
+    }
+    pauseAutoScroll();
+    return dragState.didDrag;
+  }
+
+  function endPointerDrag(pointerId: number) {
+    const scroller = scrollerRef.current;
+    const dragState = pointerDragRef.current;
+    if (!dragState || dragState.pointerId !== pointerId) {
+      return;
+    }
+
+    if (dragState.didDrag) {
+      suppressClickRef.current = true;
+    }
+
+    pointerDragRef.current = null;
+    pauseAutoScroll();
+    setIsDragging(false);
+    scroller?.releasePointerCapture(pointerId);
+  }
+
+  function endTouchDrag() {
+    if (touchDragRef.current?.didDrag) {
+      suppressClickRef.current = true;
+    }
+
+    touchDragRef.current = null;
+    pauseAutoScroll();
+    setIsDragging(false);
+  }
+
   return (
     <section className="home-champions home-champions-board" aria-labelledby="home-champions-title">
       <div className="home-champions-copy">
@@ -95,52 +205,73 @@ export function HomeChampionsStrip({ champions, locale }: Props) {
       <div
         ref={scrollerRef}
         className={`home-champions-scroller${isDragging ? ' is-dragging' : ''}`}
+        onScroll={pauseAutoScroll}
         onPointerDown={(event) => {
+          if (event.pointerType === 'touch') {
+            return;
+          }
+
           const scroller = scrollerRef.current;
           if (!scroller) {
             return;
           }
 
-          dragStateRef.current = {
-            pointerId: event.pointerId,
-            startX: event.clientX,
-            startScrollLeft: scroller.scrollLeft
-          };
-          pauseUntilRef.current = Date.now() + AUTO_SCROLL_RESUME_DELAY_MS;
-          setIsDragging(true);
+          beginPointerDrag(event.pointerId, event.clientX);
           scroller.setPointerCapture(event.pointerId);
         }}
         onPointerMove={(event) => {
-          const scroller = scrollerRef.current;
-          const dragState = dragStateRef.current;
-          if (!scroller || !dragState || dragState.pointerId !== event.pointerId) {
+          if (event.pointerType === 'touch') {
             return;
           }
 
-          const deltaX = event.clientX - dragState.startX;
-          scroller.scrollLeft = dragState.startScrollLeft - deltaX;
+          if (movePointerDrag(event.pointerId, event.clientX)) {
+            event.preventDefault();
+          }
         }}
         onPointerUp={(event) => {
-          const scroller = scrollerRef.current;
-          if (dragStateRef.current?.pointerId !== event.pointerId) {
+          if (event.pointerType === 'touch') {
             return;
           }
 
-          dragStateRef.current = null;
-          pauseUntilRef.current = Date.now() + AUTO_SCROLL_RESUME_DELAY_MS;
-          setIsDragging(false);
-          scroller?.releasePointerCapture(event.pointerId);
+          endPointerDrag(event.pointerId);
         }}
         onPointerCancel={(event) => {
-          const scroller = scrollerRef.current;
-          if (dragStateRef.current?.pointerId !== event.pointerId) {
+          if (event.pointerType === 'touch') {
             return;
           }
 
-          dragStateRef.current = null;
-          pauseUntilRef.current = Date.now() + AUTO_SCROLL_RESUME_DELAY_MS;
-          setIsDragging(false);
-          scroller?.releasePointerCapture(event.pointerId);
+          endPointerDrag(event.pointerId);
+        }}
+        onTouchStart={(event) => {
+          if (!event.touches.length) {
+            return;
+          }
+
+          beginTouchDrag(event.touches[0].clientX);
+        }}
+        onTouchMove={(event) => {
+          if (!event.touches.length) {
+            return;
+          }
+
+          if (moveTouchDrag(event.touches[0].clientX)) {
+            event.preventDefault();
+          }
+        }}
+        onTouchEnd={() => {
+          endTouchDrag();
+        }}
+        onTouchCancel={() => {
+          endTouchDrag();
+        }}
+        onClickCapture={(event) => {
+          if (!suppressClickRef.current) {
+            return;
+          }
+
+          event.preventDefault();
+          event.stopPropagation();
+          suppressClickRef.current = false;
         }}
       >
         <div className="home-champions-track" role="list" aria-label={copy.title}>
@@ -179,5 +310,3 @@ export function HomeChampionsStrip({ champions, locale }: Props) {
     </section>
   );
 }
-
-

@@ -43,7 +43,7 @@ export function AiModelCompactPanel({
     <section className="status-card ai-compact-card">
       <div className="ai-compact-model">
         <label className="field-label">
-          <span>{tx(locale, 'AI 도우미', 'AI helper')}</span>
+          <span>{tx(locale, 'AI', 'AI')}</span>
           <select value={modelId} onChange={(event) => onChange(event.target.value)} disabled={pending || isLoading}>
             {models.map((model) => (
               <option key={model.id} value={model.id}>
@@ -54,8 +54,8 @@ export function AiModelCompactPanel({
         </label>
         <p className="small-copy ai-compact-description">
           {isLoading
-            ? tx(locale, 'AI 도우미를 불러오는 중이에요.', 'Loading AI helpers...')
-            : activeModel?.kidDescription ?? tx(locale, '도우미 설명을 불러오는 중이에요.', 'Loading helper description...')}
+            ? tx(locale, 'AI 목록을 불러오는 중이에요.', 'Loading AI options...')
+            : activeModel?.kidDescription ?? tx(locale, 'AI 설명을 불러오는 중이에요.', 'Loading AI description...')}
         </p>
       </div>
 
@@ -65,7 +65,7 @@ export function AiModelCompactPanel({
           <strong>{pointBalance}</strong>
         </div>
         <div className="ai-compact-stat">
-          <span className="small-copy">{tx(locale, '이번에 드는 포인트', 'Points for this run')}</span>
+          <span className="small-copy">{tx(locale, '이번에 쓰는 포인트', 'Points for this run')}</span>
           <strong>{pointCost}</strong>
         </div>
       </div>

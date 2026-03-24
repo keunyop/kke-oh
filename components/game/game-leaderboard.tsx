@@ -1,6 +1,7 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { getGamePageLeaderboardRows } from '@/lib/games/leaderboard-display';
 import {
   extractBestLeaderboardScoreFromText,
   extractLeaderboardSubmissionScore,
@@ -31,8 +32,6 @@ const REPLAY_TRIGGER_REGEX = /\b(restart|retry|play again|try again)\b|다시\s*
 function getCopy(locale: Locale) {
   return locale === 'ko'
     ? {
-        title: '리더보드',
-        subtitle: '이 게임의 최고 점수를 모아 보여줘요.',
         draftNote: '초안 테스트 중에도 점수를 저장해서 미리 확인할 수 있어요.',
         empty: '아직 등록된 점수가 없어요. 첫 챔피언이 되어보세요.',
         saving: '점수를 저장하고 있어요.',
@@ -41,7 +40,6 @@ function getCopy(locale: Locale) {
         rank: '순위',
         player: '플레이어',
         score: '점수',
-        waiting: '게임에서 점수가 올라가면 여기에 바로 반영돼요.',
         guestTitle: '이름을 입력해주세요',
         guestDescription: '로그인하지 않은 상태라 리더보드에 표시할 이름이 필요해요.',
         guestPlaceholder: '플레이어 이름',
@@ -50,8 +48,6 @@ function getCopy(locale: Locale) {
         guestRequired: '이름을 입력해주세요.'
       }
     : {
-        title: 'Leaderboard',
-        subtitle: 'Top scores for this game.',
         draftNote: 'You can save scores here while testing the draft privately.',
         empty: 'No scores yet. Be the first champion.',
         saving: 'Saving score.',
@@ -60,7 +56,6 @@ function getCopy(locale: Locale) {
         rank: 'Rank',
         player: 'Player',
         score: 'Score',
-        waiting: 'Scores from the game will appear here automatically.',
         guestTitle: 'Enter your name',
         guestDescription: 'You are not logged in, so we need a name to show on the leaderboard.',
         guestPlaceholder: 'Player name',
@@ -97,6 +92,7 @@ export function GameLeaderboard({
   const requestedScoresRef = useRef<Set<number>>(new Set());
   const commitScoreRef = useRef<(score: number, playerName: string) => Promise<boolean>>(async () => false);
   const requestScoreRef = useRef<(score: number) => Promise<void>>(async () => {});
+  const rows = getGamePageLeaderboardRows(entries);
 
   useEffect(() => {
     setEntries(initialEntries);
@@ -390,24 +386,18 @@ export function GameLeaderboard({
   return (
     <>
       <section className="panel-card leaderboard-card">
-        <div className="leaderboard-card-head">
-          <div>
-            <h2>{copy.title}</h2>
-            <p>{isDraftPreview ? copy.draftNote : copy.subtitle}</p>
-          </div>
-          <p className="small-copy leaderboard-card-waiting">{copy.waiting}</p>
-        </div>
+        {isDraftPreview ? <p className="small-copy">{copy.draftNote}</p> : null}
 
-        {entries.length ? (
-          <div className="leaderboard-table" role="table" aria-label={copy.title}>
+        {rows.length ? (
+          <div className="leaderboard-table" role="table" aria-label={copy.player}>
             <div className="leaderboard-row leaderboard-row-head" role="row">
               <span role="columnheader">{copy.rank}</span>
               <span role="columnheader">{copy.player}</span>
               <span role="columnheader">{copy.score}</span>
             </div>
-            {entries.map((entry, index) => (
+            {rows.map(({ entry, rankLabel }) => (
               <div key={`${entry.playerName}-${entry.score}-${entry.createdAt}`} className="leaderboard-row" role="row">
-                <span role="cell">#{index + 1}</span>
+                <span role="cell">{rankLabel}</span>
                 <strong role="cell">{entry.playerName}</strong>
                 <span role="cell">{entry.score.toLocaleString(locale === 'ko' ? 'ko-KR' : 'en-US')}</span>
               </div>

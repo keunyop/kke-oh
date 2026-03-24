@@ -1,10 +1,11 @@
-﻿import { cookies } from 'next/headers';
+import { cookies } from 'next/headers';
 import { GoogleAdSlot } from '@/components/ads/google-ad-slot';
 import { GameActionsClient, GameFullscreenButtonClient } from '@/app/game-actions-client';
 import { GameFullscreenShell } from '@/components/game/game-fullscreen-shell';
 import { GameLeaderboard } from '@/components/game/game-leaderboard';
 import { RewardedAdPanel } from '@/components/game/rewarded-ad-panel';
 import { getCurrentUser } from '@/lib/auth';
+import { GAME_PAGE_LEADERBOARD_LIMIT } from '@/lib/games/leaderboard-display';
 import { listGameLeaderboard } from '@/lib/games/leaderboard';
 import { getGameRepository } from '@/lib/games/repository';
 import { getGameAssetUrl } from '@/lib/games/urls';
@@ -45,7 +46,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
   const iframeId = `game-iframe-${game.id}`;
   const isDraftPreview = game.status !== 'PUBLIC' || game.is_hidden;
   const canUsePublicActions = game.status === 'PUBLIC' && !game.is_hidden;
-  const leaderboardEntries = game.leaderboard_enabled ? await listGameLeaderboard(game.id) : [];
+  const leaderboardEntries = game.leaderboard_enabled ? await listGameLeaderboard(game.id, GAME_PAGE_LEADERBOARD_LIMIT) : [];
 
   return (
     <section className="game-page">
@@ -56,10 +57,6 @@ export default async function GamePage({ params }: { params: { id: string } }) {
         <iframe id={iframeId} src={src} sandbox="allow-scripts allow-same-origin allow-pointer-lock" referrerPolicy="no-referrer" allow="fullscreen" allowFullScreen title={game.title} tabIndex={0} />
         <GameFullscreenButtonClient frameId={frameId} iframeId={iframeId} locale={locale} />
       </div>
-
-      {game.leaderboard_enabled || leaderboardEntries.length ? (
-        <GameLeaderboard gameId={game.id} iframeId={iframeId} currentUserLoginId={user?.loginId ?? null} locale={locale} initialEntries={leaderboardEntries} allowSubmission={Boolean(game.leaderboard_enabled && (canUsePublicActions || isOwner))} isDraftPreview={isDraftPreview} />
-      ) : null}
 
       <section className="panel-card game-description-card">
         <div className="game-description-head">
@@ -72,6 +69,10 @@ export default async function GamePage({ params }: { params: { id: string } }) {
         </div>
         <p>{game.description}</p>
       </section>
+
+      {game.leaderboard_enabled || leaderboardEntries.length ? (
+        <GameLeaderboard gameId={game.id} iframeId={iframeId} currentUserLoginId={user?.loginId ?? null} locale={locale} initialEntries={leaderboardEntries} allowSubmission={Boolean(game.leaderboard_enabled && (canUsePublicActions || isOwner))} isDraftPreview={isDraftPreview} />
+      ) : null}
 
       {canUsePublicActions ? <RewardedAdPanel gameId={game.id} locale={locale} disabled={!user} /> : null}
       {canUsePublicActions ? <script dangerouslySetInnerHTML={{ __html: `fetch('/api/games/${game.id}/play',{method:'POST'});` }} /> : null}

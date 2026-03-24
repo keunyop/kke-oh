@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AiModelCompactPanel } from '@/app/ai-model-compact-panel';
 import { AiProgressCard } from '@/components/ai/ai-progress-card';
 import { PointShortageDialog } from '@/components/points/point-shortage-dialog';
+import { AI_CREATE_PROGRESS_STEP_DELAYS, getAiCreateProgressCopy } from '@/lib/ai/create-progress';
 import type { Locale } from '@/lib/i18n';
 
 type CreationMode = 'ai' | 'manual';
@@ -62,8 +63,6 @@ type SlugState = {
   issue: 'invalid' | 'taken' | null;
   message: string | null;
 };
-
-const AI_PROGRESS_STEP_DELAYS = [8000, 26000, 52000, 78000] as const;
 
 function tx(locale: Locale, ko: string, en: string) {
   return locale === 'ko' ? ko : en;
@@ -280,7 +279,7 @@ export default function SubmitForm({
     setAiProgressStep(0);
     setAiProgressDots(1);
 
-    const timers = AI_PROGRESS_STEP_DELAYS.map((delay, index) => window.setTimeout(() => setAiProgressStep(index + 1), delay));
+    const timers = AI_CREATE_PROGRESS_STEP_DELAYS.map((delay, index) => window.setTimeout(() => setAiProgressStep(index + 1), delay));
     const dotsTimer = window.setInterval(() => {
       setAiProgressDots((current) => (current % 3) + 1);
     }, 420);
@@ -723,22 +722,7 @@ export default function SubmitForm({
     }
   }
 
-  const aiProgressCopy =
-    locale === 'ko'
-      ? [
-          'Reading your idea and planning the rules.',
-          'Building the game screen and controls.',
-          'Tuning scoring and game flow.',
-          'Polishing the thumbnail and description.',
-          'Running final checks and saving it.'
-        ]
-      : [
-          'Reading your idea and planning the rules.',
-          'Building the game screen and controls.',
-          'Tuning scoring and game flow.',
-          'Polishing the thumbnail and description.',
-          'Running final checks and saving it.'
-        ];
+  const aiProgressCopy = getAiCreateProgressCopy(locale);
 
   return (
     <section className="panel-card panel-card-form submit-panel-simple">

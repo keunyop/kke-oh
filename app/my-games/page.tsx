@@ -2,7 +2,7 @@
 import { requireUser } from '@/lib/auth';
 import { getGameRepository } from '@/lib/games/repository';
 import { getRequestLocale } from '@/lib/i18n/server';
-import MyGamesPanel from './my-games-panel';
+import MyGamesPanelClient from './my-games-panel-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,8 +29,7 @@ export default async function MyGamesPage({ searchParams }: { searchParams?: { n
             : 'Your new draft was saved. Test it here, then publish it when you are ready.'}
         </p>
       ) : null}
-      <MyGamesPanel initialGames={games} locale={locale} />
+      <MyGamesPanelClient initialGames={games} locale={locale} />
     </section>
   );
 }
-
