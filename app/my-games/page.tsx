@@ -29,6 +29,13 @@ export default async function MyGamesPage({ searchParams }: { searchParams?: { n
             : 'Your new draft was saved. Test it here, then publish it when you are ready.'}
         </p>
       ) : null}
+      {searchParams?.notice === 'updated' ? (
+        <p className="admin-notice">
+          {locale === 'ko'
+            ? `${searchParams.game ? `${searchParams.game} 게임` : '게임'} 수정이 끝났어요. 여기서 바로 플레이하거나 다음 작업을 이어갈 수 있어요.`
+            : `${searchParams.game ? `${searchParams.game}` : 'Your game'} was updated. You can play it here or keep working on it.`}
+        </p>
+      ) : null}
       <MyGamesPanelClient initialGames={games} locale={locale} />
     </section>
   );

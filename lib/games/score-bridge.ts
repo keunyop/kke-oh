@@ -64,6 +64,10 @@ export function hasLeaderboardTerminalState(text: string): boolean {
 }
 
 export function injectLeaderboardBridge(html: string): string {
+  if (html.includes(LEADERBOARD_MESSAGE_TYPE) || html.includes('window.kkeohSubmitScore = function')) {
+    return html;
+  }
+
   const bridge = `<script>
 (function () {
   if (typeof window === 'undefined') return;

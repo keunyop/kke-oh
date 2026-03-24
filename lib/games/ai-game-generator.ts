@@ -1,5 +1,5 @@
 import { createPlaceholderThumbnail } from '@/lib/games/placeholder';
-import { injectLeaderboardBridge } from '@/lib/games/score-bridge';
+import { assertAiGameHtmlPlayable, type AiGamePlayabilityResult } from '@/lib/games/ai-playability';
 import type { UploadedFile } from '@/lib/games/upload';
 
 type GeneratedGamePayload = {
@@ -32,6 +32,7 @@ export type GameGeneratorPromptInput = CreateGamePromptInput;
 const OPENAI_API_URL = 'https://api.openai.com/v1/responses';
 const OPENAI_MODEL = process.env.OPENAI_GAME_MODEL?.trim() || 'gpt-4.1-mini';
 const SECTION_BAR = '\u2501'.repeat(19);
+const MAX_GENERATION_ATTEMPTS = 3;
 
 const CREATE_GAME_SYSTEM_PROMPT = [
   'You are an expert HTML5 game developer specializing in small, highly engaging browser games.',
@@ -316,81 +317,109 @@ async function generateGame({
     throw new Error('OPENAI_API_KEY is not configured.');
   }
 
-  const response = await fetch(OPENAI_API_URL, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: modelName?.trim() || OPENAI_MODEL,
-      input: [
-        {
-          role: 'system',
-          content: [{ type: 'input_text', text: systemPrompt }]
-        },
-        {
-          role: 'user',
-          content: [{ type: 'input_text', text: userPrompt }]
-        }
-      ],
-      text: {
-        format: {
-          type: 'json_schema',
-          name: 'generated_game',
-          strict: true,
-          schema: {
-            type: 'object',
-            additionalProperties: false,
-            properties: {
-              title: { type: 'string', minLength: 2, maxLength: 60 },
-              description: { type: 'string', minLength: 10, maxLength: 200 },
-              html: { type: 'string', minLength: 200 },
-              thumbnailSvg: { type: 'string', minLength: 50 }
-            },
-            required: ['title', 'description', 'html', 'thumbnailSvg']
+  let attemptPrompt = userPrompt;
+  let lastValidationError: Error | null = null;
+
+  for (let attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt += 1) {
+    const response = await fetch(OPENAI_API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: modelName?.trim() || OPENAI_MODEL,
+        input: [
+          {
+            role: 'system',
+            content: [{ type: 'input_text', text: systemPrompt }]
+          },
+          {
+            role: 'user',
+            content: [{ type: 'input_text', text: attemptPrompt }]
+          }
+        ],
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'generated_game',
+            strict: true,
+            schema: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                title: { type: 'string', minLength: 2, maxLength: 60 },
+                description: { type: 'string', minLength: 10, maxLength: 200 },
+                html: { type: 'string', minLength: 200 },
+                thumbnailSvg: { type: 'string', minLength: 50 }
+              },
+              required: ['title', 'description', 'html', 'thumbnailSvg']
+            }
           }
         }
-      }
-    })
-  });
+      })
+    });
 
-  const payload = (await response.json().catch(() => null)) as unknown;
+    const payload = (await response.json().catch(() => null)) as unknown;
 
-  if (!response.ok) {
-    const message =
-      payload && typeof payload === 'object' && 'error' in payload && payload.error && typeof payload.error === 'object' && 'message' in payload.error
-        ? String(payload.error.message)
-        : 'OpenAI request failed.';
-    throw new Error(message);
-  }
-
-  const rawText = extractTextOutput(payload);
-  if (!rawText) {
-    throw new Error('OpenAI response did not include generated content.');
-  }
-
-  let generated: GeneratedGamePayload;
-  try {
-    generated = JSON.parse(rawText) as GeneratedGamePayload;
-  } catch {
-    throw new Error('OpenAI returned invalid JSON.');
-  }
-
-  if (!generated.title?.trim() || !generated.description?.trim() || !generated.html?.trim()) {
-    throw new Error('OpenAI returned an incomplete game.');
-  }
-
-  return {
-    title: generated.title.trim(),
-    description: generated.description.trim(),
-    html: injectLeaderboardBridge(generated.html.trim()),
-    thumbnail: {
-      path: 'thumbnail.svg',
-      content: Buffer.from(normalizeSvg(generated.thumbnailSvg, generated.title), 'utf8'),
-      contentType: 'image/svg+xml'
+    if (!response.ok) {
+      const message =
+        payload && typeof payload === 'object' && 'error' in payload && payload.error && typeof payload.error === 'object' && 'message' in payload.error
+          ? String(payload.error.message)
+          : 'OpenAI request failed.';
+      throw new Error(message);
     }
-  };
+
+    const rawText = extractTextOutput(payload);
+    if (!rawText) {
+      lastValidationError = new Error('OpenAI response did not include generated content.');
+    } else {
+      try {
+        const generated = JSON.parse(rawText) as GeneratedGamePayload;
+
+        if (!generated.title?.trim() || !generated.description?.trim() || !generated.html?.trim()) {
+          lastValidationError = new Error('OpenAI returned an incomplete game.');
+        } else {
+          const html = generated.html.trim();
+          try {
+            const smokeTest: AiGamePlayabilityResult = assertAiGameHtmlPlayable(html);
+
+            if (smokeTest) {
+              return {
+                title: generated.title.trim(),
+                description: generated.description.trim(),
+                html,
+                thumbnail: {
+                  path: 'thumbnail.svg',
+                  content: Buffer.from(normalizeSvg(generated.thumbnailSvg, generated.title), 'utf8'),
+                  contentType: 'image/svg+xml'
+                }
+              };
+            }
+          } catch (error) {
+            lastValidationError = error instanceof Error ? error : new Error('Generated game failed the playability test.');
+          }
+        }
+      } catch (error) {
+        lastValidationError = error instanceof Error ? error : new Error('OpenAI returned invalid JSON.');
+      }
+    }
+
+    if (attempt < MAX_GENERATION_ATTEMPTS) {
+      attemptPrompt = [
+        userPrompt,
+        '',
+        SECTION_BAR,
+        '# LAST ATTEMPT FAILED THE REQUIRED RUNTIME CHECK',
+        SECTION_BAR,
+        lastValidationError?.message ?? 'The previous attempt was not playable.',
+        '',
+        'Return a corrected single-file HTML game that boots without runtime errors.'
+      ].join('\n');
+    }
+  }
+
+  throw new Error(lastValidationError?.message ?? 'OpenAI could not generate a playable game.');
 }
 
 export async function generateGameFromCreatePrompt(prompt: string | CreateGamePromptInput, modelName?: string): Promise<GeneratedGame> {

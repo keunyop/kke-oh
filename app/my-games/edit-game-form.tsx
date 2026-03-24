@@ -144,6 +144,7 @@ export function EditGameForm({ game, locale }: Props) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [completedMode, setCompletedMode] = useState<EditMode | null>(null);
   const [gameUrl, setGameUrl] = useState(`/game/${game.slug}`);
   const [currentGame, setCurrentGame] = useState(game);
   const [aiProgressStep, setAiProgressStep] = useState(0);
@@ -260,6 +261,7 @@ export function EditGameForm({ game, locale }: Props) {
     setPending(true);
     setError(null);
     setSuccess(null);
+    setCompletedMode(null);
 
     try {
       const formData = new FormData();
@@ -308,6 +310,7 @@ export function EditGameForm({ game, locale }: Props) {
       if (zipInputRef.current) zipInputRef.current.value = '';
       await refreshBalance();
       setSuccess(text(locale, '게임이 수정되었어요.', 'Your game was updated.'));
+      setCompletedMode(mode);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not update the game.');
     } finally {
@@ -348,7 +351,33 @@ export function EditGameForm({ game, locale }: Props) {
       </div>
 
       {error ? <p className="error-text">{error}</p> : null}
-      {success ? <p className="admin-notice">{success}</p> : null}
+      {completedMode ? (
+        <div className="status-card status-success edit-game-complete" role="status" aria-live="polite">
+          <div className="edit-game-complete-copy">
+            <p className="status-title">
+              {completedMode === 'ai'
+                ? text(locale, 'AI 수정이 끝났어요.', 'Your AI update is ready.')
+                : text(locale, '게임 수정이 끝났어요.', 'Your game update is ready.')}
+            </p>
+            <p>
+              {completedMode === 'ai'
+                ? text(locale, '완성된 게임을 바로 플레이하거나 내 게임으로 돌아가서 다음 작업을 이어갈 수 있어요.', 'You can play the updated game now or head back to My Games for the next step.')
+                : text(locale, '바뀐 게임을 바로 확인하거나 내 게임 목록으로 돌아갈 수 있어요.', 'You can open the updated game now or return to My Games.')}
+            </p>
+            {success ? <p className="small-copy">{success}</p> : null}
+          </div>
+          <div className="edit-game-complete-actions">
+            <a href={gameUrl} className="button-primary">
+              {text(locale, '게임 플레이', 'Play game')}
+            </a>
+            <a href={`/my-games?notice=updated&game=${encodeURIComponent(currentGame.title)}`} className="button-secondary">
+              {text(locale, '내 게임으로 이동', 'Go to My Games')}
+            </a>
+          </div>
+        </div>
+      ) : success ? (
+        <p className="admin-notice">{success}</p>
+      ) : null}
 
       <div className="submit-section-stack">
         <label className="field-label">
@@ -389,6 +418,7 @@ export function EditGameForm({ game, locale }: Props) {
                 setMode(item.key);
                 setError(null);
                 setSuccess(null);
+                setCompletedMode(null);
               }}
             >
               <strong>{item.title}</strong>

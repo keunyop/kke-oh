@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     const body = bodySchema.parse(await request.json());
     const generated = await generateGameFromCreatePrompt({ gameDescription: body.prompt });
     const inspection = await prepareInspectionForPublishing(
-      createSingleHtmlInspection(generated.html, generated.thumbnail),
+      createSingleHtmlInspection(generated.html, generated.thumbnail, { injectScoreBridge: true }),
       generated.title
     );
 

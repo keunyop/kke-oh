@@ -2724,6 +2724,25 @@ td {
   gap: 10px;
 }
 
+.edit-game-complete {
+  gap: 14px;
+}
+
+.edit-game-complete-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.edit-game-complete-copy p {
+  margin: 0;
+}
+
+.edit-game-complete-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .home-champions-board {
   gap: 14px;
   padding: 18px 20px;

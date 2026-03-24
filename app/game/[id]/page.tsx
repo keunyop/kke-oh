@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { GoogleAdSlot } from '@/components/ads/google-ad-slot';
 import { GameActionsClient, GameFullscreenButtonClient } from '@/app/game-actions-client';
@@ -11,8 +12,51 @@ import { getGameRepository } from '@/lib/games/repository';
 import { getGameAssetUrl } from '@/lib/games/urls';
 import { getDictionary } from '@/lib/i18n';
 import { getRequestLocale } from '@/lib/i18n/server';
+import { getSiteOrigin } from '@/lib/site-url';
 
 export const dynamic = 'force-dynamic';
+
+async function getGameBySlug(slug: string) {
+  return getGameRepository().getBySlug(slug.toLowerCase());
+}
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const game = await getGameBySlug(params.id);
+  if (!game) {
+    return {};
+  }
+
+  const siteOrigin = getSiteOrigin();
+  const pathname = `/game/${game.slug}`;
+  const thumbnailUrl = game.thumbnail_path ? getGameAssetUrl(game.id, game.thumbnail_path) : '/icon.svg';
+
+  return {
+    title: `${game.title} | KKE-OH!`,
+    description: game.description,
+    alternates: {
+      canonical: pathname
+    },
+    openGraph: {
+      type: 'website',
+      url: new URL(pathname, siteOrigin).toString(),
+      title: game.title,
+      description: game.description,
+      siteName: 'KKE-OH!',
+      images: [
+        {
+          url: thumbnailUrl,
+          alt: `${game.title} thumbnail`
+        }
+      ]
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: game.title,
+      description: game.description,
+      images: [thumbnailUrl]
+    }
+  };
+}
 
 export default async function GamePage({ params }: { params: { id: string } }) {
   const locale = getRequestLocale();
@@ -23,7 +67,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
   const previewActionsNotice = locale === 'ko' ? '초안 미리보기에서는 공개 반응 대신 게임과 점수 흐름을 테스트할 수 있어요.' : 'In draft preview, you can test the gameplay and score flow before publishing.';
 
   const user = await getCurrentUser();
-  const game = await getGameRepository().getBySlug(params.id.toLowerCase());
+  const game = await getGameBySlug(params.id);
   const isOwner = Boolean(game && user && game.uploader_user_id === user.id);
   const canView = Boolean(game && game.status !== 'REMOVED' && ((game.status === 'PUBLIC' && !game.is_hidden) || isOwner));
 

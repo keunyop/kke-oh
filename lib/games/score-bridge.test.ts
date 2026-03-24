@@ -45,3 +45,11 @@ test('injectLeaderboardBridge appends a reliable score bridge and preserves body
   assert.match(injected, /previousSubmit/);
   assert.match(injected, /<\/script>\n<\/body><\/html>$/);
 });
+
+test('injectLeaderboardBridge is idempotent when the bridge is already present', () => {
+  const html = '<html><body><main>Play</main></body></html>';
+  const injected = injectLeaderboardBridge(html);
+  const reinjected = injectLeaderboardBridge(injected);
+
+  assert.equal(reinjected, injected);
+});

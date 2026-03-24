@@ -3,11 +3,39 @@ import { SiteNavbar } from '@/app/site-navbar';
 import { GoogleAdsBootstrap } from '@/components/ads/google-ads-bootstrap';
 import { Footer } from '@/components/site/footer';
 import { getRequestLocale } from '@/lib/i18n/server';
+import { getSiteOrigin } from '@/lib/site-url';
 import './globals.css';
+
+const siteOrigin = getSiteOrigin();
 
 export const metadata: Metadata = {
   title: 'KKE-OH!',
   description: 'A friendly place where kids can upload and play HTML games.',
+  metadataBase: new URL(siteOrigin),
+  alternates: {
+    canonical: '/'
+  },
+  openGraph: {
+    type: 'website',
+    url: siteOrigin,
+    title: 'KKE-OH!',
+    description: 'A friendly place where kids can upload and play HTML games.',
+    siteName: 'KKE-OH!',
+    images: [
+      {
+        url: '/icon.svg',
+        width: 256,
+        height: 256,
+        alt: 'KKE-OH logo'
+      }
+    ]
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'KKE-OH!',
+    description: 'A friendly place where kids can upload and play HTML games.',
+    images: ['/icon.svg']
+  },
   icons: {
     icon: '/icon.svg',
     shortcut: '/icon.svg',
