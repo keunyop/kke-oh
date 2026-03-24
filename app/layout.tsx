@@ -23,10 +23,10 @@ export const metadata: Metadata = {
     siteName: 'KKE-OH!',
     images: [
       {
-        url: '/icon.svg',
-        width: 256,
-        height: 256,
-        alt: 'KKE-OH logo'
+        url: '/og-home.svg',
+        width: 1200,
+        height: 630,
+        alt: 'KKE-OH game maker playground'
       }
     ]
   },
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'KKE-OH!',
     description: 'A friendly place where kids can upload and play HTML games.',
-    images: ['/icon.svg']
+    images: ['/og-home.svg']
   },
   icons: {
     icon: '/icon.svg',

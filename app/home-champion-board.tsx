@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LeaderboardChampion } from '@/lib/games/leaderboard';
 import { getPlaceholderThumbnailDataUrl } from '@/lib/games/placeholder';
@@ -65,6 +66,7 @@ export function HomeChampionBoard({ champions, locale }: Props) {
   const pointerDragRef = useRef<PointerDragState | null>(null);
   const touchDragRef = useRef<TouchDragState | null>(null);
   const suppressClickRef = useRef(false);
+  const suppressClickTimeoutRef = useRef<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const cards = useMemo(() => (champions.length > 1 ? [...champions, ...champions] : champions), [champions]);
 
@@ -127,7 +129,6 @@ export function HomeChampionBoard({ champions, locale }: Props) {
     };
     touchDragRef.current = null;
     pauseAutoScroll();
-    setIsDragging(true);
   }
 
   function beginTouchDrag(clientX: number) {
@@ -144,7 +145,6 @@ export function HomeChampionBoard({ champions, locale }: Props) {
     };
     pointerDragRef.current = null;
     pauseAutoScroll();
-    setIsDragging(true);
   }
 
   function movePointerDrag(pointerId: number, clientX: number) {
@@ -155,11 +155,21 @@ export function HomeChampionBoard({ champions, locale }: Props) {
     }
 
     const deltaX = clientX - dragState.startX;
-    scroller.scrollLeft = dragState.startScrollLeft - deltaX;
-    if (Math.abs(deltaX) > DRAG_THRESHOLD_PX) {
-      dragState.didDrag = true;
-      suppressClickRef.current = true;
+    if (!dragState.didDrag && Math.abs(deltaX) <= DRAG_THRESHOLD_PX) {
+      pauseAutoScroll();
+      return false;
     }
+
+    if (!dragState.didDrag) {
+      dragState.didDrag = true;
+      setIsDragging(true);
+      suppressClickRef.current = true;
+      if (!scroller.hasPointerCapture(pointerId)) {
+        scroller.setPointerCapture(pointerId);
+      }
+    }
+
+    scroller.scrollLeft = dragState.startScrollLeft - deltaX;
     pauseAutoScroll();
     return dragState.didDrag;
   }
@@ -172,13 +182,31 @@ export function HomeChampionBoard({ champions, locale }: Props) {
     }
 
     const deltaX = clientX - dragState.startX;
-    scroller.scrollLeft = dragState.startScrollLeft - deltaX;
-    if (Math.abs(deltaX) > DRAG_THRESHOLD_PX) {
+    if (!dragState.didDrag && Math.abs(deltaX) <= DRAG_THRESHOLD_PX) {
+      pauseAutoScroll();
+      return false;
+    }
+
+    if (!dragState.didDrag) {
       dragState.didDrag = true;
+      setIsDragging(true);
       suppressClickRef.current = true;
     }
+
+    scroller.scrollLeft = dragState.startScrollLeft - deltaX;
     pauseAutoScroll();
     return dragState.didDrag;
+  }
+
+  function queueSuppressClickReset() {
+    if (suppressClickTimeoutRef.current != null) {
+      window.clearTimeout(suppressClickTimeoutRef.current);
+    }
+
+    suppressClickTimeoutRef.current = window.setTimeout(() => {
+      suppressClickRef.current = false;
+      suppressClickTimeoutRef.current = null;
+    }, 0);
   }
 
   function endPointerDrag(pointerId: number) {
@@ -190,17 +218,21 @@ export function HomeChampionBoard({ champions, locale }: Props) {
 
     if (dragState.didDrag) {
       suppressClickRef.current = true;
+      queueSuppressClickReset();
     }
 
     pointerDragRef.current = null;
     pauseAutoScroll();
     setIsDragging(false);
-    scroller?.releasePointerCapture(pointerId);
+    if (scroller?.hasPointerCapture(pointerId)) {
+      scroller.releasePointerCapture(pointerId);
+    }
   }
 
   function endTouchDrag() {
     if (touchDragRef.current?.didDrag) {
       suppressClickRef.current = true;
+      queueSuppressClickReset();
     }
 
     touchDragRef.current = null;
@@ -229,7 +261,6 @@ export function HomeChampionBoard({ champions, locale }: Props) {
           }
 
           beginPointerDrag(event.pointerId, event.clientX);
-          scroller.setPointerCapture(event.pointerId);
         }}
         onPointerMove={(event) => {
           if (event.pointerType === 'touch') {
@@ -294,7 +325,7 @@ export function HomeChampionBoard({ champions, locale }: Props) {
             const isDuplicate = champions.length > 1 && index >= champions.length;
 
             return (
-              <a
+              <Link
                 key={`${champion.gameId}-${champion.playerName}-${index}`}
                 href={`/game/${champion.slug}`}
                 className="home-champion-card"
@@ -316,7 +347,7 @@ export function HomeChampionBoard({ champions, locale }: Props) {
                     {copy.score} <strong>{champion.score.toLocaleString(locale === 'ko' ? 'ko-KR' : 'en-US')}</strong>
                   </p>
                 </div>
-              </a>
+              </Link>
             );
           })}
         </div>

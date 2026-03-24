@@ -77,3 +77,48 @@ test('assertAiGameHtmlPlayable records score bridge submissions during bootstrap
 
   assert.deepEqual(result.submittedScores, [42]);
 });
+
+test('assertAiGameHtmlPlayable fails when a start button never starts the game', () => {
+  assert.throws(
+    () =>
+      assertAiGameHtmlPlayable(`
+        <html>
+          <body>
+            <canvas id="game"></canvas>
+            <button>Start</button>
+            <script>
+              const canvas = document.getElementById('game');
+              canvas.getContext('2d');
+              document.querySelector('button').addEventListener('click', () => {});
+            </script>
+          </body>
+        </html>
+      `),
+    /start button|playable loop|start controls/i
+  );
+});
+
+test('assertAiGameHtmlPlayable passes when a start button boots the playable loop', () => {
+  const result = assertAiGameHtmlPlayable(`
+    <html>
+      <body>
+        <canvas id="game"></canvas>
+        <button>Start</button>
+        <script>
+          const canvas = document.getElementById('game');
+          const ctx = canvas.getContext('2d');
+          const startButton = document.querySelector('button');
+          startButton.addEventListener('click', () => {
+            window.addEventListener('keydown', () => {});
+            requestAnimationFrame(function frame() {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+            });
+          });
+        </script>
+      </body>
+    </html>
+  `);
+
+  assert.ok(result.animationFrameRequests >= 1);
+  assert.ok(result.canvasContextRequests >= 1);
+});

@@ -3,7 +3,7 @@ import test from 'node:test';
 import { AI_CREATE_PROGRESS_STEP_DELAYS, getAiCreateProgressCopy } from './create-progress';
 
 test('AI create progress delays stay in ascending order for the stepper', () => {
-  assert.deepEqual(AI_CREATE_PROGRESS_STEP_DELAYS, [8000, 26000, 52000, 78000]);
+  assert.deepEqual(AI_CREATE_PROGRESS_STEP_DELAYS, [6400, 20800, 41600, 62400]);
 });
 
 test('AI create progress copy includes five user-facing steps in Korean and English', () => {

@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
   const siteOrigin = getSiteOrigin();
   const pathname = `/game/${game.slug}`;
-  const thumbnailUrl = game.thumbnail_path ? getGameAssetUrl(game.id, game.thumbnail_path) : '/icon.svg';
+  const thumbnailUrl = game.thumbnail_path ? getGameAssetUrl(game.id, game.thumbnail_path) : '/og-home.svg';
 
   return {
     title: `${game.title} | KKE-OH!`,

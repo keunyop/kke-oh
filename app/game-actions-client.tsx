@@ -114,6 +114,7 @@ export function GameActionsClient({ gameId, title, initialLikeCount, initialDisl
   const [reportPending, setReportPending] = useState(false);
   const [sharePending, setSharePending] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
   const canSubmitFeedback = useMemo(() => feedback.trim().length > 0 && !feedbackPending, [feedback, feedbackPending]);
   const t = getDictionary(locale);
   const feedbackDescription = locale === 'ko' ? `${title} 게임을 더 재미있게 만드는 아이디어를 알려주세요.` : `Tell us how to make ${title} even more fun.`;
@@ -140,6 +141,18 @@ export function GameActionsClient({ gameId, title, initialLikeCount, initialDisl
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [feedbackOpen, reportOpen]);
+
+  useEffect(() => {
+    if (!shareStatus) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setShareStatus(null);
+    }, 2200);
+
+    return () => window.clearTimeout(timer);
+  }, [shareStatus]);
 
   const submitReaction = async (reaction: Reaction) => {
     if (pendingReaction) return;
@@ -225,7 +238,7 @@ export function GameActionsClient({ gameId, title, initialLikeCount, initialDisl
     }
 
     setSharePending(true);
-    setStatus(null);
+    setShareStatus(null);
 
     try {
       const shareUrl = window.location.href;
@@ -247,9 +260,9 @@ export function GameActionsClient({ gameId, title, initialLikeCount, initialDisl
         }
       }
 
-      setStatus(shareDone);
+      setShareStatus(shareDone);
     } catch {
-      setStatus(shareFailed);
+      setShareStatus(shareFailed);
     } finally {
       setSharePending(false);
     }
@@ -272,10 +285,13 @@ export function GameActionsClient({ gameId, title, initialLikeCount, initialDisl
           <ActionIcon type="FEEDBACK" />
           <span className="sr-only">{t.game.feedbackTitle}</span>
         </ActionButton>
-        <ActionButton label={shareTitle} disabled={sharePending} onClick={() => void shareGame()}>
-          <ActionIcon type="SHARE" />
-          <span className="sr-only">{shareTitle}</span>
-        </ActionButton>
+        <div className="game-share-action">
+          <ActionButton label={shareTitle} disabled={sharePending} onClick={() => void shareGame()}>
+            <ActionIcon type="SHARE" />
+            <span className="sr-only">{shareTitle}</span>
+          </ActionButton>
+          {shareStatus ? <p className="small-copy game-status-inline game-share-status">{shareStatus}</p> : null}
+        </div>
         <ActionButton label={reportTitle} onClick={() => setReportOpen((value) => !value)}>
           <ActionIcon type="REPORT" />
           <span className="sr-only">{reportTitle}</span>

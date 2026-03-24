@@ -1,6 +1,6 @@
 import type { Locale } from '@/lib/i18n';
 
-export const AI_CREATE_PROGRESS_STEP_DELAYS = [8000, 26000, 52000, 78000] as const;
+export const AI_CREATE_PROGRESS_STEP_DELAYS = [6400, 20800, 41600, 62400] as const;
 
 export function getAiCreateProgressCopy(locale: Locale) {
   if (locale === 'ko') {

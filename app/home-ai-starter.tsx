@@ -6,6 +6,7 @@ import { AiProgressCard } from '@/components/ai/ai-progress-card';
 import { PointShortageDialog } from '@/components/points/point-shortage-dialog';
 import { AI_CREATE_PROGRESS_STEP_DELAYS, getAiCreateProgressCopy } from '@/lib/ai/create-progress';
 import { buildAiDraftLaunchPath } from '@/lib/ai/home-entry';
+import { getDefaultAiModel, getDefaultAiModelId } from '@/lib/ai/model-selection';
 import type { Locale } from '@/lib/i18n';
 
 type HomeAiModel = {
@@ -49,7 +50,7 @@ function tx(locale: Locale, ko: string, en: string) {
 export function HomeAiStarter({ locale, models, isLoggedIn, pointBalance }: Props) {
   const router = useRouter();
   const [prompt, setPrompt] = useState('');
-  const [modelId, setModelId] = useState(models[0]?.id ?? '');
+  const [modelId, setModelId] = useState(getDefaultAiModelId(models));
   const [homePointBalance, setHomePointBalance] = useState<number | null>(pointBalance);
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -59,15 +60,25 @@ export function HomeAiStarter({ locale, models, isLoggedIn, pointBalance }: Prop
   const [shortageDialogOpen, setShortageDialogOpen] = useState(false);
   const [shortageRequiredPoints, setShortageRequiredPoints] = useState(0);
   const [isPending, startTransition] = useTransition();
-  const selectedModel = useMemo(() => models.find((model) => model.id === modelId) ?? models[0] ?? null, [modelId, models]);
+  const selectedModel = useMemo(() => models.find((model) => model.id === modelId) ?? getDefaultAiModel(models), [modelId, models]);
   const trimmedPrompt = prompt.trim();
   const canContinue = trimmedPrompt.length >= 8 && Boolean(selectedModel) && !isPending && !isCreating;
-  const balanceValue = typeof homePointBalance === 'number' ? `${homePointBalance}P` : tx(locale, '로그인 후', 'After login');
+  const balanceValue = typeof homePointBalance === 'number' ? `${homePointBalance}P` : tx(locale, '로그인 후 확인', 'After login');
   const aiProgressCopy = getAiCreateProgressCopy(locale);
 
   useEffect(() => {
     setHomePointBalance(pointBalance);
   }, [pointBalance]);
+
+  useEffect(() => {
+    setModelId((current) => {
+      if (current && models.some((model) => model.id === current)) {
+        return current;
+      }
+
+      return getDefaultAiModelId(models);
+    });
+  }, [models]);
 
   useEffect(() => {
     if (!isCreating) {
@@ -280,15 +291,15 @@ export function HomeAiStarter({ locale, models, isLoggedIn, pointBalance }: Prop
 
           {error ? <p className="error-text">{error}</p> : null}
 
-          <p className="small-copy home-ai-starter-helper">
-            {isCreating
-              ? tx(locale, '지금 이 화면에서 진행상황을 계속 보여드릴게요.', 'We will keep showing the progress here while the game is being made.')
-              : createdGame
+          {!isCreating ? (
+            <p className="small-copy home-ai-starter-helper">
+              {createdGame
                 ? tx(locale, '초안 게임이 준비되었어요. 원하면 바로 내 게임으로 이동할 수 있어요.', 'Your draft is ready. You can move to My Games whenever you want.')
                 : trimmedPrompt.length >= 8
                   ? tx(locale, '좋아요. 이 화면에서 바로 초안 게임 만들기를 시작할 수 있어요.', 'Nice. You can start building a draft game right here.')
                   : tx(locale, '8자 이상 적으면 바로 만들기를 시작할 수 있어요.', 'Write at least 8 characters to start creating right away.')}
-          </p>
+            </p>
+          ) : null}
         </form>
       </section>
 

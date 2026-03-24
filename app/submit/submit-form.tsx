@@ -6,6 +6,7 @@ import { AiModelCompactPanel } from '@/app/ai-model-compact-panel';
 import { AiProgressCard } from '@/components/ai/ai-progress-card';
 import { PointShortageDialog } from '@/components/points/point-shortage-dialog';
 import { AI_CREATE_PROGRESS_STEP_DELAYS, getAiCreateProgressCopy } from '@/lib/ai/create-progress';
+import { getDefaultAiModel, getDefaultAiModelId } from '@/lib/ai/model-selection';
 import type { Locale } from '@/lib/i18n';
 
 type CreationMode = 'ai' | 'manual';
@@ -217,7 +218,7 @@ export default function SubmitForm({
   const manualThumbnailInputRef = useRef<HTMLInputElement>(null);
 
   const activeSlug = mode === 'ai' ? aiSlug : manualSlug;
-  const selectedAiModel = useMemo(() => aiModels.find((model) => model.id === aiModelId) ?? aiModels[0] ?? null, [aiModelId, aiModels]);
+  const selectedAiModel = useMemo(() => aiModels.find((model) => model.id === aiModelId) ?? getDefaultAiModel(aiModels), [aiModelId, aiModels]);
   const aiPointCost = selectedAiModel?.pointCostCreate ?? 0;
   const aiPointShortage = aiPointCost > pointBalance;
   const isAiPublishing = mode === 'ai' && isPublishing;
@@ -249,7 +250,7 @@ export default function SubmitForm({
           }
 
           const requestedModel = models.find((model) => model.id === initialAiModelId);
-          return requestedModel?.id ?? models[0]?.id ?? '';
+          return requestedModel?.id ?? getDefaultAiModelId(models);
         });
       } catch (cause) {
         if (!cancelled) {

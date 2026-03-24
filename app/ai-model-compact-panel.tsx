@@ -1,5 +1,6 @@
 'use client';
 
+import { getDefaultAiModel } from '@/lib/ai/model-selection';
 import type { Locale } from '@/lib/i18n';
 
 type AiModelOption = {
@@ -37,7 +38,7 @@ export function AiModelCompactPanel({
   onChange,
   shortageCopy
 }: Props) {
-  const activeModel = models.find((model) => model.id === modelId) ?? models[0] ?? null;
+  const activeModel = models.find((model) => model.id === modelId) ?? getDefaultAiModel(models);
 
   return (
     <section className="status-card ai-compact-card">

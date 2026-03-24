@@ -1132,6 +1132,17 @@ body.game-fullscreen-active .site-footer {
   flex-wrap: wrap;
 }
 
+.game-share-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.game-share-status {
+  min-height: 18px;
+}
+
 .icon-action {
   min-width: auto;
   padding: 0 12px;

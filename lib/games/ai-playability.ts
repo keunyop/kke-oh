@@ -23,6 +23,9 @@ type HarnessState = {
   submittedScores: number[];
   keyboardListenerCount: number;
   pointerListenerCount: number;
+  timerRegistrationCount: number;
+  timerExecutionCount: number;
+  clickedStartButtons: number;
 };
 
 export type AiGamePlayabilityResult = {
@@ -30,6 +33,16 @@ export type AiGamePlayabilityResult = {
   animationFrameRequests: number;
   canvasContextRequests: number;
   submittedScores: number[];
+};
+
+type PlayabilitySnapshot = {
+  animationFrameRequests: number;
+  canvasContextRequests: number;
+  keyboardListenerCount: number;
+  pointerListenerCount: number;
+  timerRegistrationCount: number;
+  timerExecutionCount: number;
+  submittedScoreCount: number;
 };
 
 export class AiGamePlayabilityError extends Error {
@@ -135,6 +148,11 @@ class ElementStub extends EventTargetStub {
     super();
     this.tagName = tagName.toUpperCase();
     this.ownerDocument = ownerDocument;
+  }
+
+  override addEventListener(type: string, listener: EventListener) {
+    trackListenerRegistration(this.ownerDocument.state, type);
+    super.addEventListener(type, listener);
   }
 
   get id() {
@@ -443,6 +461,48 @@ function stripHtml(value: string) {
   return value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function trackListenerRegistration(state: HarnessState, type: string) {
+  if (/^key/i.test(type)) {
+    state.keyboardListenerCount += 1;
+  }
+
+  if (/^(pointer|mouse|touch|click)/i.test(type)) {
+    state.pointerListenerCount += 1;
+  }
+}
+
+function getPlayabilitySnapshot(state: HarnessState): PlayabilitySnapshot {
+  return {
+    animationFrameRequests: state.animationFrameRequests,
+    canvasContextRequests: state.canvasContextRequests,
+    keyboardListenerCount: state.keyboardListenerCount,
+    pointerListenerCount: state.pointerListenerCount,
+    timerRegistrationCount: state.timerRegistrationCount,
+    timerExecutionCount: state.timerExecutionCount,
+    submittedScoreCount: state.submittedScores.length
+  };
+}
+
+function hasStrongGameplayEvidence(snapshot: PlayabilitySnapshot) {
+  const loopReady = snapshot.animationFrameRequests > 0 || snapshot.timerRegistrationCount > 0 || snapshot.timerExecutionCount > 0;
+  const interactionReady = snapshot.keyboardListenerCount > 0 || snapshot.pointerListenerCount > 0;
+  const presentationReady = snapshot.canvasContextRequests > 0 || snapshot.submittedScoreCount > 0;
+
+  return loopReady && (interactionReady || presentationReady);
+}
+
+function snapshotChanged(before: PlayabilitySnapshot, after: PlayabilitySnapshot) {
+  return (
+    after.animationFrameRequests > before.animationFrameRequests ||
+    after.canvasContextRequests > before.canvasContextRequests ||
+    after.keyboardListenerCount > before.keyboardListenerCount ||
+    after.pointerListenerCount > before.pointerListenerCount ||
+    after.timerRegistrationCount > before.timerRegistrationCount ||
+    after.timerExecutionCount > before.timerExecutionCount ||
+    after.submittedScoreCount > before.submittedScoreCount
+  );
+}
+
 function createStorage() {
   const store = new Map<string, string>();
 
@@ -487,7 +547,10 @@ function createSmokeHarness(html: string) {
     canvasContextRequests: 0,
     submittedScores: [],
     keyboardListenerCount: 0,
-    pointerListenerCount: 0
+    pointerListenerCount: 0,
+    timerRegistrationCount: 0,
+    timerExecutionCount: 0,
+    clickedStartButtons: 0
   };
   const document = new DocumentStub(state);
   document.populateFromHtml(html);
@@ -496,18 +559,6 @@ function createSmokeHarness(html: string) {
   let nextAnimationFrameId = 1;
   const timers = new Map<number, TimerEntry>();
   const animationFrames = new Map<number, FrameRequestCallback>();
-
-  function wrapListenerRegistration(target: EventTargetStub, type: string) {
-    if (/^key/i.test(type)) {
-      state.keyboardListenerCount += 1;
-    }
-
-    if (/^(pointer|mouse|touch|click)/i.test(type)) {
-      state.pointerListenerCount += 1;
-    }
-
-    return target;
-  }
 
   const localStorage = createStorage();
   const sessionStorage = createStorage();
@@ -564,6 +615,7 @@ function createSmokeHarness(html: string) {
       animationFrames.delete(id);
     },
     setTimeout(callback: TimerHandler) {
+      state.timerRegistrationCount += 1;
       const id = nextTimerId++;
       timers.set(id, {
         id,
@@ -580,6 +632,7 @@ function createSmokeHarness(html: string) {
       }
     },
     setInterval(callback: TimerHandler) {
+      state.timerRegistrationCount += 1;
       const id = nextTimerId++;
       timers.set(id, {
         id,
@@ -656,7 +709,7 @@ function createSmokeHarness(html: string) {
   const originalWindowDispatchEvent = windowTarget.dispatchEvent.bind(windowTarget);
   const windowObject = Object.assign(windowTarget, sandbox, {
     addEventListener(type: string, listener: EventListener) {
-      wrapListenerRegistration(windowTarget, type);
+      trackListenerRegistration(state, type);
       originalWindowAddEventListener(type, listener);
     },
     removeEventListener(type: string, listener: EventListener) {
@@ -668,7 +721,7 @@ function createSmokeHarness(html: string) {
   });
 
   document.addEventListener = function addDocumentListener(type: string, listener: EventListener) {
-    wrapListenerRegistration(document, type);
+    trackListenerRegistration(state, type);
     originalDocumentAddEventListener(type, listener);
   };
 
@@ -698,6 +751,7 @@ function createSmokeHarness(html: string) {
         }
 
         entry.callback();
+        state.timerExecutionCount += 1;
         processed += 1;
 
         if (!entry.repeat || processed >= MAX_FLUSHED_TIMERS) {
@@ -721,8 +775,9 @@ function createSmokeHarness(html: string) {
     },
     clickLikelyStartButtons() {
       const buttons = document.querySelectorAll('button');
-      const candidates = buttons.filter((button) => /(start|play|go|시작|게임 시작)/i.test(button.textContent));
+      const candidates = buttons.filter((button) => /(start|play|go|begin|retry|restart|\uC2DC\uC791|\uD50C\uB808\uC774|\uB2E4\uC2DC|\uC7AC\uC2DC\uC791)/i.test(button.textContent));
       for (const button of candidates) {
+        state.clickedStartButtons += 1;
         button.click();
       }
     }
@@ -765,21 +820,28 @@ export function assertAiGameHtmlPlayable(html: string): AiGamePlayabilityResult 
     const windowObject = harness.sandbox.window as EventTargetStub;
     harness.document.dispatchEvent({ type: 'DOMContentLoaded', target: harness.document, currentTarget: harness.document });
     windowObject.dispatchEvent({ type: 'load', target: windowObject, currentTarget: windowObject });
+    harness.flushTimers();
+    harness.flushAnimationFrames();
+    const preClickSnapshot = getPlayabilitySnapshot(harness.state);
     harness.clickLikelyStartButtons();
     harness.flushTimers();
     harness.flushAnimationFrames();
+    const postClickSnapshot = getPlayabilitySnapshot(harness.state);
+
+    if (harness.state.clickedStartButtons > 0 && !hasStrongGameplayEvidence(preClickSnapshot) && !hasStrongGameplayEvidence(postClickSnapshot)) {
+      throw new AiGamePlayabilityError('Generated game shows a start button but does not begin playable behavior after it is clicked.');
+    }
+
+    if (harness.state.clickedStartButtons > 0 && !hasStrongGameplayEvidence(preClickSnapshot) && !snapshotChanged(preClickSnapshot, postClickSnapshot)) {
+      throw new AiGamePlayabilityError('Generated game start controls do not trigger any gameplay initialization.');
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown runtime error.';
     throw new AiGamePlayabilityError(`Generated game failed the runtime smoke test: ${message}`);
   }
 
-  if (
-    harness.state.animationFrameRequests === 0 &&
-    harness.state.canvasContextRequests === 0 &&
-    harness.state.keyboardListenerCount === 0 &&
-    harness.state.pointerListenerCount === 0
-  ) {
-    throw new AiGamePlayabilityError('Generated game did not initialize any visible gameplay behavior.');
+  if (!hasStrongGameplayEvidence(getPlayabilitySnapshot(harness.state))) {
+    throw new AiGamePlayabilityError('Generated game did not initialize a real playable loop or input flow.');
   }
 
   return {
@@ -789,3 +851,5 @@ export function assertAiGameHtmlPlayable(html: string): AiGamePlayabilityResult 
     submittedScores: [...harness.state.submittedScores]
   };
 }
+
+

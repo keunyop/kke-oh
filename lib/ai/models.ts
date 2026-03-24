@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/db/supabase';
+import { getDefaultAiModelId } from '@/lib/ai/model-selection';
 
 export type AiModelCatalogItem = {
   id: string;
@@ -112,9 +113,11 @@ export async function listAiModels(): Promise<AiModelCatalogItem[]> {
 
 export async function getAiModelById(modelId: string): Promise<AiModelCatalogItem> {
   const models = await listAiModels();
+  const defaultModelId = getDefaultAiModelId(models);
   const model =
     models.find((item) => item.id === modelId && item.active) ??
-    models[0] ??
+    models.find((item) => item.id === defaultModelId) ??
+    DEFAULT_AI_MODELS.find((item) => item.id === getDefaultAiModelId(DEFAULT_AI_MODELS)) ??
     DEFAULT_AI_MODELS[0];
 
   if (!model) {
