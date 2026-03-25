@@ -410,3 +410,9 @@ KKE-OH�� ���̵��� ���� ����� �÷����
 4. ����� ����Ʈ�� ������ ���� ������ ���� �ý��� ����
 5. AI �� ����, ����Ʈ ���, �����Ȳ ǥ�ÿ� ���� ������ ������ ��Ȯ�� AI ���� UX ����
 
+## 8. 2026-03-25 Admin User Point Update
+
+- The admin area now includes a dedicated user point management menu alongside game moderation.
+- Admins can review the signed-up user list, current point balance, and latest point update timestamp in one screen.
+- Admins can edit each user's target point balance directly from the admin screen.
+- Point changes made by admins must keep the point ledger history so later audits can trace who changed what balance.

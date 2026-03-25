@@ -917,3 +917,10 @@ Return ONLY a single HTML file.
 
 �� ���� �޿�� �۾� ����� ���� �������� �����Ѵ�.
 
+## 15. 2026-03-25 Admin User Point Management
+
+- `app/admin/page.tsx` now loads both admin game data and admin user point data for one combined operations page.
+- `app/admin/admin-dashboard.tsx` now provides a tab-style admin menu for game moderation and user point management.
+- `lib/admin/service.ts` owns admin user list loading, target balance validation, and admin point balance updates.
+- `app/api/admin/users/route.ts` returns the admin user list with point balances, and `app/api/admin/users/[id]/points/route.ts` updates a selected user's balance.
+- `supabase/migrations/202603250001_admin_user_points.sql` adds `admin_set_user_point_balance(...)` so exact balance updates can be applied transactionally while keeping ledger records.
