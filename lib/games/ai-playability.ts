@@ -7,6 +7,10 @@ const DEFAULT_CANVAS_WIDTH = 960;
 const DEFAULT_CANVAS_HEIGHT = 540;
 const DEFAULT_VIEWPORT_WIDTH = 1280;
 const DEFAULT_VIEWPORT_HEIGHT = 720;
+const SCORE_UI_HINT_REGEX = /score|scores|points?|hud|stats?|점수|스코어|최종점수/i;
+const NON_GAMEPLAY_UI_HINT_REGEX = /\b(game-?over|start|title|menu|modal|dialog|tutorial|result|overlay|screen)\b|시작|튜토리얼|게임오버/i;
+const POSITIONED_OVERLAY_REGEX = /(?:^|[;{\s])position\s*:\s*(absolute|fixed)\b/i;
+const DISPLAY_NONE_REGEX = /(?:^|[;{\s])display\s*:\s*none\b/i;
 
 type EventListener = (event?: Record<string, unknown>) => void;
 
@@ -541,6 +545,56 @@ function extractInlineScripts(html: string): string[] {
   return scripts;
 }
 
+function hasTopLeftOverlayPosition(styleText: string) {
+  if (!POSITIONED_OVERLAY_REGEX.test(styleText) || DISPLAY_NONE_REGEX.test(styleText)) {
+    return false;
+  }
+
+  const anchors = [...styleText.matchAll(/(?:^|[;{\s])(top|left)\s*:\s*(?:0|[1-2]?\d(?:\.\d+)?(?:px|rem|em|vh|vw|svh|svw|dvh|dvw|%))\b/gi)].map(
+    (match) => match[1]?.toLowerCase()
+  );
+
+  return anchors.includes('top') && anchors.includes('left');
+}
+
+function looksLikeGameplayScoreUi(value: string) {
+  return SCORE_UI_HINT_REGEX.test(value) && !NON_GAMEPLAY_UI_HINT_REGEX.test(value);
+}
+
+function hasOverlappingTopLeftScoreHud(html: string) {
+  for (const styleMatch of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
+    const cssText = styleMatch[1] ?? '';
+
+    for (const ruleMatch of cssText.matchAll(/([^{}]+)\{([^{}]+)\}/g)) {
+      const selector = ruleMatch[1]?.trim() ?? '';
+      const declarations = ruleMatch[2] ?? '';
+
+      if (!selector || !looksLikeGameplayScoreUi(selector)) {
+        continue;
+      }
+
+      if (hasTopLeftOverlayPosition(declarations)) {
+        return true;
+      }
+    }
+  }
+
+  for (const elementMatch of html.matchAll(/<(div|section|aside|header|span|p)\b([^>]*)>/gi)) {
+    const attributes = elementMatch[2] ?? '';
+    const styleMatch = attributes.match(/\sstyle=(["'])([\s\S]*?)\1/i);
+    if (!styleMatch?.[2] || !hasTopLeftOverlayPosition(styleMatch[2])) {
+      continue;
+    }
+
+    const snippet = html.slice(elementMatch.index ?? 0, (elementMatch.index ?? 0) + 240);
+    if (looksLikeGameplayScoreUi(`${attributes} ${snippet}`)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function createSmokeHarness(html: string) {
   const state: HarnessState = {
     animationFrameRequests: 0,
@@ -796,6 +850,10 @@ export function assertAiGameHtmlPlayable(html: string): AiGamePlayabilityResult 
 
   if (!hasGameplaySignals(trimmedHtml)) {
     throw new AiGamePlayabilityError('Generated HTML does not include a recognizable game surface or loop.');
+  }
+
+  if (hasOverlappingTopLeftScoreHud(trimmedHtml)) {
+    throw new AiGamePlayabilityError('Generated game places the score HUD over the top-left play area. Keep score UI in a reserved bar/panel or pad the playfield so gameplay stays visible.');
   }
 
   const scripts = extractInlineScripts(trimmedHtml);

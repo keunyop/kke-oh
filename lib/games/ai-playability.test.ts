@@ -122,3 +122,69 @@ test('assertAiGameHtmlPlayable passes when a start button boots the playable loo
   assert.ok(result.animationFrameRequests >= 1);
   assert.ok(result.canvasContextRequests >= 1);
 });
+
+test('assertAiGameHtmlPlayable fails when score HUD overlays the top-left play area', () => {
+  assert.throws(
+    () =>
+      assertAiGameHtmlPlayable(`
+        <html>
+          <head>
+            <style>
+              #scoreBoard {
+                position: absolute;
+                top: 12px;
+                left: 12px;
+                padding: 10px 14px;
+              }
+            </style>
+          </head>
+          <body>
+            <div id="scoreBoard">Score: <b>0</b></div>
+            <canvas id="game"></canvas>
+            <script>
+              const canvas = document.getElementById('game');
+              canvas.getContext('2d');
+              requestAnimationFrame(() => {});
+            </script>
+          </body>
+        </html>
+      `),
+    /score hud|top-left play area|playfield/i
+  );
+});
+
+test('assertAiGameHtmlPlayable passes when score UI lives in a reserved top bar', () => {
+  const result = assertAiGameHtmlPlayable(`
+    <html>
+      <head>
+        <style>
+          .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="topbar">
+          <div>Score: <b>0</b></div>
+          <button>Start</button>
+        </div>
+        <canvas id="game"></canvas>
+        <script>
+          const canvas = document.getElementById('game');
+          const ctx = canvas.getContext('2d');
+          document.querySelector('button').addEventListener('click', () => {
+            requestAnimationFrame(function frame() {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+            });
+          });
+        </script>
+      </body>
+    </html>
+  `);
+
+  assert.ok(result.animationFrameRequests >= 1);
+  assert.ok(result.canvasContextRequests >= 1);
+});
