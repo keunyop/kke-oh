@@ -834,6 +834,39 @@ function createSmokeHarness(html: string) {
         state.clickedStartButtons += 1;
         button.click();
       }
+    },
+    exerciseLikelyGameplayInputs() {
+      const baseEvent = {
+        preventDefault() {},
+        stopPropagation() {}
+      };
+      const keyEvents = [
+        { type: 'keydown', key: 'ArrowLeft', code: 'ArrowLeft' },
+        { type: 'keyup', key: 'ArrowLeft', code: 'ArrowLeft' },
+        { type: 'keydown', key: 'Space', code: 'Space' },
+        { type: 'keyup', key: 'Space', code: 'Space' }
+      ];
+
+      for (const event of keyEvents) {
+        const payload = { ...baseEvent, ...event, target: windowObject, currentTarget: windowObject };
+        windowObject.dispatchEvent(payload);
+        document.dispatchEvent({ ...payload, target: document, currentTarget: document });
+      }
+
+      const pointerTargets = [document.querySelector('canvas'), document.body].filter((target): target is ElementStub => Boolean(target));
+      for (const target of pointerTargets) {
+        for (const type of ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click']) {
+          target.dispatchEvent({
+            ...baseEvent,
+            type,
+            button: 0,
+            clientX: Math.round(target.width / 2),
+            clientY: Math.round(target.height / 2),
+            target,
+            currentTarget: target
+          });
+        }
+      }
     }
   };
 }
@@ -880,8 +913,12 @@ export function assertAiGameHtmlPlayable(html: string): AiGamePlayabilityResult 
     windowObject.dispatchEvent({ type: 'load', target: windowObject, currentTarget: windowObject });
     harness.flushTimers();
     harness.flushAnimationFrames();
+    harness.exerciseLikelyGameplayInputs();
+    harness.flushTimers();
+    harness.flushAnimationFrames();
     const preClickSnapshot = getPlayabilitySnapshot(harness.state);
     harness.clickLikelyStartButtons();
+    harness.exerciseLikelyGameplayInputs();
     harness.flushTimers();
     harness.flushAnimationFrames();
     const postClickSnapshot = getPlayabilitySnapshot(harness.state);

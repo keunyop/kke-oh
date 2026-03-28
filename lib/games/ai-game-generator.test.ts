@@ -32,12 +32,26 @@ const EXPECTED_CREATE_SYSTEM_PROMPT = [
   '- Must run offline',
   '',
   SECTION_BAR,
+  '# SILENT MINI-PLAN (MANDATORY)',
+  SECTION_BAR,
+  'Before writing code, silently lock these decisions and keep them consistent:',
+  '- Player goal',
+  '- Core gameplay loop',
+  '- Controls and how they are taught on screen',
+  '- Fail state (and win state if the concept needs one)',
+  '- Difficulty ramp',
+  '- Visual direction',
+  '- UI layout that keeps gameplay visible',
+  '',
+  SECTION_BAR,
   '# REQUIRED GAME STRUCTURE',
   SECTION_BAR,
   'Every game MUST include:',
   '',
   '1. Start Screen',
   '   - Title',
+  '   - One-line objective',
+  '   - One-line control hint',
   '   - Start button',
   '',
   '2. Game Loop',
@@ -52,6 +66,7 @@ const EXPECTED_CREATE_SYSTEM_PROMPT = [
   '   - Movement',
   '   - Collision detection',
   '   - Score tracking',
+  '   - Immediate feedback for success or danger',
   '',
   '5. Difficulty Scaling',
   '   - Game becomes harder over time',
@@ -59,10 +74,19 @@ const EXPECTED_CREATE_SYSTEM_PROMPT = [
   '6. Game Over State',
   '   - Clear fail condition',
   '   - Final score display',
+  '   - Clear restart call-to-action',
   '',
   '7. Restart System',
   '   - Restart button',
   '   - Fully reset game state',
+  '',
+  SECTION_BAR,
+  '# PLATFORM INTEGRATION',
+  SECTION_BAR,
+  '- This game runs inside KKE-OH',
+  '- If window.kkeohSubmitScore exists, call it with the final numeric score when a run ends',
+  '- Immediately before any restart, reset, or new-game action that clears the final score, call window.kkeohSubmitScore(finalScore) if available',
+  '- The submitted score must match the final score shown on screen',
   '',
   SECTION_BAR,
   '# GAME DESIGN PRINCIPLES',
@@ -73,6 +97,9 @@ const EXPECTED_CREATE_SYSTEM_PROMPT = [
   '- Increasing challenge over time',
   '- Avoid unnecessary complexity',
   '- Prioritize smooth gameplay over visual polish',
+  '- Keep the primary play area unobstructed by HUD overlays',
+  '- Put score and status UI in a reserved top bar, side panel, or padded area',
+  '- Make the first 10 seconds understandable without trial and error',
   '',
   SECTION_BAR,
   '# QUALITY CONTROL (MANDATORY)',
@@ -80,10 +107,12 @@ const EXPECTED_CREATE_SYSTEM_PROMPT = [
   'Before finalizing output, internally verify:',
   '- No syntax errors',
   '- Game runs without crashing',
+  '- Core input handlers do not crash when the player presses keys or clicks/taps',
   '- Restart works correctly',
   '- Score updates correctly',
   '- Difficulty actually increases',
   '- Player can lose (fail condition exists)',
+  '- If the game tracks score, the KKE-OH score bridge is wired safely',
   '',
   'If any of the above is not satisfied, FIX IT before returning.',
   '',
@@ -98,7 +127,7 @@ test('buildCreateGameSystemPrompt matches the documented final prompt exactly', 
   assert.equal(buildCreateGameSystemPrompt(), EXPECTED_CREATE_SYSTEM_PROMPT);
 });
 
-test('buildCreateGameUserPrompt uses game description instead of spec and rules sections', () => {
+test('buildCreateGameUserPrompt includes the lightweight implementation plan and platform rules', () => {
   const prompt = buildCreateGameUserPrompt({
     gameDescription: 'Make a snowboarding game with big jumps and coins.'
   });
@@ -106,13 +135,18 @@ test('buildCreateGameUserPrompt uses game description instead of spec and rules 
   assert.match(prompt, /^Create a complete playable HTML5 game based on the following game description\./);
   assert.match(prompt, /# GAME DESCRIPTION/);
   assert.match(prompt, /Make a snowboarding game with big jumps and coins\./);
+  assert.match(prompt, /# IMPLEMENTATION PLAN/);
+  assert.match(prompt, /player goal/);
+  assert.match(prompt, /reserved HUD layout that does not cover the main play area/);
+  assert.match(prompt, /# PLATFORM RULES/);
+  assert.match(prompt, /window\.kkeohSubmitScore\(score\)/);
+  assert.match(prompt, /submitted score must match the final score shown on screen/i);
   assert.match(prompt, /# UI REQUIREMENTS/);
+  assert.match(prompt, /Teach the controls on screen before play begins/);
   assert.match(prompt, /# OUTPUT/);
   assert.doesNotMatch(prompt, /# GAME SPEC/);
   assert.doesNotMatch(prompt, /# GAME RULES/);
   assert.doesNotMatch(prompt, /# EXTRA \(OPTIONAL\)/);
-  assert.doesNotMatch(prompt, /LEADERBOARD/);
-  assert.doesNotMatch(prompt, /window\.kkeohSubmitScore/);
 });
 
 test('buildEditGameSystemPrompt is separate from create prompt and focuses on updating existing games', () => {
@@ -120,11 +154,15 @@ test('buildEditGameSystemPrompt is separate from create prompt and focuses on up
 
   assert.match(prompt, /updating existing browser games/);
   assert.match(prompt, /apply the requested changes/);
+  assert.match(prompt, /# SILENT MINI-PLAN \(MANDATORY\)/);
+  assert.match(prompt, /# PLATFORM INTEGRATION/);
+  assert.match(prompt, /window\.kkeohSubmitScore\(finalScore\)/);
+  assert.match(prompt, /Put score and status UI in a reserved top bar, side panel, or padded area/);
   assert.match(prompt, /Return the full replacement HTML for the game/);
   assert.notEqual(prompt, buildCreateGameSystemPrompt());
 });
 
-test('buildEditGameUserPrompt includes existing game context and requested changes', () => {
+test('buildEditGameUserPrompt includes existing game context, requested changes, update-plan guidance, and platform rules', () => {
   const prompt = buildEditGameUserPrompt({
     request: 'Make the obstacles easier and add a bigger score board.',
     existingGameTitle: 'Star Baker',
@@ -140,6 +178,10 @@ test('buildEditGameUserPrompt includes existing game context and requested chang
   assert.match(prompt, /<canvas><\/canvas>/);
   assert.match(prompt, /# REQUESTED CHANGES/);
   assert.match(prompt, /Make the obstacles easier and add a bigger score board\./);
+  assert.match(prompt, /# UPDATE PLAN/);
+  assert.match(prompt, /reserved HUD layout that does not cover the main play area/);
+  assert.match(prompt, /# PLATFORM RULES/);
+  assert.match(prompt, /window\.kkeohSubmitScore\(score\)/);
   assert.match(prompt, /# EDITING RULES/);
   assert.match(prompt, /Return the FULL updated HTML, not a diff or partial snippet/);
   assert.match(prompt, /# OUTPUT/);

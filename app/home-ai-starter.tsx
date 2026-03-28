@@ -180,8 +180,8 @@ export function HomeAiStarter({ locale, models, isLoggedIn, pointBalance }: Prop
           <p>
             {tx(
               locale,
-              '캐릭터, 목표, 간단한 조작만 적어도 괜찮아요. 여기에서 바로 AI 초안 게임을 만들 수 있어요.',
-              'A character, a goal, and simple controls are enough. We can turn that into a draft game right here.'
+              '캐릭터, 목표, 조작, 게임 오버 조건 정도만 적어도 괜찮아요. 여기에서 바로 AI 초안 게임을 만들 수 있어요.',
+              'A character, a goal, controls, and a fail condition are enough. We can turn that into a draft game right here.'
             )}
           </p>
         </div>
@@ -200,8 +200,8 @@ export function HomeAiStarter({ locale, models, isLoggedIn, pointBalance }: Prop
               maxLength={1200}
               placeholder={tx(
                 locale,
-                '예시: 우주에서 별을 피하고 코인을 모으는 쉬운 게임을 만들어줘.',
-                'Example: Make an easy space game where players dodge stars and collect coins.'
+                '예시: 우주선을 좌우로 움직여 별을 피하고 코인을 모으는 쉬운 게임을 만들어줘. 부딪히면 게임 오버.',
+                'Example: Make an easy space game where players move left and right, dodge stars, collect coins, and lose when they crash.'
               )}
             />
           </label>

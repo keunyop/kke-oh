@@ -761,9 +761,19 @@ export default function SubmitForm({
               onChange={(event) => setAiPrompt(event.target.value)}
               rows={5}
               maxLength={1200}
-              placeholder={tx(locale, 'Example: Make an easy space game where players dodge stars and collect coins.', 'Example: Make an easy space game where players dodge stars and collect coins.')}
+              placeholder={tx(
+                locale,
+                '예시: 우주선을 좌우로 움직여 별을 피하고 코인을 모으는 쉬운 게임. 부딪히면 게임 오버.',
+                'Example: Make an easy space game where players move left and right, dodge stars, collect coins, and lose when they crash.'
+              )}
             />
-            <span className="small-copy upload-input-hint">{tx(locale, 'Short is okay. A character, a goal, and simple controls are enough to start.', 'Short is okay. A character, a goal, and simple controls are enough to start.')}</span>
+            <span className="small-copy upload-input-hint">
+              {tx(
+                locale,
+                '짧아도 괜찮아요. 캐릭터, 목표, 조작, 게임 오버 조건 정도만 적어도 시작할 수 있어요.',
+                'Short is okay. A character, a goal, controls, and a fail condition are enough to start.'
+              )}
+            </span>
           </label>
 
           <AiModelCompactPanel

@@ -123,6 +123,28 @@ test('assertAiGameHtmlPlayable passes when a start button boots the playable loo
   assert.ok(result.canvasContextRequests >= 1);
 });
 
+test('assertAiGameHtmlPlayable fails when gameplay input handlers crash on key press', () => {
+  assert.throws(
+    () =>
+      assertAiGameHtmlPlayable(`
+        <html>
+          <body>
+            <canvas id="game"></canvas>
+            <script>
+              const canvas = document.getElementById('game');
+              canvas.getContext('2d');
+              window.addEventListener('keydown', () => {
+                throw new Error('input broke');
+              });
+              requestAnimationFrame(() => {});
+            </script>
+          </body>
+        </html>
+      `),
+    /runtime smoke test: input broke/i
+  );
+});
+
 test('assertAiGameHtmlPlayable fails when score HUD overlays the top-left play area', () => {
   assert.throws(
     () =>

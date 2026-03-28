@@ -7,13 +7,13 @@ function getHowItWorksCopy(locale: ReturnType<typeof getRequestLocale>) {
   if (locale === 'ko') {
     return {
       title: '사용 방법',
-      steps: ['1. 게임 이름을 적어요.', '2. AI로 만들거나 파일을 올려요.', '3. 준비가 끝나면 바로 게임 주소를 확인해요.']
+      steps: ['1. 게임 아이디어에 목표와 조작을 함께 적어요.', '2. AI로 만들거나 파일을 올려요.', '3. 준비가 끝나면 바로 게임 주소를 확인해요.']
     };
   }
 
   return {
     title: 'How it works',
-    steps: ['1. Pick a game name.', '2. Build it with AI or upload your files.', '3. Your game link appears when it is ready.']
+    steps: ['1. Describe the game idea with a goal and controls.', '2. Build it with AI or upload your files.', '3. Your game link appears when it is ready.']
   };
 }
 
